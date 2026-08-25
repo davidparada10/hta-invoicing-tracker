@@ -60,3 +60,8 @@ See `.env.local.example`:
 npm install
 npm run dev
 ```
+
+## Deployment
+
+Deployed on Vercel, linked to this repository's `main` branch. Environment
+variables above are configured in the Vercel project settings.
