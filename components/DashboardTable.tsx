@@ -14,7 +14,6 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
     return rollups.filter(
       (r) =>
         r.project.name.toLowerCase().includes(q) ||
-        r.project.project_number.toLowerCase().includes(q) ||
         (r.project.address ?? "").toLowerCase().includes(q)
     );
   }, [rollups, search]);
@@ -24,7 +23,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by project name, number, or address..."
+        placeholder="Search by project name or address..."
         className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-72 mb-4"
       />
 
@@ -52,10 +51,9 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                   >
                     {r.project.name}
                   </Link>
-                  <div className="text-xs text-slate-400">
-                    {r.project.project_number}
-                    {r.project.address ? ` · ${r.project.address}` : ""}
-                  </div>
+                  {r.project.address && (
+                    <div className="text-xs text-slate-400">{r.project.address}</div>
+                  )}
                 </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(r.totalRequested)}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(r.totalApproved)}</td>

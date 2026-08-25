@@ -37,10 +37,7 @@ export default async function ProjectDetailPage({
 
         <div className="mt-2 mb-6 flex items-start justify-between flex-wrap gap-2">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              {project.name}{" "}
-              <span className="text-slate-400 font-normal">({project.project_number})</span>
-            </h1>
+            <h1 className="text-2xl font-semibold text-slate-900">{project.name}</h1>
             <p className="text-sm text-slate-500 mt-1">
               {project.address ?? "—"}
               {project.lender ? ` · Lender: ${project.lender}` : ""}

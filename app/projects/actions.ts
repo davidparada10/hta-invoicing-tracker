@@ -14,7 +14,6 @@ export async function updateProject(formData: FormData) {
 
   const payload = {
     name: (formData.get("name") as string) ?? "",
-    project_number: (formData.get("project_number") as string) ?? "",
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
     status: formData.get("status") as string,

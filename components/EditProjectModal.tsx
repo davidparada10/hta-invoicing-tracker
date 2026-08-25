@@ -28,19 +28,9 @@ export default function EditProjectModal({ project }: { project: Project }) {
         <form action={handleSubmit} className="space-y-3">
           <input type="hidden" name="id" value={project.id} />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Project name">
-              <input name="name" required defaultValue={project.name} className="input" />
-            </Field>
-            <Field label="Project number">
-              <input
-                name="project_number"
-                required
-                defaultValue={project.project_number}
-                className="input"
-              />
-            </Field>
-          </div>
+          <Field label="Project name">
+            <input name="name" required defaultValue={project.name} className="input" />
+          </Field>
 
           <Field label="Address">
             <input name="address" defaultValue={project.address ?? ""} className="input" />

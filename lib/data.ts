@@ -6,7 +6,7 @@ export async function getProjects(): Promise<Project[]> {
   const { data, error } = await supabase
     .from("inv_projects")
     .select("*")
-    .order("project_number", { ascending: true });
+    .order("name", { ascending: true });
   if (error) throw error;
   return data as Project[];
 }
