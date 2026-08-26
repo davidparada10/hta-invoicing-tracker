@@ -1,4 +1,5 @@
 import { ToolLoopAgent, InferAgentUIMessage } from "ai";
+import { anthropic } from "@ai-sdk/anthropic";
 import { listProjectsTool, getOpenDrawsTool, getProjectDetailsTool } from "@/lib/tools/read-tools";
 import {
   createDrawTool,
@@ -8,7 +9,7 @@ import {
 } from "@/lib/tools/write-tools";
 
 export const htaAgent = new ToolLoopAgent({
-  model: "anthropic/claude-sonnet-5",
+  model: anthropic("claude-sonnet-5"),
   instructions: `You are the assistant built into HTA Construction's Multi-Family Invoice Tracker.
 
 This app tracks owner draws (invoices HTA submits to the lender/owner) across multifamily

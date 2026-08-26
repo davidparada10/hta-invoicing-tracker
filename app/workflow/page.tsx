@@ -170,7 +170,7 @@ export default function WorkflowPage() {
           steps={[
             { icon: "👤", title: "Ask or describe", detail: "\"What's paid on Aneta?\" or \"Add a draw...\"", category: "trigger", edgeLabel: "POST" },
             { icon: "⚡", title: "/api/chat", detail: "createAgentUIStreamResponse", category: "server", edgeLabel: "runs" },
-            { icon: "🤖", title: "htaAgent (ToolLoopAgent)", detail: "lib/agents/hta-agent.ts · Claude via Vercel AI Gateway", category: "ai", edgeLabel: "picks a tool" },
+            { icon: "🤖", title: "htaAgent (ToolLoopAgent)", detail: "lib/agents/hta-agent.ts · Claude via direct Anthropic API", category: "ai", edgeLabel: "picks a tool" },
             { icon: "🔍", title: "Read tool", detail: "listProjects / getOpenDraws / getProjectDetails — auto-runs", category: "server", edgeLabel: "or" },
             { icon: "✋", title: "Write tool proposed", detail: "createDraw / markDrawPaid / createSubInvoice / createBudgetLine", category: "decision", edgeLabel: "Confirm" },
             { icon: "🗄️", title: "Supabase write", detail: "Same tables as the manual forms use", category: "data", edgeLabel: "streams back" },
@@ -222,13 +222,14 @@ export default function WorkflowPage() {
             <Detail term="Database">Supabase Postgres, project &ldquo;hta-multifamily-invoicing&rdquo;</Detail>
             <Detail term="Auth">Single shared passcode (no per-user accounts)</Detail>
             <Detail term="AI">
-              Vercel AI Gateway via OIDC — no API key needed, but the Vercel team needs a
-              credit card on file (Settings → AI Gateway) or every model call fails
+              Direct Anthropic API (@ai-sdk/anthropic) — not the Vercel AI Gateway, so no
+              team billing card is required. Needs its own API key.
             </Detail>
             <Detail term="Required env vars">
               <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_URL</code>,{" "}
               <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>,{" "}
-              <code className="font-mono text-xs">SITE_PASSCODE</code>
+              <code className="font-mono text-xs">SITE_PASSCODE</code>,{" "}
+              <code className="font-mono text-xs">ANTHROPIC_API_KEY</code>
             </Detail>
             <Detail term="Local dev">
               <code className="font-mono text-xs">vercel env pull</code> (per-environment —
