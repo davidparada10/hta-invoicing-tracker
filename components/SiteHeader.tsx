@@ -28,12 +28,17 @@ export default function SiteHeader() {
           <span className="h-6 w-px bg-slate-200" aria-hidden="true" />
           <span className="font-semibold text-slate-900">Multi-Family Invoice Tracker</span>
         </Link>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-slate-500 hover:text-slate-900"
-        >
-          Log out
-        </button>
+        <div className="flex items-center gap-4">
+          <Link href="/help" className="text-sm text-slate-500 hover:text-slate-900">
+            How it works
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-slate-500 hover:text-slate-900"
+          >
+            Log out
+          </button>
+        </div>
       </div>
     </header>
   );
