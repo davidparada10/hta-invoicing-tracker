@@ -15,5 +15,14 @@ export function createServerSupabaseClient() {
 
   return createClient(url, key, {
     auth: { persistSession: false },
+    // Next.js/Vercel cache fetch() responses by default (its Data Cache is
+    // persistent across deployments, so a write from one environment — e.g.
+    // a local dev server — can't invalidate a stale read cached by another,
+    // like production). Every Supabase read is a fetch under the hood, and
+    // this data changes on every write, so opt every request out of that
+    // cache explicitly instead of relying on revalidatePath() to catch it.
+    global: {
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
   });
 }
