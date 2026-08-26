@@ -19,12 +19,8 @@ export default function AddProjectModal() {
       const { id } = await createProject(formData);
       setOpen(false);
       router.push(`/projects/${id}`);
-    } catch (err) {
-      setError(
-        err instanceof Error && err.message.includes("duplicate")
-          ? "A project with that project # already exists."
-          : "Could not create project. Please try again."
-      );
+    } catch {
+      setError("Could not create project. Please try again.");
     }
   }
 
@@ -39,14 +35,9 @@ export default function AddProjectModal() {
 
       <Modal open={open} onClose={() => setOpen(false)} title="Add Project">
         <form action={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Project name">
-              <input name="name" required className="input" />
-            </Field>
-            <Field label="Project #">
-              <input name="project_number" required className="input" />
-            </Field>
-          </div>
+          <Field label="Project name">
+            <input name="name" required className="input" />
+          </Field>
 
           <Field label="Address">
             <input name="address" className="input" />

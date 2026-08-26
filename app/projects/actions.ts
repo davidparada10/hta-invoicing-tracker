@@ -13,7 +13,9 @@ export async function createProject(formData: FormData): Promise<{ id: string }>
 
   const payload = {
     name: (formData.get("name") as string) ?? "",
-    project_number: (formData.get("project_number") as string) ?? "",
+    // No longer collected in the UI — the column is still unique/required
+    // in the database, so generate a value that'll never collide instead.
+    project_number: crypto.randomUUID(),
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
     status: (formData.get("status") as string) || "active",
