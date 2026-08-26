@@ -34,10 +34,8 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               <th className="text-left px-4 py-2">Project</th>
               <th className="text-right px-4 py-2">Paid to Date</th>
               <th className="text-right px-4 py-2">Currently Invoiced</th>
-              <th className="text-right px-4 py-2 text-slate-400">Sub Invoiced</th>
-              <th className="text-right px-4 py-2 text-slate-400">Sub Paid</th>
-              <th className="text-right px-4 py-2 text-slate-400">Sub Outstanding</th>
-              <th className="text-right px-4 py-2 text-slate-400">Retainage Held</th>
+              <th className="text-right px-4 py-2">Project Budget</th>
+              <th className="text-right px-4 py-2">Balance to Complete + Retainage</th>
               <th className="text-left px-4 py-2">Status</th>
             </tr>
           </thead>
@@ -47,13 +45,15 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <td className="px-4 py-2">
                   <Link
                     href={`/projects/${r.project.id}`}
-                    className="font-medium text-slate-900 hover:underline"
+                    className="block -mx-4 -my-2 px-4 py-2"
                   >
-                    {r.project.name}
+                    <span className="font-medium text-slate-900 hover:underline">
+                      {r.project.name}
+                    </span>
+                    {r.project.address && (
+                      <div className="text-xs text-slate-400">{r.project.address}</div>
+                    )}
                   </Link>
-                  {r.project.address && (
-                    <div className="text-xs text-slate-400">{r.project.address}</div>
-                  )}
                 </td>
                 <td className="px-4 py-2 text-right font-medium text-emerald-700">
                   {formatCurrency(r.totalPaidToOwner)}
@@ -61,17 +61,14 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <td className="px-4 py-2 text-right font-medium text-blue-700">
                   {formatCurrency(r.totalOpenToOwner)}
                 </td>
-                <td className="px-4 py-2 text-right text-slate-400">
-                  {formatCurrency(r.totalSubInvoiced)}
+                <td className="px-4 py-2 text-right text-slate-900">
+                  {formatCurrency(r.totalBudget)}
                 </td>
-                <td className="px-4 py-2 text-right text-slate-400">
-                  {formatCurrency(r.totalSubPaid)}
-                </td>
-                <td className="px-4 py-2 text-right text-slate-400">
-                  {formatCurrency(r.totalSubOutstanding)}
-                </td>
-                <td className="px-4 py-2 text-right text-slate-400">
-                  {formatCurrency(r.totalDrawRetainage + r.totalSubRetainage)}
+                <td className="px-4 py-2 text-right">
+                  <div className="text-slate-900">{formatCurrency(r.balanceToComplete)}</div>
+                  <div className="text-xs text-slate-400">
+                    +{formatCurrency(r.totalDrawRetainage + r.totalSubRetainage)} retainage
+                  </div>
                 </td>
                 <td className="px-4 py-2">
                   <span
@@ -88,7 +85,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                   No projects found.
                 </td>
               </tr>

@@ -103,6 +103,13 @@ export async function getAllSubInvoices(): Promise<SubInvoice[]> {
   return data as SubInvoice[];
 }
 
+export async function getAllBudgetLines(): Promise<BudgetLine[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase.from("inv_project_budget_lines").select("*");
+  if (error) throw error;
+  return data as BudgetLine[];
+}
+
 // A draw's outstanding balance: what's been billed but not yet actually
 // received, regardless of status. Catches a draw marked "paid" for less
 // than it requested — the shortfall stays open rather than disappearing.
@@ -144,15 +151,17 @@ export async function getDashboardData(): Promise<{
     totalRetainage: number;
   };
 }> {
-  const [projects, draws, subInvoices] = await Promise.all([
+  const [projects, draws, subInvoices, budgetLines] = await Promise.all([
     getProjects(),
     getAllDraws(),
     getAllSubInvoices(),
+    getAllBudgetLines(),
   ]);
 
   const rollups: ProjectRollup[] = projects.map((project) => {
     const projectDraws = draws.filter((d) => d.project_id === project.id);
     const projectSubInvoices = subInvoices.filter((s) => s.project_id === project.id);
+    const projectBudgetLines = budgetLines.filter((l) => l.project_id === project.id);
 
     const totalRequested = sum(projectDraws.map((d) => d.amount_requested));
     const totalApproved = sum(projectDraws.map((d) => d.amount_approved));
@@ -167,6 +176,9 @@ export async function getDashboardData(): Promise<{
     const totalSubPaid = sum(projectSubInvoices.map((s) => s.amount_paid));
     const totalSubRetainage = sum(projectSubInvoices.map((s) => s.retainage_held));
 
+    const totalBudget = sum(projectBudgetLines.map((l) => l.scheduled_value));
+    const balanceToComplete = totalBudget - totalPaidToOwner - totalOpenToOwner;
+
     return {
       project,
       totalRequested,
@@ -178,6 +190,8 @@ export async function getDashboardData(): Promise<{
       totalSubPaid,
       totalSubOutstanding: totalSubInvoiced - totalSubPaid,
       totalSubRetainage,
+      totalBudget,
+      balanceToComplete,
     };
   });
 

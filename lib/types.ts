@@ -81,4 +81,6 @@ export interface ProjectRollup {
   totalSubPaid: number;
   totalSubOutstanding: number;
   totalSubRetainage: number;
+  totalBudget: number;
+  balanceToComplete: number;
 }
