@@ -32,7 +32,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-2">Project</th>
-              <th className="text-right px-4 py-2">Paid to Owner</th>
+              <th className="text-right px-4 py-2">Paid to Date</th>
               <th className="text-right px-4 py-2">Currently Invoiced</th>
               <th className="text-right px-4 py-2 text-slate-400">Sub Invoiced</th>
               <th className="text-right px-4 py-2 text-slate-400">Sub Paid</th>

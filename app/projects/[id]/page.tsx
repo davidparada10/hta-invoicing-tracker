@@ -86,7 +86,7 @@ export default async function ProjectDetailPage({
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
               Currently Invoiced (Open)
             </p>
-            <p className="text-2xl font-semibold text-red-700 mt-1">
+            <p className="text-2xl font-semibold text-red-500 mt-1">
               {formatCurrency(totalOpenToOwner)}
             </p>
           </div>

@@ -28,18 +28,18 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Total paid to date
+              Currently invoiced (awaiting payment)
             </p>
-            <p className="text-2xl font-semibold text-emerald-700 mt-1">
-              {formatCurrency(totals.totalPaidToOwner)}
+            <p className="text-2xl font-semibold text-red-500 mt-1">
+              {formatCurrency(totals.totalOpenToOwner)}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Currently invoiced (awaiting payment)
+              Total paid to date
             </p>
-            <p className="text-2xl font-semibold text-blue-700 mt-1">
-              {formatCurrency(totals.totalOpenToOwner)}
+            <p className="text-2xl font-semibold text-emerald-700 mt-1">
+              {formatCurrency(totals.totalPaidToOwner)}
             </p>
           </div>
         </div>
