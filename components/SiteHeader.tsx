@@ -22,9 +22,9 @@ export default function SiteHeader() {
             <Image
               src="/hta-logo.png"
               alt="HTA Construction"
-              width={64}
-              height={36}
-              className="h-8 w-auto"
+              width={112}
+              height={63}
+              className="h-14 w-auto"
               priority
             />
             <span className="h-6 w-px bg-slate-200" aria-hidden="true" />

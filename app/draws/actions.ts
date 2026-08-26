@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
+import { getAllocationsForProject, getBudgetLinesForProject } from "@/lib/data";
 import {
   parseDrawAllocationsFromXlsx,
   parseG702FromPdf,
@@ -227,10 +229,49 @@ export async function markDrawPaid(id: string, projectId: string) {
   revalidatePath("/");
 }
 
+export async function updateDrawStatus(id: string, projectId: string, status: DrawStatus) {
+  const supabase = createServerSupabaseClient();
+  const today = new Date().toISOString().slice(0, 10);
+
+  const { data: draw, error: fetchError } = await supabase
+    .from("inv_owner_draws")
+    .select("amount_requested, amount_paid, date_paid, date_approved")
+    .eq("id", id)
+    .single();
+  if (fetchError) throw fetchError;
+
+  const payload: Record<string, unknown> = { status };
+
+  if (status === "paid") {
+    if (!(Number(draw.amount_paid) > 0)) payload.amount_paid = draw.amount_requested;
+    if (!draw.date_paid) payload.date_paid = today;
+  }
+  if (status === "approved" && !draw.date_approved) {
+    payload.date_approved = today;
+  }
+
+  const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
+  if (error) throw error;
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
+}
+
 export async function deleteDraw(id: string, projectId: string) {
   const supabase = createServerSupabaseClient();
   const { error } = await supabase.from("inv_owner_draws").delete().eq("id", id);
   if (error) throw error;
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/");
+}
+
+export async function getDrawFormContext(projectId: string): Promise<{
+  budgetLines: BudgetLine[];
+  allocations: DrawLineAllocation[];
+}> {
+  const [budgetLines, allocations] = await Promise.all([
+    getBudgetLinesForProject(projectId),
+    getAllocationsForProject(projectId),
+  ]);
+  return { budgetLines, allocations };
 }
