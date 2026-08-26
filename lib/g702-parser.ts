@@ -187,6 +187,7 @@ export interface ParsedBudgetLine {
 
 export interface ParsedDrawAllocationLine {
   item_number: string;
+  description: string;
   amount_this_period: number;
 }
 
@@ -291,5 +292,9 @@ export function parseBudgetFromXlsx(buffer: Buffer): ParsedBudgetLine[] {
 export function parseDrawAllocationsFromXlsx(buffer: Buffer): ParsedDrawAllocationLine[] {
   return scanG703Rows(buffer)
     .filter((r) => r.amount_this_period !== undefined && r.amount_this_period !== 0)
-    .map((r) => ({ item_number: r.item_number, amount_this_period: r.amount_this_period as number }));
+    .map((r) => ({
+      item_number: r.item_number,
+      description: r.description,
+      amount_this_period: r.amount_this_period as number,
+    }));
 }

@@ -9,6 +9,28 @@ import {
   ParsedG702Draw,
 } from "@/lib/g702-parser";
 
+function normalizeMatchKey(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Maps a key to a budget line id only when the key is unique across all
+// lines — an ambiguous key (e.g. duplicate item numbers on unrelated line
+// items) is left out entirely rather than guessing and misfiling an amount.
+function buildUniqueMatchMap(pairs: [string, string][]): Map<string, string> {
+  const counts = new Map<string, number>();
+  for (const [key] of pairs) counts.set(key, (counts.get(key) ?? 0) + 1);
+  const map = new Map<string, string>();
+  for (const [key, id] of pairs) {
+    if (key && counts.get(key) === 1) map.set(key, id);
+  }
+  return map;
+}
+
 export interface ParsedG702Upload extends ParsedG702Draw {
   allocations: { budget_line_id: string; amount: number }[];
   allocationsMatched: number;
@@ -44,18 +66,27 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
       const supabase = createServerSupabaseClient();
       const { data: budgetLines, error } = await supabase
         .from("inv_project_budget_lines")
-        .select("id, item_number")
+        .select("id, item_number, description")
         .eq("project_id", projectId);
       if (error) throw error;
 
-      const byItemNumber = new Map(
+      // Item numbers can collide across unrelated line items within the same
+      // G703 (seen in practice — two different lines both numbered "1"), so
+      // match on description text first and only fall back to item number
+      // when a line has no unambiguous description match.
+      const byDescription = buildUniqueMatchMap(
+        (budgetLines ?? []).map((l) => [normalizeMatchKey(l.description), l.id])
+      );
+      const byItemNumber = buildUniqueMatchMap(
         (budgetLines ?? [])
           .filter((l) => l.item_number)
-          .map((l) => [l.item_number!.trim().toLowerCase(), l.id])
+          .map((l) => [normalizeMatchKey(l.item_number!), l.id])
       );
       allocations = allocationLines
         .map((a) => {
-          const budgetLineId = byItemNumber.get(a.item_number.trim().toLowerCase());
+          const budgetLineId =
+            byDescription.get(normalizeMatchKey(a.description)) ??
+            byItemNumber.get(normalizeMatchKey(a.item_number));
           return budgetLineId ? { budget_line_id: budgetLineId, amount: a.amount_this_period } : null;
         })
         .filter((a): a is { budget_line_id: string; amount: number } => a !== null);
