@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProjectStatus } from "@/lib/types";
 import Modal from "@/components/Modal";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { createProject } from "@/app/projects/actions";
 import { importBudgetFromXlsx } from "@/app/budget/actions";
 
@@ -72,7 +73,7 @@ export default function AddProjectModal() {
           </Field>
 
           <Field label="Address">
-            <input name="address" className="input" />
+            <AddressAutocomplete className="input" />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">

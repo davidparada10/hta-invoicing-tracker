@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Project, ProjectStatus } from "@/lib/types";
 import Modal from "@/components/Modal";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { updateProject } from "@/app/projects/actions";
 
 const STATUSES: ProjectStatus[] = ["active", "closed"];
@@ -33,7 +34,7 @@ export default function EditProjectModal({ project }: { project: Project }) {
           </Field>
 
           <Field label="Address">
-            <input name="address" defaultValue={project.address ?? ""} className="input" />
+            <AddressAutocomplete defaultValue={project.address ?? ""} className="input" />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
