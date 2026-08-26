@@ -538,7 +538,7 @@ export default function DrawsSection({
                 </div>
               </div>
               <p className="text-[11px] text-slate-400 mb-2">
-                Lines marked "No retention" in the Budget tab are excluded from the calculation.
+                Lines marked &ldquo;No retention&rdquo; in the Budget tab are excluded from the calculation.
               </p>
               <div className="max-h-64 overflow-y-auto rounded-md border border-slate-100">
                 <table className="min-w-full text-xs">
