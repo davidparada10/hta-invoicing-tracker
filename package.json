@@ -15,6 +15,7 @@
     "@supabase/supabase-js": "^2.112.4",
     "ai": "^7.0.79",
     "next": "14.2.35",
+    "pdf-parse": "^2.4.5",
     "react": "^18",
     "react-dom": "^18",
     "xlsx": "^0.18.5",

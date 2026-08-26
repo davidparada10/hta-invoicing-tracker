@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { parseG702FromXlsx, ParsedG702Draw } from "@/lib/g702-parser";
+import { parseG702FromPdf, parseG702FromXlsx, ParsedG702Draw } from "@/lib/g702-parser";
 
 export async function parseG702Upload(formData: FormData): Promise<ParsedG702Draw> {
   const file = formData.get("g702_file");
@@ -11,17 +11,22 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Dra
   }
 
   const name = file.name.toLowerCase();
-  if (
-    !name.endsWith(".xlsx") &&
-    !name.endsWith(".xls") &&
-    !file.type.includes("spreadsheet") &&
-    !file.type.includes("excel")
-  ) {
-    throw new Error("Unsupported file type. Please upload a .xlsx file.");
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  if (name.endsWith(".pdf") || file.type === "application/pdf") {
+    return parseG702FromPdf(buffer);
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  return parseG702FromXlsx(buffer);
+  if (
+    name.endsWith(".xlsx") ||
+    name.endsWith(".xls") ||
+    file.type.includes("spreadsheet") ||
+    file.type.includes("excel")
+  ) {
+    return parseG702FromXlsx(buffer);
+  }
+
+  throw new Error("Unsupported file type. Please upload a .xlsx or .pdf file.");
 }
 
 function toNumber(value: FormDataEntryValue | null): number {

@@ -15,10 +15,12 @@ export default function HelpPage() {
         <p className="text-sm text-slate-500 max-w-2xl mb-8">
           Every G702/G703 draw workbook can fill two different things depending on which
           upload button you use: the <strong className="text-slate-700">G702</strong> sheet
-          auto-fills a single draw, while the{" "}
-          <strong className="text-slate-700">G703</strong> continuation sheet replaces a
-          project&rsquo;s entire line-item budget. Neither upload saves automatically — you
-          review and confirm every value before it&rsquo;s stored.
+          auto-fills a single draw (accepts <strong className="text-slate-700">.xlsx or .pdf</strong>),
+          while the <strong className="text-slate-700">G703</strong> continuation sheet
+          replaces a project&rsquo;s entire line-item budget (
+          <strong className="text-slate-700">.xlsx only</strong> — its dense table isn&rsquo;t
+          reliable to read from a PDF). Neither upload saves automatically — you review and
+          confirm every value before it&rsquo;s stored.
         </p>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 mb-8 overflow-x-auto">
@@ -45,7 +47,7 @@ export default function HelpPage() {
               G702/G703 Draw Workbook
             </text>
             <text x="520" y="64" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="11" fill="#64748B">
-              .xlsx — uploaded from either tab
+              uploaded from either tab — format depends on which
             </text>
 
             <line x1="450" y1="80" x2="300" y2="138" stroke={DRAW_COLOR} strokeWidth={1.6} markerEnd="url(#arrowDraw)" />
@@ -54,13 +56,13 @@ export default function HelpPage() {
             <rect x="140" y="140" width="280" height="56" rx="10" fill="#EFF6FF" stroke={DRAW_COLOR} strokeWidth={1.4} />
             <text x="280" y="163" textAnchor="middle" fontWeight="600" fontSize="13" fill="#0F172A">&quot;G702&quot; sheet</text>
             <text x="280" y="180" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="11" fill={DRAW_COLOR}>
-              application &amp; certificate
+              application &amp; certificate — .xlsx or .pdf
             </text>
 
             <rect x="620" y="140" width="280" height="56" rx="10" fill="#FFF7ED" stroke={BUDGET_COLOR} strokeWidth={1.4} />
             <text x="760" y="163" textAnchor="middle" fontWeight="600" fontSize="13" fill="#0F172A">&quot;G703&quot; sheet</text>
             <text x="760" y="180" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="11" fill={BUDGET_COLOR}>
-              continuation / schedule of values
+              schedule of values — .xlsx only
             </text>
 
             <line x1="280" y1="196" x2="280" y2="246" stroke={DRAW_COLOR} strokeWidth={1.6} markerEnd="url(#arrowDraw)" />
@@ -155,7 +157,8 @@ export default function HelpPage() {
 
         <h2 className="text-sm font-semibold text-slate-900 mb-1">What gets read from the G702 sheet</h2>
         <p className="text-xs text-slate-500 mb-3">
-          Cell positions match AIA&rsquo;s standard G702 layout — the same one HTA&rsquo;s workbook uses.
+          From .xlsx, read by AIA&rsquo;s standard G702 cell layout. From .pdf, read by searching
+          the extracted text near each label below — a bit less exact, so always review before saving.
         </p>
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white mb-8">
           <table className="min-w-full text-sm">

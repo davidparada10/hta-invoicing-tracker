@@ -265,8 +265,8 @@ export default function DrawsSection({
           <div className="rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
             <label className="block text-xs font-medium text-slate-600 mb-1">
               {editing
-                ? "Re-upload a G702 (.xlsx) to refresh this draw's numbers"
-                : "Upload G702 (.xlsx) to auto-fill this form"}
+                ? "Re-upload a G702 (.xlsx or .pdf) to refresh this draw's numbers"
+                : "Upload G702 (.xlsx or .pdf) to auto-fill this form"}
             </label>
             {editing && (
               <p className="text-xs text-slate-500 mb-2">
@@ -276,7 +276,7 @@ export default function DrawsSection({
             )}
             <input
               type="file"
-              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              accept=".xlsx,.xls,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/pdf"
               onChange={handleFileUpload}
               disabled={parsing}
               className="text-sm w-full"

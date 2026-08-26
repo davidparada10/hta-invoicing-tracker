@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { PDFParse } from "pdf-parse";
 
 export interface ParsedG702Draw {
   draw_number?: number;
@@ -104,6 +105,62 @@ export function parseG702FromXlsx(buffer: Buffer): ParsedG702Draw {
     const n = toNumber(v);
     if (n !== undefined) result.retainage_held = round2(n);
   }
+
+  return result;
+}
+
+function extractNear(
+  text: string,
+  label: RegExp,
+  valuePattern: RegExp,
+  window: number
+): string | undefined {
+  const m = label.exec(text);
+  if (!m) return undefined;
+  const start = m.index + m[0].length;
+  const slice = text.slice(start, start + window);
+  const v = valuePattern.exec(slice);
+  return v ? v[0] : undefined;
+}
+
+const DATE_PATTERN = /\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/;
+// Requires a leading $ so bare line-reference numbers in label text
+// (e.g. "Total Retainage (Line 5a + 5b ...)") aren't mistaken for the amount.
+const MONEY_PATTERN = /\$\s*[\d,]+(?:\.\d{2})?/;
+
+export async function parseG702FromPdf(buffer: Buffer): Promise<ParsedG702Draw> {
+  const parser = new PDFParse({ data: buffer });
+  let text: string;
+  try {
+    const parsed = await parser.getText();
+    text = parsed.text;
+  } finally {
+    await parser.destroy();
+  }
+
+  const result: ParsedG702Draw = {};
+
+  const appNo = extractNear(text, /APPLICATION\s+NO\.?:?/i, /\d+/, 40);
+  if (appNo) {
+    const n = toNumber(appNo);
+    if (n !== undefined) result.draw_number = Math.round(n);
+  }
+
+  const periodTo = extractNear(text, /PERIOD\s+TO:?/i, DATE_PATTERN, 40);
+  const periodDate = periodTo ? toISODate(periodTo) : undefined;
+  if (periodDate) result.period_end = periodDate;
+
+  const appDate = extractNear(text, /APPLICATION\s+DATE:?/i, DATE_PATTERN, 40);
+  const appDateIso = appDate ? toISODate(appDate) : undefined;
+  if (appDateIso) result.date_submitted = appDateIso;
+
+  const paymentDue = extractNear(text, /CURRENT PAYMENT DUE/i, MONEY_PATTERN, 80);
+  const paymentNum = paymentDue ? toNumber(paymentDue) : undefined;
+  if (paymentNum !== undefined) result.amount_requested = round2(paymentNum);
+
+  const retainage = extractNear(text, /Total Retainage/i, MONEY_PATTERN, 120);
+  const retainageNum = retainage ? toNumber(retainage) : undefined;
+  if (retainageNum !== undefined) result.retainage_held = round2(retainageNum);
 
   return result;
 }
