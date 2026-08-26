@@ -5,22 +5,54 @@ import { useRouter } from "next/navigation";
 import { ProjectStatus } from "@/lib/types";
 import Modal from "@/components/Modal";
 import { createProject } from "@/app/projects/actions";
+import { importBudgetFromXlsx } from "@/app/budget/actions";
 
 const STATUSES: ProjectStatus[] = ["active", "closed"];
 
 export default function AddProjectModal() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [statusText, setStatusText] = useState<string | null>(null);
   const router = useRouter();
 
   async function handleSubmit(formData: FormData) {
     setError(null);
+    setSubmitting(true);
     try {
+      setStatusText("Creating project…");
       const { id } = await createProject(formData);
+
+      const budgetFile = formData.get("budget_file");
+      if (budgetFile instanceof File && budgetFile.size > 0) {
+        setStatusText("Importing budget…");
+        const budgetFormData = new FormData();
+        budgetFormData.set("budget_file", budgetFile);
+        budgetFormData.set("project_id", id);
+        try {
+          await importBudgetFromXlsx(budgetFormData);
+        } catch (budgetErr) {
+          // The project was created successfully; only the budget import
+          // failed. Don't block navigation — let them retry it from the
+          // Budget tab, where the same import lives.
+          setOpen(false);
+          router.push(`/projects/${id}?tab=budget`);
+          alert(
+            `Project created, but the budget import failed: ${
+              budgetErr instanceof Error ? budgetErr.message : "Unknown error"
+            }\n\nYou can retry the import from the Budget tab.`
+          );
+          return;
+        }
+      }
+
       setOpen(false);
       router.push(`/projects/${id}`);
     } catch {
       setError("Could not create project. Please try again.");
+    } finally {
+      setSubmitting(false);
+      setStatusText(null);
     }
   }
 
@@ -58,21 +90,37 @@ export default function AddProjectModal() {
             </Field>
           </div>
 
+          <div className="rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Upload G702/G703 (.xlsx) to create the initial budget (optional)
+            </label>
+            <input
+              type="file"
+              name="budget_file"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              disabled={submitting}
+              className="text-sm w-full"
+            />
+          </div>
+
+          {statusText && <p className="text-xs text-slate-500">{statusText}</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-sm px-3 py-1.5 rounded-lg border border-slate-300"
+              disabled={submitting}
+              className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="text-sm px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium"
+              disabled={submitting}
+              className="text-sm px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium disabled:opacity-50"
             >
-              Save
+              {submitting ? "Saving…" : "Save"}
             </button>
           </div>
         </form>
