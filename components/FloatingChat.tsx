@@ -12,7 +12,8 @@ import { formatCurrency, formatDate } from "@/lib/format";
 
 const WRITE_TOOLS = new Set(["createDraw", "markDrawPaid", "createSubInvoice", "createBudgetLine"]);
 
-export default function ChatWindow() {
+export default function FloatingChat() {
+  const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const { messages, sendMessage, addToolApprovalResponse, status } = useChat<HtaAgentUIMessage>({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
@@ -29,51 +30,75 @@ export default function ChatWindow() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 rounded-xl border border-slate-200 bg-white">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="text-sm text-slate-400 text-center py-12">
-            Try: &ldquo;What&rsquo;s the status on Aneta?&rdquo; or &ldquo;Mark draw 2 on Broadway
-            as paid.&rdquo;
-          </div>
-        )}
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-xl px-4 py-2.5 text-sm ${
-                message.role === "user"
-                  ? "bg-slate-900 text-white"
-                  : "bg-slate-50 border border-slate-200 text-slate-800"
-              }`}
+    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
+      {open && (
+        <div className="mb-3 w-[22rem] sm:w-96 h-[32rem] max-h-[75vh] rounded-2xl border border-slate-200 bg-white shadow-2xl flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-900 text-white">
+            <span className="text-sm font-semibold">Assistant</span>
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+              className="text-slate-300 hover:text-white text-lg leading-none"
             >
-              {message.parts.map((part, i) => (
-                <ChatPart key={i} part={part} addToolApprovalResponse={addToolApprovalResponse} />
-              ))}
-            </div>
+              ×
+            </button>
           </div>
-        ))}
-        {isBusy && <div className="text-xs text-slate-400 px-1">Thinking…</div>}
-      </div>
 
-      <form onSubmit={handleSubmit} className="border-t border-slate-200 p-3 flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about your projects, or describe something to add..."
-          className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          disabled={isBusy}
-        />
-        <button
-          type="submit"
-          disabled={isBusy || !input.trim()}
-          className="rounded-lg bg-slate-900 text-white text-sm font-medium px-4 py-2 disabled:opacity-50"
-        >
-          Send
-        </button>
-      </form>
+          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            {messages.length === 0 && (
+              <div className="text-xs text-slate-400 text-center py-10 px-2">
+                Try: &ldquo;What&rsquo;s the status on Aneta?&rdquo; or &ldquo;Mark draw 2 on
+                Broadway as paid.&rdquo;
+              </div>
+            )}
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[88%] rounded-xl px-3 py-2 text-sm ${
+                    message.role === "user"
+                      ? "bg-slate-900 text-white"
+                      : "bg-slate-50 border border-slate-200 text-slate-800"
+                  }`}
+                >
+                  {message.parts.map((part, i) => (
+                    <ChatPart key={i} part={part} addToolApprovalResponse={addToolApprovalResponse} />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {isBusy && <div className="text-xs text-slate-400 px-1">Thinking…</div>}
+          </div>
+
+          <form onSubmit={handleSubmit} className="border-t border-slate-200 p-2.5 flex gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask or describe something to add..."
+              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              disabled={isBusy}
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={isBusy || !input.trim()}
+              className="rounded-lg bg-slate-900 text-white text-sm font-medium px-3 py-2 disabled:opacity-50"
+            >
+              Send
+            </button>
+          </form>
+        </div>
+      )}
+
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label={open ? "Close assistant" : "Open assistant"}
+        className="w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center text-2xl hover:bg-slate-800 transition-colors"
+      >
+        {open ? "×" : "✨"}
+      </button>
     </div>
   );
 }
