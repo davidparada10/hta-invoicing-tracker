@@ -135,9 +135,7 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
                     rx={4}
                     fill={INVOICED_COLOR}
                   >
-                    <title>
-                      {m.label}: {formatCurrency(m.invoiced)} invoiced
-                    </title>
+                    <title>{`${m.label}: ${formatCurrency(m.invoiced)} invoiced`}</title>
                   </rect>
                   <rect
                     x={groupX + barWidth + barGap}
@@ -147,9 +145,7 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
                     rx={4}
                     fill={PAID_COLOR}
                   >
-                    <title>
-                      {m.label}: {formatCurrency(m.paid)} paid
-                    </title>
+                    <title>{`${m.label}: ${formatCurrency(m.paid)} paid`}</title>
                   </rect>
                   <text
                     x={groupX + barWidth + barGap / 2}

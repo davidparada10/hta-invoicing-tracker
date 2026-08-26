@@ -162,6 +162,20 @@ export default function DrawsSection({
     setFormValues((v) => ({ ...v, [key]: value }));
   }
 
+  function updateStatus(status: DrawStatus) {
+    setFormValues((v) => {
+      if (status !== "paid" || (Number(v.amount_paid) || 0) > 0) {
+        return { ...v, status };
+      }
+      return {
+        ...v,
+        status,
+        amount_paid: v.amount_requested,
+        date_paid: v.date_paid || new Date().toISOString().slice(0, 10),
+      };
+    });
+  }
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -365,7 +379,7 @@ export default function DrawsSection({
               <select
                 name="status"
                 value={formValues.status}
-                onChange={(e) => updateField("status", e.target.value as DrawStatus)}
+                onChange={(e) => updateStatus(e.target.value as DrawStatus)}
                 className="input"
               >
                 {STATUSES.map((s) => (
