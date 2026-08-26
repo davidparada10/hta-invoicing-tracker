@@ -84,18 +84,18 @@ export default async function ProjectDetailPage({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Total Paid to Date
+              Currently Invoiced (Open)
             </p>
-            <p className="text-2xl font-semibold text-emerald-700 mt-1">
-              {formatCurrency(totalPaidToOwner)}
+            <p className="text-2xl font-semibold text-red-700 mt-1">
+              {formatCurrency(totalOpenToOwner)}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Currently Invoiced (Open)
+              Total Paid to Date
             </p>
-            <p className="text-2xl font-semibold text-blue-700 mt-1">
-              {formatCurrency(totalOpenToOwner)}
+            <p className="text-2xl font-semibold text-emerald-700 mt-1">
+              {formatCurrency(totalPaidToOwner)}
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5">

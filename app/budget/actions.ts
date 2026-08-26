@@ -25,6 +25,7 @@ export async function upsertBudgetLine(formData: FormData) {
     category: toNullableString(formData.get("category")),
     description: (formData.get("description") as string) ?? "",
     scheduled_value: toNumber(formData.get("scheduled_value")),
+    retention_exempt: formData.get("retention_exempt") === "on",
   };
 
   if (id) {

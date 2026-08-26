@@ -200,7 +200,14 @@ export default function BudgetSection({
               <tr key={l.id} className="hover:bg-slate-50">
                 <td className="px-4 py-2 text-slate-500">{l.item_number ?? "—"}</td>
                 <td className="px-4 py-2 text-slate-500">{l.category ?? "—"}</td>
-                <td className="px-4 py-2 font-medium">{l.description}</td>
+                <td className="px-4 py-2 font-medium">
+                  {l.description}
+                  {l.retention_exempt && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                      No retention
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(l.scheduled_value)}</td>
                 <td className="px-4 py-2 text-right text-blue-700">{formatCurrency(drawn)}</td>
                 <td className="px-4 py-2 text-right text-slate-500">
@@ -275,6 +282,16 @@ export default function BudgetSection({
               className="input"
             />
           </Field>
+
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              name="retention_exempt"
+              defaultChecked={editing?.retention_exempt ?? false}
+              className="rounded border-slate-300"
+            />
+            No retention held on this line (e.g. bonds, insurance, GC fee)
+          </label>
 
           <div className="flex justify-end gap-2 pt-2">
             <button

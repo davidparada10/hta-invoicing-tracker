@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
@@ -82,6 +82,7 @@ export default function DrawsSection({
   const [parsedAllocationsCount, setParsedAllocationsCount] = useState<number | null>(null);
 
   const [lineAmounts, setLineAmounts] = useState<Record<string, string>>({});
+  const [retentionMode, setRetentionMode] = useState<"manual" | "0" | "5" | "10">("manual");
 
   const previousByLine = useMemo(() => {
     const totals = new Map<string, number>();
@@ -114,6 +115,7 @@ export default function DrawsSection({
     setEditing(null);
     setFormValues(EMPTY_FORM);
     setLineAmounts({});
+    setRetentionMode("manual");
     resetUploadState();
     setModalOpen(true);
   }
@@ -126,6 +128,7 @@ export default function DrawsSection({
       if (a.draw_id === draw.id) amounts[a.budget_line_id] = String(a.amount);
     }
     setLineAmounts(amounts);
+    setRetentionMode("manual");
     resetUploadState();
     setModalOpen(true);
   }
@@ -145,6 +148,21 @@ export default function DrawsSection({
     () => Object.values(lineAmounts).reduce((acc, v) => acc + (Number(v) || 0), 0),
     [lineAmounts]
   );
+
+  const computedRetention = useMemo(() => {
+    if (retentionMode === "manual") return null;
+    const rate = Number(retentionMode) / 100;
+    const total = budgetLines.reduce((acc, line) => {
+      if (line.retention_exempt) return acc;
+      return acc + (Number(lineAmounts[line.id]) || 0) * rate;
+    }, 0);
+    return Math.round(total * 100) / 100;
+  }, [retentionMode, budgetLines, lineAmounts]);
+
+  useEffect(() => {
+    if (computedRetention === null) return;
+    setFormValues((v) => ({ ...v, retainage_held: String(computedRetention) }));
+  }, [computedRetention]);
 
   async function handleSubmit(formData: FormData) {
     const allocationsPayload = budgetLines
@@ -443,8 +461,14 @@ export default function DrawsSection({
                 step="0.01"
                 value={formValues.retainage_held}
                 onChange={(e) => updateField("retainage_held", e.target.value)}
-                className="input"
+                readOnly={retentionMode !== "manual"}
+                className={`input ${retentionMode !== "manual" ? "bg-slate-50 text-slate-500" : ""}`}
               />
+              {retentionMode !== "manual" && (
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Computed from {retentionMode}% retention on the schedule of values below.
+                </p>
+              )}
             </Field>
             <Field label="Amount paid">
               <input
@@ -490,14 +514,32 @@ export default function DrawsSection({
 
           {budgetLines.length > 0 && (
             <div className="rounded-lg border border-slate-200 p-3">
-              <div className="flex items-baseline justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                 <span className="block text-xs font-medium text-slate-600">
                   Schedule of values — amount billed this period, by budget line
                 </span>
-                <span className="text-xs text-slate-500">
-                  {formatCurrency(allocationsTotal)} allocated
-                </span>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                    Retention
+                    <select
+                      value={retentionMode}
+                      onChange={(e) => setRetentionMode(e.target.value as typeof retentionMode)}
+                      className="rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+                    >
+                      <option value="manual">Manual</option>
+                      <option value="0">0%</option>
+                      <option value="5">5%</option>
+                      <option value="10">10%</option>
+                    </select>
+                  </label>
+                  <span className="text-xs text-slate-500">
+                    {formatCurrency(allocationsTotal)} allocated
+                  </span>
+                </div>
               </div>
+              <p className="text-[11px] text-slate-400 mb-2">
+                Lines marked "No retention" in the Budget tab are excluded from the calculation.
+              </p>
               <div className="max-h-64 overflow-y-auto rounded-md border border-slate-100">
                 <table className="min-w-full text-xs">
                   <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide sticky top-0">
