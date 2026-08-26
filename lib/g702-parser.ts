@@ -1,5 +1,18 @@
 import * as XLSX from "xlsx";
-import { PDFParse } from "pdf-parse";
+
+// pdfjs-dist (used internally by pdf-parse) references the browser-only
+// DOMMatrix API even for plain text extraction. Node has no such global,
+// so polyfill it before pdf-parse loads — otherwise every PDF upload
+// fails in Vercel's serverless runtime with "DOMMatrix is not defined".
+// Static `import` is hoisted above this regardless of source order, so
+// both the polyfill assignment and the pdf-parse load use `require` to
+// guarantee they run in this exact sequence.
+if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  (globalThis as { DOMMatrix?: unknown }).DOMMatrix = require("dommatrix");
+}
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { PDFParse } = require("pdf-parse") as typeof import("pdf-parse");
 
 export interface ParsedG702Draw {
   draw_number?: number;
