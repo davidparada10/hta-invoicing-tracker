@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 declare global {
   interface Window {
@@ -36,6 +36,11 @@ function loadGoogleMapsScript(apiKey: string): Promise<void> {
   return window.__googleMapsLoadingPromise;
 }
 
+// Google retired the classic `google.maps.places.Autocomplete` widget for
+// any project created after March 1, 2025 — it now throws
+// "not available to new customers" and never shows a dropdown. The
+// replacement is the `PlaceAutocompleteElement` custom element, which
+// manages its own internal input rather than binding to a plain <input>.
 export default function AddressAutocomplete({
   defaultValue,
   className,
@@ -43,47 +48,84 @@ export default function AddressAutocomplete({
   defaultValue?: string;
   className?: string;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [value, setValue] = useState(defaultValue ?? "");
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!apiKey || !inputRef.current) return;
+    const container = containerRef.current;
+    if (!apiKey || !container) return;
 
-    let autocomplete: google.maps.places.Autocomplete | undefined;
     let cancelled = false;
+    let element: HTMLElement & { value?: string };
 
     loadGoogleMapsScript(apiKey)
-      .then(() => {
-        if (cancelled || !inputRef.current) return;
-        autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
-          types: ["address"],
-          fields: ["formatted_address"],
+      .then(async () => {
+        if (cancelled) return;
+        await google.maps.importLibrary("places");
+        if (cancelled) return;
+
+        const PlaceAutocompleteElement = (google.maps.places as unknown as {
+          PlaceAutocompleteElement: new (opts?: { includedPrimaryTypes?: string[] }) => HTMLElement & {
+            value?: string;
+          };
+        }).PlaceAutocompleteElement;
+
+        element = new PlaceAutocompleteElement({
+          includedPrimaryTypes: ["street_address", "premise", "subpremise"],
         });
-        autocomplete.addListener("place_changed", () => {
-          const place = autocomplete?.getPlace();
-          if (place?.formatted_address && inputRef.current) {
-            inputRef.current.value = place.formatted_address;
+        element.classList.add("place-autocomplete-input");
+        element.style.width = "100%";
+        if (defaultValue) {
+          try {
+            element.value = defaultValue;
+          } catch {
+            // Prefilling isn't guaranteed to be supported; not critical.
           }
+        }
+
+        container.appendChild(element);
+
+        element.addEventListener("gmp-select", async (event: Event) => {
+          const prediction = (event as unknown as {
+            placePrediction: {
+              toPlace: () => {
+                fetchFields: (opts: { fields: string[] }) => Promise<void>;
+                formattedAddress?: string;
+              };
+            };
+          }).placePrediction;
+          const place = prediction.toPlace();
+          await place.fetchFields({ fields: ["formattedAddress"] });
+          if (!cancelled) setValue(place.formattedAddress ?? "");
+        });
+
+        // Best-effort: keep manual (non-selected) typing in sync too.
+        element.addEventListener("input", (event: Event) => {
+          const target = event.target as HTMLInputElement | null;
+          if (target && typeof target.value === "string") setValue(target.value);
         });
       })
       .catch(() => {
-        // Autocomplete just won't be available; the field still works as a
-        // plain text input, so there's nothing to surface to the user here.
+        // Autocomplete just won't be available; the fallback plain input
+        // below still works, so there's nothing to surface to the user.
       });
 
     return () => {
       cancelled = true;
-      if (autocomplete) google.maps.event.clearInstanceListeners(autocomplete);
+      if (element && container.contains(element)) {
+        container.removeChild(element);
+      }
     };
-  }, []);
+  }, [defaultValue]);
 
   return (
-    <input
-      ref={inputRef}
-      name="address"
-      autoComplete="off"
-      defaultValue={defaultValue}
-      className={className}
-    />
+    <div>
+      <div ref={containerRef} className={className} />
+      <input type="hidden" name="address" value={value} />
+      <noscript>
+        <input name="address" defaultValue={defaultValue} className={className} />
+      </noscript>
+    </div>
   );
 }
