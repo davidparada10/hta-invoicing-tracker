@@ -221,19 +221,19 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
           <thead className="text-slate-400">
             <tr>
               <th className="text-left px-1 py-1">Project</th>
-              <th className="text-right px-1 py-1">Paid</th>
               <th className="text-right px-1 py-1">Open</th>
+              <th className="text-right px-1 py-1">Paid</th>
             </tr>
           </thead>
           <tbody>
             {projects.map((p, i) => (
               <tr key={i} className="border-t border-slate-100">
                 <td className="px-1 py-1">{String(p.name)}</td>
-                <td className="px-1 py-1 text-right text-emerald-700">
-                  {formatCurrency(p.totalPaidToOwner as number)}
-                </td>
                 <td className="px-1 py-1 text-right text-blue-700">
                   {formatCurrency(p.totalOpenToOwner as number)}
+                </td>
+                <td className="px-1 py-1 text-right text-emerald-700">
+                  {formatCurrency(p.totalPaidToOwner as number)}
                 </td>
               </tr>
             ))}
@@ -279,10 +279,10 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
       <div className="mt-1 space-y-1">
         <p className="text-xs font-medium">{String(project.name)}</p>
         <div className="flex gap-3 text-xs">
+          <span className="text-blue-700">Open: {formatCurrency(totals.totalOpenToOwner as number)}</span>
           <span className="text-emerald-700">
             Paid: {formatCurrency(totals.totalPaidToOwner as number)}
           </span>
-          <span className="text-blue-700">Open: {formatCurrency(totals.totalOpenToOwner as number)}</span>
           <span className="text-slate-500">Budget: {formatCurrency(totals.totalBudget as number)}</span>
         </div>
       </div>
