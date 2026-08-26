@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -20,7 +20,19 @@ export default function FloatingChat() {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
 
-  const isBusy = status === "submitted" || status === "streaming";
+  const lastMessage = messages[messages.length - 1];
+  const hasPendingApproval =
+    lastMessage?.role === "assistant" &&
+    lastMessage.parts.some(
+      (part) => isToolUIPart(part) && part.state === "approval-requested"
+    );
+
+  const isBusy = status === "submitted" || status === "streaming" || hasPendingApproval;
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: "end" });
+  }, [messages, open]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,14 +81,21 @@ export default function FloatingChat() {
                 </div>
               </div>
             ))}
-            {isBusy && <div className="text-xs text-slate-400 px-1">Thinking…</div>}
+            {(status === "submitted" || status === "streaming") && (
+              <div className="text-xs text-slate-400 px-1">Thinking…</div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
 
           <form onSubmit={handleSubmit} className="border-t border-slate-200 p-2.5 flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask or describe something to add..."
+              placeholder={
+                hasPendingApproval
+                  ? "Confirm or cancel the pending action above first..."
+                  : "Ask or describe something to add..."
+              }
               className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
               disabled={isBusy}
               autoFocus
