@@ -29,8 +29,14 @@ export default function SiteHeader() {
           <span className="font-semibold text-slate-900">Multi-Family Invoice Tracker</span>
         </Link>
         <div className="flex items-center gap-4">
+          <Link href="/chat" className="text-sm text-slate-500 hover:text-slate-900">
+            Assistant
+          </Link>
           <Link href="/help" className="text-sm text-slate-500 hover:text-slate-900">
             How it works
+          </Link>
+          <Link href="/workflow" className="text-sm text-slate-500 hover:text-slate-900">
+            Workflow
           </Link>
           <button
             onClick={handleLogout}
