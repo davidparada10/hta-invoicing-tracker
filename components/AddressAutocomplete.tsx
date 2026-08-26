@@ -5,35 +5,58 @@ import { useEffect, useRef, useState } from "react";
 declare global {
   interface Window {
     google?: typeof google;
-    __googleMapsLoadingPromise?: Promise<void>;
+    __googleMapsBootstrapped?: boolean;
   }
 }
 
-const SCRIPT_ID = "google-maps-places-script";
+// A plain `<script src="...loading=async">` tag's `onload` event fires once
+// the file has downloaded and executed, but `google.maps.importLibrary` can
+// still take a moment longer to become callable after that — calling it too
+// early throws "google.maps.importLibrary is not a function". Google's own
+// inline bootstrap loader (reproduced here) avoids that race: `importLibrary`
+// itself queues the request and returns a promise that only resolves once
+// the library is truly ready, regardless of when it's first called.
+function ensureGoogleMapsBootstrap(apiKey: string): void {
+  if (window.__googleMapsBootstrapped) return;
+  window.__googleMapsBootstrapped = true;
 
-function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  if (window.google?.maps?.places) return Promise.resolve();
-  if (window.__googleMapsLoadingPromise) return window.__googleMapsLoadingPromise;
+  (
+    g => {
+      let h: Promise<void>, a: HTMLScriptElement, k: string;
+      const p = "The Google Maps JavaScript API",
+        c = "google",
+        l = "importLibrary",
+        q = "__ib__",
+        m = document;
+      // Faithful port of Google's own untyped bootstrap snippet — not worth
+      // fighting the type system over.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let b = window as any;
+      b = b[c] || (b[c] = {});
+      const d = b.maps || (b.maps = {});
+      const r = new Set<string>();
+      const e = new URLSearchParams();
+      const u = () =>
+        h ||
+        (h = new Promise(async (f, n) => {
+          a = m.createElement("script");
+          e.set("libraries", Array.from(r) + "");
+          for (k in g) e.set(k.replace(/[A-Z]/g, t => "_" + t[0].toLowerCase()), (g as Record<string, string>)[k]);
 
-  window.__googleMapsLoadingPromise = new Promise((resolve, reject) => {
-    const existing = document.getElementById(SCRIPT_ID);
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      existing.addEventListener("error", () => reject(new Error("Failed to load Google Maps script.")));
-      return;
+          e.set("callback", c + ".maps." + q);
+          a.src = `https://maps.${c}apis.com/maps/api/js?` + e;
+          d[q] = f;
+          a.onerror = () => (h = n(Error(p + " could not load.")) as unknown as Promise<void>);
+          a.nonce = m.querySelector("script[nonce]")?.getAttribute("nonce") || "";
+          m.head.append(a);
+        }));
+      if (d[l]) {
+        console.warn(p + " only loads once. Ignoring:", g);
+      } else {
+        d[l] = (f: string, ...n: unknown[]) => r.add(f) && u().then(() => d[l](f, ...n));
+      }
     }
-
-    const script = document.createElement("script");
-    script.id = SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Google Maps script."));
-    document.head.appendChild(script);
-  });
-
-  return window.__googleMapsLoadingPromise;
+  )({ key: apiKey, v: "weekly" });
 }
 
 // Google retired the classic `google.maps.places.Autocomplete` widget for
@@ -59,10 +82,11 @@ export default function AddressAutocomplete({
     let cancelled = false;
     let element: HTMLElement & { value?: string };
 
-    loadGoogleMapsScript(apiKey)
+    ensureGoogleMapsBootstrap(apiKey);
+
+    google.maps
+      .importLibrary("places")
       .then(async () => {
-        if (cancelled) return;
-        await google.maps.importLibrary("places");
         if (cancelled) return;
 
         const PlaceAutocompleteElement = (google.maps.places as unknown as {
