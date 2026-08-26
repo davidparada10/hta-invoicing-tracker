@@ -11,6 +11,7 @@ import {
   getDrawsForProject,
   getProject,
   getSubInvoicesForProject,
+  openBalance,
 } from "@/lib/data";
 import { formatCurrency } from "@/lib/format";
 import ProjectTabs from "@/components/ProjectTabs";
@@ -40,11 +41,9 @@ export default async function ProjectDetailPage({
     searchParams.tab === "invoices" ? "invoices" : searchParams.tab === "budget" ? "budget" : "draws";
 
   const totalPaidToOwner = draws
-    .filter((d) => d.status === "paid")
+    .filter((d) => d.status !== "draft")
     .reduce((acc, d) => acc + (d.amount_paid ?? 0), 0);
-  const totalOpenToOwner = draws
-    .filter((d) => d.status === "submitted" || d.status === "approved")
-    .reduce((acc, d) => acc + (d.amount_requested ?? 0), 0);
+  const totalOpenToOwner = draws.reduce((acc, d) => acc + openBalance(d), 0);
   const totalBudget = budgetLines.reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0);
   const balanceToComplete = totalBudget - totalPaidToOwner - totalOpenToOwner;
   const drawRetainage = draws.reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);

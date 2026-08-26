@@ -6,6 +6,7 @@ import {
   getDrawsForProject,
   getSubInvoicesForProject,
   getBudgetLinesForProject,
+  openBalance,
 } from "@/lib/data";
 import { resolveProject } from "./shared";
 
@@ -32,7 +33,7 @@ export const listProjectsTool = tool({
 
 export const getOpenDrawsTool = tool({
   description:
-    "List owner draws across every project that are submitted or approved but not yet paid (awaiting payment), oldest first. This is the 'what's currently invoiced' view.",
+    "List owner draws across every project that still have a balance owed (amount requested minus amount actually paid), oldest first — including a draw marked 'paid' for less than it requested. This is the 'what's currently invoiced/outstanding' view.",
   inputSchema: z.object({}),
   execute: async () => {
     const draws = await getOpenDraws();
@@ -41,6 +42,8 @@ export const getOpenDrawsTool = tool({
       drawNumber: d.draw_number,
       status: d.status,
       amountRequested: d.amount_requested,
+      amountPaid: d.amount_paid,
+      outstandingBalance: openBalance(d),
       dateSubmitted: d.date_submitted,
     }));
   },
@@ -66,11 +69,9 @@ export const getProjectDetailsTool = tool({
     ]);
 
     const totalPaidToOwner = draws
-      .filter((d) => d.status === "paid")
+      .filter((d) => d.status !== "draft")
       .reduce((acc, d) => acc + d.amount_paid, 0);
-    const totalOpenToOwner = draws
-      .filter((d) => d.status === "submitted" || d.status === "approved")
-      .reduce((acc, d) => acc + d.amount_requested, 0);
+    const totalOpenToOwner = draws.reduce((acc, d) => acc + openBalance(d), 0);
     const totalBudget = budgetLines.reduce((acc, l) => acc + l.scheduled_value, 0);
 
     return {

@@ -103,13 +103,21 @@ export async function getAllSubInvoices(): Promise<SubInvoice[]> {
   return data as SubInvoice[];
 }
 
+// A draw's outstanding balance: what's been billed but not yet actually
+// received, regardless of status. Catches a draw marked "paid" for less
+// than it requested — the shortfall stays open rather than disappearing.
+export function openBalance(d: OwnerDraw): number {
+  if (d.status === "draft") return 0;
+  return Math.max(0, (d.amount_requested ?? 0) - (d.amount_paid ?? 0));
+}
+
 export async function getOpenDraws(): Promise<OpenDraw[]> {
   const [projects, draws] = await Promise.all([getProjects(), getAllDraws()]);
 
   const projectsById = new Map(projects.map((p) => [p.id, p]));
 
   const openDraws = draws
-    .filter((d) => d.status === "submitted" || d.status === "approved")
+    .filter((d) => openBalance(d) > 0.005)
     .map((d) => {
       const project = projectsById.get(d.project_id);
       return {
@@ -151,13 +159,9 @@ export async function getDashboardData(): Promise<{
     const totalDrawRetainage = sum(projectDraws.map((d) => d.retainage_held));
 
     const totalPaidToOwner = sum(
-      projectDraws.filter((d) => d.status === "paid").map((d) => d.amount_paid)
+      projectDraws.filter((d) => d.status !== "draft").map((d) => d.amount_paid)
     );
-    const totalOpenToOwner = sum(
-      projectDraws
-        .filter((d) => d.status === "submitted" || d.status === "approved")
-        .map((d) => d.amount_requested)
-    );
+    const totalOpenToOwner = sum(projectDraws.map(openBalance));
 
     const totalSubInvoiced = sum(projectSubInvoices.map((s) => s.amount));
     const totalSubPaid = sum(projectSubInvoices.map((s) => s.amount_paid));

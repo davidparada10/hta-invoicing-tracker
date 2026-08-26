@@ -1,5 +1,6 @@
 import { OwnerDraw, SubInvoice } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
+import { openBalance } from "@/lib/data";
 
 function sum(values: number[]): number {
   return values.reduce((acc, v) => acc + (v ?? 0), 0);
@@ -14,13 +15,9 @@ export default function ProjectSummaryCard({
 }) {
   const totalRequested = sum(draws.map((d) => d.amount_requested));
   const totalPaidToOwner = sum(
-    draws.filter((d) => d.status === "paid").map((d) => d.amount_paid)
+    draws.filter((d) => d.status !== "draft").map((d) => d.amount_paid)
   );
-  const totalOpenToOwner = sum(
-    draws
-      .filter((d) => d.status === "submitted" || d.status === "approved")
-      .map((d) => d.amount_requested)
-  );
+  const totalOpenToOwner = sum(draws.map(openBalance));
   const drawRetainage = sum(draws.map((d) => d.retainage_held));
 
   const totalSubInvoiced = sum(subInvoices.map((s) => s.amount));

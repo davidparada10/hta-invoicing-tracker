@@ -1,22 +1,55 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { OpenDraw } from "@/lib/types";
+import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
-import StatusBadge from "@/components/StatusBadge";
+import DrawStatusSelect from "@/components/DrawStatusSelect";
 import MarkPaidButton from "@/components/MarkPaidButton";
+import DrawFormModal from "@/components/DrawFormModal";
+import { getDrawFormContext } from "@/app/draws/actions";
+
+function openBalance(d: OpenDraw): number {
+  if (d.status === "draft") return 0;
+  return Math.max(0, (d.amount_requested ?? 0) - (d.amount_paid ?? 0));
+}
 
 export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
-  const totalOpen = draws.reduce((acc, d) => acc + (d.amount_requested ?? 0), 0);
+  const totalOpen = draws.reduce((acc, d) => acc + openBalance(d), 0);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState<OwnerDraw | null>(null);
+  const [projectId, setProjectId] = useState<string>("");
+  const [budgetLines, setBudgetLines] = useState<BudgetLine[]>([]);
+  const [allocations, setAllocations] = useState<DrawLineAllocation[]>([]);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  async function openDraw(draw: OpenDraw) {
+    setOpeningId(draw.id);
+    try {
+      const ctx = await getDrawFormContext(draw.project.id);
+      setProjectId(draw.project.id);
+      setBudgetLines(ctx.budgetLines);
+      setAllocations(ctx.allocations);
+      setEditing(draw);
+      setModalOpen(true);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not open that draw.");
+    } finally {
+      setOpeningId(null);
+    }
+  }
 
   return (
     <div className="mb-8">
       <div className="flex items-baseline justify-between mb-1">
-        <h2 className="text-lg font-semibold text-slate-900">Open Owner Draws</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Open Draws</h2>
         <span className="text-sm text-slate-500">
           {draws.length} open · {formatCurrency(totalOpen)} awaiting payment
         </span>
       </div>
       <p className="text-sm text-slate-500 mb-4">
-        Draws invoiced to the lender/owner that have not yet been paid, oldest first.
+        Draws with a balance still owed by the lender/owner — including any marked paid for less
+        than requested — oldest first.
       </p>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -28,6 +61,7 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
               <th className="text-left px-4 py-2">Submitted</th>
               <th className="text-right px-4 py-2">Requested</th>
               <th className="text-right px-4 py-2">Approved</th>
+              <th className="text-right px-4 py-2">Outstanding</th>
               <th className="text-left px-4 py-2">Status</th>
               <th className="px-4 py-2"></th>
             </tr>
@@ -43,12 +77,25 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
                     {d.project.name}
                   </Link>
                 </td>
-                <td className="px-4 py-2">{d.draw_number}</td>
+                <td className="px-4 py-2">
+                  <button
+                    type="button"
+                    onClick={() => openDraw(d)}
+                    disabled={openingId === d.id}
+                    className="font-medium text-slate-900 hover:underline disabled:opacity-50"
+                    title="Edit draw"
+                  >
+                    {openingId === d.id ? "…" : d.draw_number}
+                  </button>
+                </td>
                 <td className="px-4 py-2 text-slate-500">{formatDate(d.date_submitted)}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.amount_requested)}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.amount_approved)}</td>
+                <td className="px-4 py-2 text-right font-medium text-red-600">
+                  {formatCurrency(openBalance(d))}
+                </td>
                 <td className="px-4 py-2">
-                  <StatusBadge status={d.status} />
+                  <DrawStatusSelect drawId={d.id} projectId={d.project.id} status={d.status} />
                 </td>
                 <td className="px-4 py-2 text-right whitespace-nowrap">
                   <MarkPaidButton drawId={d.id} projectId={d.project.id} drawNumber={d.draw_number} />
@@ -57,7 +104,7 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
             ))}
             {draws.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-6 text-center text-slate-400">
                   No open draws. Everything invoiced has been paid.
                 </td>
               </tr>
@@ -65,6 +112,15 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
           </tbody>
         </table>
       </div>
+
+      <DrawFormModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        projectId={projectId}
+        editing={editing}
+        budgetLines={budgetLines}
+        allocations={allocations}
+      />
     </div>
   );
 }
