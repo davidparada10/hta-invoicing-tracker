@@ -23,6 +23,12 @@ export interface ParsedLenderDraw {
   allocations: ParsedLenderAllocation[];
 }
 
+export interface ParsedLenderBudgetLine {
+  item_number: string;
+  description: string;
+  scheduled_value: number;
+}
+
 export function isLenderPortalPdfText(text: string): boolean {
   return /ITEM\s*#/i.test(text) && /REVISED/i.test(text) && /SCHEDULED/i.test(text) && /TOTALS/i.test(text);
 }
@@ -97,17 +103,24 @@ function parseRow(lines: string[], start: number, end: number): ParsedRow {
   return { item_number, description, numbers };
 }
 
-export async function parseLenderDrawFromPdf(buffer: Buffer): Promise<ParsedLenderDraw> {
-  const text = await extractPdfText(buffer);
+interface ScannedLenderPdf {
+  drawNumber?: number;
+  periodEnd?: string;
+  rows: ParsedRow[];
+  // TOTALS row: revised, disbursed, balance, requested, approved, approvedLessRetainage
+  totals: [number, number, number, number, number, number];
+}
+
+function scanLenderPdf(text: string): ScannedLenderPdf {
   const lines = text.split("\n").map((l) => l.trim());
 
-  let draw_number: number | undefined;
-  let period_end: string | undefined;
+  let drawNumber: number | undefined;
+  let periodEnd: string | undefined;
   for (const line of lines) {
     const drawMatch = /Draw\s+Request\s+(\d+)/i.exec(line);
-    if (drawMatch) draw_number = Number(drawMatch[1]);
+    if (drawMatch) drawNumber = Number(drawMatch[1]);
     const dateMatch = /Effective\s+on\s+(\d{1,2}\/\d{1,2}\/\d{2,4})/i.exec(line);
-    if (dateMatch) period_end = toISODateFromSlash(dateMatch[1]);
+    if (dateMatch) periodEnd = toISODateFromSlash(dateMatch[1]);
   }
 
   const totalsIdx = lines.findIndex((l) => /^TOTALS\b/i.test(l));
@@ -133,7 +146,7 @@ export async function parseLenderDrawFromPdf(buffer: Buffer): Promise<ParsedLend
   const incompleteRows = rows.filter((r) => r.numbers.length < 6);
   if (incompleteRows.length > 0) {
     throw new Error(
-      `Could not fully read ${incompleteRows.length} line item(s) in this file (expected 6 amounts per row, e.g. item ${incompleteRows[0].item_number}). Enter this draw's numbers manually instead.`
+      `Could not fully read ${incompleteRows.length} line item(s) in this file (expected 6 amounts per row, e.g. item ${incompleteRows[0].item_number}). Enter these numbers manually instead.`
     );
   }
 
@@ -143,11 +156,22 @@ export async function parseLenderDrawFromPdf(buffer: Buffer): Promise<ParsedLend
     .filter(Boolean)
     .map(parseAmountToken)
     .filter((n): n is number => n !== null);
-  // TOTALS row: revised, disbursed, balance, requested, approved, approvedLessRetainage
   if (totalsAmounts.length < 6) {
     throw new Error("Could not read the TOTALS row's amounts in this file.");
   }
-  const [, , , totalsRequested, totalsApproved, totalsApprovedLessRetainage] = totalsAmounts;
+
+  return {
+    drawNumber,
+    periodEnd,
+    rows,
+    totals: totalsAmounts.slice(0, 6) as [number, number, number, number, number, number],
+  };
+}
+
+export async function parseLenderDrawFromPdf(buffer: Buffer): Promise<ParsedLenderDraw> {
+  const text = await extractPdfText(buffer);
+  const { drawNumber, periodEnd, rows, totals } = scanLenderPdf(text);
+  const [, , , totalsRequested, totalsApproved, totalsApprovedLessRetainage] = totals;
 
   const sumRequested = round2(rows.reduce((acc, r) => acc + r.numbers[3], 0));
   const sumApproved = round2(rows.reduce((acc, r) => acc + r.numbers[4], 0));
@@ -169,11 +193,30 @@ export async function parseLenderDrawFromPdf(buffer: Buffer): Promise<ParsedLend
     }));
 
   return {
-    draw_number,
-    period_end,
+    draw_number: drawNumber,
+    period_end: periodEnd,
     amount_requested: round2(totalsRequested),
     amount_approved: round2(totalsApproved),
     retainage_held,
     allocations,
   };
+}
+
+export async function parseLenderBudgetFromPdf(buffer: Buffer): Promise<ParsedLenderBudgetLine[]> {
+  const text = await extractPdfText(buffer);
+  const { rows, totals } = scanLenderPdf(text);
+  const [totalsRevised] = totals;
+
+  const sumRevised = round2(rows.reduce((acc, r) => acc + r.numbers[0], 0));
+  if (Math.abs(sumRevised - totalsRevised) > 0.02) {
+    throw new Error(
+      `The line items in this file don't add up to its own TOTALS row (scheduled value: parsed ${sumRevised} vs file's ${totalsRevised}). Something in this file's layout wasn't read correctly — import the budget from an Excel schedule of values instead.`
+    );
+  }
+
+  return rows.map((r) => ({
+    item_number: r.item_number,
+    description: r.description,
+    scheduled_value: round2(r.numbers[0]),
+  }));
 }
