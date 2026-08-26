@@ -2,19 +2,32 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { parseG702FromPdf, parseG702FromXlsx, ParsedG702Draw } from "@/lib/g702-parser";
+import {
+  parseDrawAllocationsFromXlsx,
+  parseG702FromPdf,
+  parseG702FromXlsx,
+  ParsedG702Draw,
+} from "@/lib/g702-parser";
 
-export async function parseG702Upload(formData: FormData): Promise<ParsedG702Draw> {
+export interface ParsedG702Upload extends ParsedG702Draw {
+  allocations: { budget_line_id: string; amount: number }[];
+  allocationsMatched: number;
+  allocationsFound: number;
+}
+
+export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upload> {
   const file = formData.get("g702_file");
   if (!(file instanceof File)) {
     throw new Error("No file provided.");
   }
+  const projectId = formData.get("project_id");
 
   const name = file.name.toLowerCase();
   const buffer = Buffer.from(await file.arrayBuffer());
 
   if (name.endsWith(".pdf") || file.type === "application/pdf") {
-    return parseG702FromPdf(buffer);
+    const parsed = await parseG702FromPdf(buffer);
+    return { ...parsed, allocations: [], allocationsMatched: 0, allocationsFound: 0 };
   }
 
   if (
@@ -23,7 +36,37 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Dra
     file.type.includes("spreadsheet") ||
     file.type.includes("excel")
   ) {
-    return parseG702FromXlsx(buffer);
+    const parsed = parseG702FromXlsx(buffer);
+    const allocationLines = parseDrawAllocationsFromXlsx(buffer);
+
+    let allocations: { budget_line_id: string; amount: number }[] = [];
+    if (allocationLines.length > 0 && typeof projectId === "string" && projectId) {
+      const supabase = createServerSupabaseClient();
+      const { data: budgetLines, error } = await supabase
+        .from("inv_project_budget_lines")
+        .select("id, item_number")
+        .eq("project_id", projectId);
+      if (error) throw error;
+
+      const byItemNumber = new Map(
+        (budgetLines ?? [])
+          .filter((l) => l.item_number)
+          .map((l) => [l.item_number!.trim().toLowerCase(), l.id])
+      );
+      allocations = allocationLines
+        .map((a) => {
+          const budgetLineId = byItemNumber.get(a.item_number.trim().toLowerCase());
+          return budgetLineId ? { budget_line_id: budgetLineId, amount: a.amount_this_period } : null;
+        })
+        .filter((a): a is { budget_line_id: string; amount: number } => a !== null);
+    }
+
+    return {
+      ...parsed,
+      allocations,
+      allocationsMatched: allocations.length,
+      allocationsFound: allocationLines.length,
+    };
   }
 
   throw new Error("Unsupported file type. Please upload a .xlsx or .pdf file.");
@@ -39,10 +82,57 @@ function toNullableString(value: FormDataEntryValue | null): string | null {
   return s.length ? s : null;
 }
 
+interface AllocationInput {
+  budget_line_id: string;
+  amount: number;
+}
+
+function parseAllocations(formData: FormData): AllocationInput[] {
+  const raw = formData.get("allocations");
+  if (typeof raw !== "string" || !raw.trim()) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter(
+      (a): a is AllocationInput =>
+        a && typeof a.budget_line_id === "string" && typeof a.amount === "number"
+    )
+    .filter((a) => a.amount !== 0);
+}
+
+async function saveAllocations(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  drawId: string,
+  allocations: AllocationInput[]
+) {
+  const { error: deleteError } = await supabase
+    .from("inv_draw_line_allocations")
+    .delete()
+    .eq("draw_id", drawId);
+  if (deleteError) throw deleteError;
+
+  if (allocations.length === 0) return;
+
+  const { error: insertError } = await supabase.from("inv_draw_line_allocations").insert(
+    allocations.map((a) => ({
+      draw_id: drawId,
+      budget_line_id: a.budget_line_id,
+      amount: a.amount,
+    }))
+  );
+  if (insertError) throw insertError;
+}
+
 export async function upsertDraw(formData: FormData) {
   const supabase = createServerSupabaseClient();
   const id = toNullableString(formData.get("id"));
   const projectId = formData.get("project_id") as string;
+  const allocations = parseAllocations(formData);
 
   const payload = {
     project_id: projectId,
@@ -60,12 +150,22 @@ export async function upsertDraw(formData: FormData) {
     notes: toNullableString(formData.get("notes")),
   };
 
+  let drawId = id;
   if (id) {
     const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
     if (error) throw error;
   } else {
-    const { error } = await supabase.from("inv_owner_draws").insert(payload);
+    const { data, error } = await supabase
+      .from("inv_owner_draws")
+      .insert(payload)
+      .select("id")
+      .single();
     if (error) throw error;
+    drawId = data.id;
+  }
+
+  if (drawId) {
+    await saveAllocations(supabase, drawId, allocations);
   }
 
   revalidatePath(`/projects/${projectId}`);

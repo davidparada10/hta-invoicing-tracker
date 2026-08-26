@@ -6,6 +6,7 @@ import SubInvoicesSection from "@/components/SubInvoicesSection";
 import BudgetSection from "@/components/BudgetSection";
 import MonthlyBillingChart from "@/components/MonthlyBillingChart";
 import {
+  getAllocationsForProject,
   getBudgetLinesForProject,
   getDrawsForProject,
   getProject,
@@ -28,10 +29,11 @@ export default async function ProjectDetailPage({
   const project = await getProject(params.id);
   if (!project) notFound();
 
-  const [draws, subInvoices, budgetLines] = await Promise.all([
+  const [draws, subInvoices, budgetLines, allocations] = await Promise.all([
     getDrawsForProject(project.id),
     getSubInvoicesForProject(project.id),
     getBudgetLinesForProject(project.id),
+    getAllocationsForProject(project.id),
   ]);
 
   const tab =
@@ -44,6 +46,10 @@ export default async function ProjectDetailPage({
     .filter((d) => d.status === "submitted" || d.status === "approved")
     .reduce((acc, d) => acc + (d.amount_requested ?? 0), 0);
   const totalBudget = budgetLines.reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0);
+  const balanceToComplete = totalBudget - totalPaidToOwner - totalOpenToOwner;
+  const drawRetainage = draws.reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);
+  const subRetainage = subInvoices.reduce((acc, s) => acc + (s.retainage_held ?? 0), 0);
+  const totalRetainage = drawRetainage + subRetainage;
 
   return (
     <div className="min-h-screen">
@@ -75,7 +81,7 @@ export default async function ProjectDetailPage({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
               Total Paid to Date
@@ -100,6 +106,17 @@ export default async function ProjectDetailPage({
               {formatCurrency(totalBudget)}
             </p>
           </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Balance to Complete
+            </p>
+            <p className="text-2xl font-semibold text-slate-900 mt-1">
+              {formatCurrency(balanceToComplete)}
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {formatCurrency(totalRetainage)} retainage to date
+            </p>
+          </div>
         </div>
 
         <MonthlyBillingChart draws={draws} />
@@ -109,12 +126,23 @@ export default async function ProjectDetailPage({
         <ProjectTabs projectId={project.id} active={tab} />
 
         <div className="mt-4">
-          {tab === "draws" && <DrawsSection projectId={project.id} draws={draws} />}
+          {tab === "draws" && (
+            <DrawsSection
+              projectId={project.id}
+              draws={draws}
+              budgetLines={budgetLines}
+              allocations={allocations}
+            />
+          )}
           {tab === "invoices" && (
             <SubInvoicesSection projectId={project.id} invoices={subInvoices} />
           )}
           {tab === "budget" && (
-            <BudgetSection projectId={project.id} budgetLines={budgetLines} />
+            <BudgetSection
+              projectId={project.id}
+              budgetLines={budgetLines}
+              allocations={allocations}
+            />
           )}
         </div>
       </main>

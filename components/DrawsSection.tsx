@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { OwnerDraw, DrawStatus } from "@/lib/types";
+import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
@@ -61,9 +61,13 @@ function drawToForm(d: OwnerDraw | null): DrawFormValues {
 export default function DrawsSection({
   projectId,
   draws,
+  budgetLines,
+  allocations,
 }: {
   projectId: string;
   draws: OwnerDraw[];
+  budgetLines: BudgetLine[];
+  allocations: DrawLineAllocation[];
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -75,6 +79,18 @@ export default function DrawsSection({
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsedFileName, setParsedFileName] = useState<string | null>(null);
+  const [parsedAllocationsCount, setParsedAllocationsCount] = useState<number | null>(null);
+
+  const [lineAmounts, setLineAmounts] = useState<Record<string, string>>({});
+
+  const previousByLine = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const a of allocations) {
+      if (editing && a.draw_id === editing.id) continue;
+      totals.set(a.budget_line_id, (totals.get(a.budget_line_id) ?? 0) + a.amount);
+    }
+    return totals;
+  }, [allocations, editing]);
 
   const filtered = useMemo(() => {
     return draws.filter((d) => {
@@ -91,11 +107,13 @@ export default function DrawsSection({
     setParsing(false);
     setParseError(null);
     setParsedFileName(null);
+    setParsedAllocationsCount(null);
   }
 
   function openAdd() {
     setEditing(null);
     setFormValues(EMPTY_FORM);
+    setLineAmounts({});
     resetUploadState();
     setModalOpen(true);
   }
@@ -103,6 +121,11 @@ export default function DrawsSection({
   function openEdit(draw: OwnerDraw) {
     setEditing(draw);
     setFormValues(drawToForm(draw));
+    const amounts: Record<string, string> = {};
+    for (const a of allocations) {
+      if (a.draw_id === draw.id) amounts[a.budget_line_id] = String(a.amount);
+    }
+    setLineAmounts(amounts);
     resetUploadState();
     setModalOpen(true);
   }
@@ -114,7 +137,23 @@ export default function DrawsSection({
     });
   }
 
+  function updateLineAmount(budgetLineId: string, value: string) {
+    setLineAmounts((v) => ({ ...v, [budgetLineId]: value }));
+  }
+
+  const allocationsTotal = useMemo(
+    () => Object.values(lineAmounts).reduce((acc, v) => acc + (Number(v) || 0), 0),
+    [lineAmounts]
+  );
+
   async function handleSubmit(formData: FormData) {
+    const allocationsPayload = budgetLines
+      .map((line) => ({
+        budget_line_id: line.id,
+        amount: Number(lineAmounts[line.id]) || 0,
+      }))
+      .filter((a) => a.amount !== 0);
+    formData.set("allocations", JSON.stringify(allocationsPayload));
     await upsertDraw(formData);
     setModalOpen(false);
   }
@@ -130,10 +169,12 @@ export default function DrawsSection({
     setParsing(true);
     setParseError(null);
     setParsedFileName(null);
+    setParsedAllocationsCount(null);
 
     try {
       const fd = new FormData();
       fd.set("g702_file", file);
+      fd.set("project_id", projectId);
       const parsed = await parseG702Upload(fd);
 
       setFormValues((v) => ({
@@ -147,6 +188,18 @@ export default function DrawsSection({
           parsed.retainage_held !== undefined ? String(parsed.retainage_held) : v.retainage_held,
         status: v.status === "draft" ? "submitted" : v.status,
       }));
+
+      if (parsed.allocations.length > 0) {
+        setLineAmounts((prev) => {
+          const next = { ...prev };
+          for (const a of parsed.allocations) {
+            next[a.budget_line_id] = String(a.amount);
+          }
+          return next;
+        });
+        setParsedAllocationsCount(parsed.allocationsMatched);
+      }
+
       setParsedFileName(file.name);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : "Could not read that file.");
@@ -257,6 +310,7 @@ export default function DrawsSection({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editing ? `Edit Draw #${editing.draw_number}` : "Add Draw"}
+        size="xl"
       >
         <form action={handleSubmit} className="space-y-3">
           <input type="hidden" name="project_id" value={projectId} />
@@ -285,7 +339,13 @@ export default function DrawsSection({
             {parseError && <p className="text-xs text-red-600 mt-1">{parseError}</p>}
             {parsedFileName && !parsing && !parseError && (
               <p className="text-xs text-emerald-600 mt-1">
-                Auto-filled from {parsedFileName}. Review the fields below before saving.
+                Auto-filled from {parsedFileName}.
+                {parsedAllocationsCount
+                  ? ` Also filled in ${parsedAllocationsCount} schedule-of-values line${
+                      parsedAllocationsCount === 1 ? "" : "s"
+                    } from the G703 sheet.`
+                  : ""}{" "}
+                Review the fields below before saving.
               </p>
             )}
           </div>
@@ -413,6 +473,66 @@ export default function DrawsSection({
               />
             </Field>
           </div>
+
+          {budgetLines.length > 0 && (
+            <div className="rounded-lg border border-slate-200 p-3">
+              <div className="flex items-baseline justify-between mb-2">
+                <span className="block text-xs font-medium text-slate-600">
+                  Schedule of values — amount billed this period, by budget line
+                </span>
+                <span className="text-xs text-slate-500">
+                  {formatCurrency(allocationsTotal)} allocated
+                </span>
+              </div>
+              <div className="max-h-64 overflow-y-auto rounded-md border border-slate-100">
+                <table className="min-w-full text-xs">
+                  <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide sticky top-0">
+                    <tr>
+                      <th className="text-left px-2 py-1.5">Budget line</th>
+                      <th className="text-right px-2 py-1.5">Scheduled</th>
+                      <th className="text-right px-2 py-1.5">Previous</th>
+                      <th className="text-right px-2 py-1.5 w-28">This draw</th>
+                      <th className="text-right px-2 py-1.5">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {budgetLines.map((line) => {
+                      const previous = previousByLine.get(line.id) ?? 0;
+                      const thisDraw = Number(lineAmounts[line.id]) || 0;
+                      const balance = line.scheduled_value - previous - thisDraw;
+                      return (
+                        <tr key={line.id}>
+                          <td className="px-2 py-1.5 text-slate-700 min-w-[14rem]">
+                            {line.item_number ? `${line.item_number} — ` : ""}
+                            {line.description}
+                          </td>
+                          <td className="px-2 py-1.5 text-right text-slate-500 whitespace-nowrap">
+                            {formatCurrency(line.scheduled_value)}
+                          </td>
+                          <td className="px-2 py-1.5 text-right text-slate-500 whitespace-nowrap">
+                            {formatCurrency(previous)}
+                          </td>
+                          <td className="px-2 py-1.5 text-right">
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={lineAmounts[line.id] ?? ""}
+                              onChange={(e) => updateLineAmount(line.id, e.target.value)}
+                              placeholder="0"
+                              className="w-full rounded border border-slate-300 px-1.5 py-0.5 text-right text-xs"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 text-right text-slate-500 whitespace-nowrap">
+                            {formatCurrency(balance)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           <Field label="Notes">
             <textarea

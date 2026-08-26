@@ -57,6 +57,14 @@ export interface BudgetLine {
   created_at: string;
 }
 
+export interface DrawLineAllocation {
+  id: string;
+  draw_id: string;
+  budget_line_id: string;
+  amount: number;
+  created_at: string;
+}
+
 export interface OpenDraw extends OwnerDraw {
   project: Pick<Project, "id" | "name">;
 }

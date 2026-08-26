@@ -185,9 +185,22 @@ export interface ParsedBudgetLine {
   scheduled_value: number;
 }
 
+export interface ParsedDrawAllocationLine {
+  item_number: string;
+  amount_this_period: number;
+}
+
+interface ScannedG703Row {
+  item_number: string;
+  category: string | null;
+  description: string;
+  scheduled_value: number;
+  amount_this_period: number | undefined;
+}
+
 const STOP_LABEL = /^SUBTOTAL|^TOTAL\b|^CO\s*RECAP|^CO#\d/i;
 
-export function parseBudgetFromXlsx(buffer: Buffer): ParsedBudgetLine[] {
+function scanG703Rows(buffer: Buffer): ScannedG703Row[] {
   const wb = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const sheetName =
     wb.SheetNames.find((n) => /g703/i.test(n)) ??
@@ -220,7 +233,20 @@ export function parseBudgetFromXlsx(buffer: Buffer): ParsedBudgetLine[] {
   }
   if (scheduledCol === -1) scheduledCol = descCol + 1;
 
-  const lines: ParsedBudgetLine[] = [];
+  // "THIS PERIOD" identifies the work-completed-this-period column, but some
+  // templates also use the phrase inside a retainage column header (e.g.
+  // "RET. HELD THIS PERIOD") one row up, and split "WORK COMPLETED" into
+  // "PREVIOUS APPLICATION" / "THIS PERIOD" sub-headers on the row below the
+  // main header. Require an exact match (not merely containing the phrase)
+  // and check the sub-header row first so the retainage column is never hit.
+  const isExactThisPeriod = (v: unknown) => typeof v === "string" && /^this\s+period\.?$/i.test(v.trim());
+  const subHeaderCells = grid[headerRow + 1] ?? [];
+  let thisPeriodCol = subHeaderCells.findIndex(isExactThisPeriod);
+  if (thisPeriodCol === -1) {
+    thisPeriodCol = headerCells.findIndex(isExactThisPeriod);
+  }
+
+  const rows: ScannedG703Row[] = [];
   let category: string | null = null;
 
   for (let r = headerRow + 1; r < grid.length; r++) {
@@ -240,13 +266,30 @@ export function parseBudgetFromXlsx(buffer: Buffer): ParsedBudgetLine[] {
     if (typeof descVal !== "string" || !descVal.trim()) continue;
 
     const scheduled = toNumber(row[scheduledCol]);
-    lines.push({
+    const thisPeriod = thisPeriodCol !== -1 ? toNumber(row[thisPeriodCol]) : undefined;
+    rows.push({
       item_number: String(itemVal).trim(),
       category,
       description: descVal.trim(),
       scheduled_value: scheduled !== undefined ? round2(scheduled) : 0,
+      amount_this_period: thisPeriod !== undefined ? round2(thisPeriod) : undefined,
     });
   }
 
-  return lines;
+  return rows;
+}
+
+export function parseBudgetFromXlsx(buffer: Buffer): ParsedBudgetLine[] {
+  return scanG703Rows(buffer).map(({ item_number, category, description, scheduled_value }) => ({
+    item_number,
+    category,
+    description,
+    scheduled_value,
+  }));
+}
+
+export function parseDrawAllocationsFromXlsx(buffer: Buffer): ParsedDrawAllocationLine[] {
+  return scanG703Rows(buffer)
+    .filter((r) => r.amount_this_period !== undefined && r.amount_this_period !== 0)
+    .map((r) => ({ item_number: r.item_number, amount_this_period: r.amount_this_period as number }));
 }

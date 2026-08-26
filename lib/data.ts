@@ -1,5 +1,13 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { BudgetLine, OpenDraw, OwnerDraw, Project, ProjectRollup, SubInvoice } from "@/lib/types";
+import {
+  BudgetLine,
+  DrawLineAllocation,
+  OpenDraw,
+  OwnerDraw,
+  Project,
+  ProjectRollup,
+  SubInvoice,
+} from "@/lib/types";
 
 export async function getProjects(): Promise<Project[]> {
   const supabase = createServerSupabaseClient();
@@ -53,6 +61,32 @@ export async function getBudgetLinesForProject(projectId: string): Promise<Budge
     .order("sort_order", { ascending: true });
   if (error) throw error;
   return data as BudgetLine[];
+}
+
+export async function getAllocationsForProject(projectId: string): Promise<DrawLineAllocation[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("inv_draw_line_allocations")
+    .select("*, inv_owner_draws!inner(project_id)")
+    .eq("inv_owner_draws.project_id", projectId);
+  if (error) throw error;
+  return (data as (DrawLineAllocation & { inv_owner_draws: unknown })[]).map((row) => ({
+    id: row.id,
+    draw_id: row.draw_id,
+    budget_line_id: row.budget_line_id,
+    amount: row.amount,
+    created_at: row.created_at,
+  }));
+}
+
+export async function getAllocationsForDraw(drawId: string): Promise<DrawLineAllocation[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("inv_draw_line_allocations")
+    .select("*")
+    .eq("draw_id", drawId);
+  if (error) throw error;
+  return data as DrawLineAllocation[];
 }
 
 export async function getAllDraws(): Promise<OwnerDraw[]> {

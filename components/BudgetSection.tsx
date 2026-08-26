@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { BudgetLine } from "@/lib/types";
+import { BudgetLine, DrawLineAllocation } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import Modal from "@/components/Modal";
 import { deleteBudgetLine, importBudgetFromXlsx, upsertBudgetLine } from "@/app/budget/actions";
@@ -9,9 +9,11 @@ import { deleteBudgetLine, importBudgetFromXlsx, upsertBudgetLine } from "@/app/
 export default function BudgetSection({
   projectId,
   budgetLines,
+  allocations,
 }: {
   projectId: string;
   budgetLines: BudgetLine[];
+  allocations: DrawLineAllocation[];
 }) {
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -26,6 +28,19 @@ export default function BudgetSection({
   const totalBudget = useMemo(
     () => budgetLines.reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0),
     [budgetLines]
+  );
+
+  const drawnByLine = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const a of allocations) {
+      totals.set(a.budget_line_id, (totals.get(a.budget_line_id) ?? 0) + a.amount);
+    }
+    return totals;
+  }, [allocations]);
+
+  const totalDrawn = useMemo(
+    () => Array.from(drawnByLine.values()).reduce((acc, v) => acc + v, 0),
+    [drawnByLine]
   );
 
   const filtered = useMemo(() => {
@@ -101,11 +116,31 @@ export default function BudgetSection({
 
   return (
     <div>
-      <div className="rounded-xl border border-slate-200 bg-white p-5 mb-4">
-        <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-          Total Budget (Scheduled Value)
-        </p>
-        <p className="text-2xl font-semibold text-slate-900 mt-1">{formatCurrency(totalBudget)}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+            Total Budget (Scheduled Value)
+          </p>
+          <p className="text-2xl font-semibold text-slate-900 mt-1">
+            {formatCurrency(totalBudget)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+            Drawn to Date
+          </p>
+          <p className="text-2xl font-semibold text-blue-700 mt-1">
+            {formatCurrency(totalDrawn)}
+          </p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+            Balance to Finish
+          </p>
+          <p className="text-2xl font-semibold text-slate-900 mt-1">
+            {formatCurrency(totalBudget - totalDrawn)}
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -153,16 +188,24 @@ export default function BudgetSection({
               <th className="text-left px-4 py-2">Category</th>
               <th className="text-left px-4 py-2">Description</th>
               <th className="text-right px-4 py-2">Scheduled Value</th>
+              <th className="text-right px-4 py-2">Drawn to Date</th>
+              <th className="text-right px-4 py-2">Balance to Finish</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map((l) => (
+            {filtered.map((l) => {
+              const drawn = drawnByLine.get(l.id) ?? 0;
+              return (
               <tr key={l.id} className="hover:bg-slate-50">
                 <td className="px-4 py-2 text-slate-500">{l.item_number ?? "—"}</td>
                 <td className="px-4 py-2 text-slate-500">{l.category ?? "—"}</td>
                 <td className="px-4 py-2 font-medium">{l.description}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(l.scheduled_value)}</td>
+                <td className="px-4 py-2 text-right text-blue-700">{formatCurrency(drawn)}</td>
+                <td className="px-4 py-2 text-right text-slate-500">
+                  {formatCurrency(l.scheduled_value - drawn)}
+                </td>
                 <td className="px-4 py-2 text-right whitespace-nowrap">
                   <button
                     onClick={() => openEdit(l)}
@@ -179,10 +222,11 @@ export default function BudgetSection({
                   </button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                   No budget line items yet. Add one manually or import from a G702/G703 workbook.
                 </td>
               </tr>
