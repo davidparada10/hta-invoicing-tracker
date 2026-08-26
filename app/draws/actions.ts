@@ -5,11 +5,13 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
 import { getAllocationsForProject, getBudgetLinesForProject } from "@/lib/data";
 import {
+  extractPdfText,
   parseDrawAllocationsFromXlsx,
   parseG702FromPdf,
   parseG702FromXlsx,
   ParsedG702Draw,
 } from "@/lib/g702-parser";
+import { isLenderPortalPdfText, parseLenderDrawFromPdf } from "@/lib/lender-portal-parser";
 
 function normalizeMatchKey(s: string): string {
   return s
@@ -39,17 +41,77 @@ export interface ParsedG702Upload extends ParsedG702Draw {
   allocationsFound: number;
 }
 
+async function matchAllocationsToBudgetLines(
+  projectId: string,
+  lines: { item_number: string; description: string; amount: number }[]
+): Promise<{ budget_line_id: string; amount: number }[]> {
+  if (lines.length === 0) return [];
+
+  const supabase = createServerSupabaseClient();
+  const { data: budgetLines, error } = await supabase
+    .from("inv_project_budget_lines")
+    .select("id, item_number, description")
+    .eq("project_id", projectId);
+  if (error) throw error;
+
+  // Item numbers can collide across unrelated line items within the same
+  // schedule of values (seen in practice — two different lines both
+  // numbered "1"), so match on description text first and only fall back
+  // to item number when a line has no unambiguous description match.
+  const byDescription = buildUniqueMatchMap(
+    (budgetLines ?? []).map((l) => [normalizeMatchKey(l.description), l.id])
+  );
+  const byItemNumber = buildUniqueMatchMap(
+    (budgetLines ?? [])
+      .filter((l) => l.item_number)
+      .map((l) => [normalizeMatchKey(l.item_number!), l.id])
+  );
+
+  return lines
+    .map((a) => {
+      const budgetLineId =
+        byDescription.get(normalizeMatchKey(a.description)) ??
+        byItemNumber.get(normalizeMatchKey(a.item_number));
+      return budgetLineId ? { budget_line_id: budgetLineId, amount: a.amount } : null;
+    })
+    .filter((a): a is { budget_line_id: string; amount: number } => a !== null);
+}
+
 export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upload> {
   const file = formData.get("g702_file");
   if (!(file instanceof File)) {
     throw new Error("No file provided.");
   }
-  const projectId = formData.get("project_id");
+  const projectIdRaw = formData.get("project_id");
+  const projectId = typeof projectIdRaw === "string" ? projectIdRaw : "";
 
   const name = file.name.toLowerCase();
   const buffer = Buffer.from(await file.arrayBuffer());
 
   if (name.endsWith(".pdf") || file.type === "application/pdf") {
+    const text = await extractPdfText(buffer);
+
+    if (isLenderPortalPdfText(text)) {
+      const parsed = await parseLenderDrawFromPdf(buffer);
+      const allocationLines = parsed.allocations.map((a) => ({
+        item_number: a.item_number,
+        description: a.description,
+        amount: a.requested_value,
+      }));
+      const allocations = projectId
+        ? await matchAllocationsToBudgetLines(projectId, allocationLines)
+        : [];
+      return {
+        draw_number: parsed.draw_number,
+        period_end: parsed.period_end,
+        amount_requested: parsed.amount_requested,
+        retainage_held: parsed.retainage_held,
+        allocations,
+        allocationsMatched: allocations.length,
+        allocationsFound: allocationLines.length,
+      };
+    }
+
     const parsed = await parseG702FromPdf(buffer);
     return { ...parsed, allocations: [], allocationsMatched: 0, allocationsFound: 0 };
   }
@@ -61,38 +123,14 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
     file.type.includes("excel")
   ) {
     const parsed = parseG702FromXlsx(buffer);
-    const allocationLines = parseDrawAllocationsFromXlsx(buffer);
-
-    let allocations: { budget_line_id: string; amount: number }[] = [];
-    if (allocationLines.length > 0 && typeof projectId === "string" && projectId) {
-      const supabase = createServerSupabaseClient();
-      const { data: budgetLines, error } = await supabase
-        .from("inv_project_budget_lines")
-        .select("id, item_number, description")
-        .eq("project_id", projectId);
-      if (error) throw error;
-
-      // Item numbers can collide across unrelated line items within the same
-      // G703 (seen in practice — two different lines both numbered "1"), so
-      // match on description text first and only fall back to item number
-      // when a line has no unambiguous description match.
-      const byDescription = buildUniqueMatchMap(
-        (budgetLines ?? []).map((l) => [normalizeMatchKey(l.description), l.id])
-      );
-      const byItemNumber = buildUniqueMatchMap(
-        (budgetLines ?? [])
-          .filter((l) => l.item_number)
-          .map((l) => [normalizeMatchKey(l.item_number!), l.id])
-      );
-      allocations = allocationLines
-        .map((a) => {
-          const budgetLineId =
-            byDescription.get(normalizeMatchKey(a.description)) ??
-            byItemNumber.get(normalizeMatchKey(a.item_number));
-          return budgetLineId ? { budget_line_id: budgetLineId, amount: a.amount_this_period } : null;
-        })
-        .filter((a): a is { budget_line_id: string; amount: number } => a !== null);
-    }
+    const allocationLines = parseDrawAllocationsFromXlsx(buffer).map((a) => ({
+      item_number: a.item_number,
+      description: a.description,
+      amount: a.amount_this_period,
+    }));
+    const allocations = projectId
+      ? await matchAllocationsToBudgetLines(projectId, allocationLines)
+      : [];
 
     return {
       ...parsed,

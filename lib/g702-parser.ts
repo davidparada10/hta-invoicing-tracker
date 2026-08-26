@@ -14,6 +14,16 @@ if (typeof (globalThis as { DOMMatrix?: unknown }).DOMMatrix === "undefined") {
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { PDFParse } = require("pdf-parse") as typeof import("pdf-parse");
 
+export async function extractPdfText(buffer: Buffer): Promise<string> {
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const parsed = await parser.getText();
+    return parsed.text;
+  } finally {
+    await parser.destroy();
+  }
+}
+
 export interface ParsedG702Draw {
   draw_number?: number;
   period_end?: string;
@@ -142,14 +152,7 @@ const DATE_PATTERN = /\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/;
 const MONEY_PATTERN = /\$\s*[\d,]+(?:\.\d{2})?/;
 
 export async function parseG702FromPdf(buffer: Buffer): Promise<ParsedG702Draw> {
-  const parser = new PDFParse({ data: buffer });
-  let text: string;
-  try {
-    const parsed = await parser.getText();
-    text = parsed.text;
-  } finally {
-    await parser.destroy();
-  }
+  const text = await extractPdfText(buffer);
 
   const result: ParsedG702Draw = {};
 
