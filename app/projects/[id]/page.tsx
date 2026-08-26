@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import DrawsSection from "@/components/DrawsSection";
-import SubInvoicesSection from "@/components/SubInvoicesSection";
 import BudgetSection from "@/components/BudgetSection";
 import MonthlyBillingChart from "@/components/MonthlyBillingChart";
 import {
@@ -10,7 +9,6 @@ import {
   getBudgetLinesForProject,
   getDrawsForProject,
   getProject,
-  getSubInvoicesForProject,
   openBalance,
 } from "@/lib/data";
 import { formatCurrency } from "@/lib/format";
@@ -30,15 +28,13 @@ export default async function ProjectDetailPage({
   const project = await getProject(params.id);
   if (!project) notFound();
 
-  const [draws, subInvoices, budgetLines, allocations] = await Promise.all([
+  const [draws, budgetLines, allocations] = await Promise.all([
     getDrawsForProject(project.id),
-    getSubInvoicesForProject(project.id),
     getBudgetLinesForProject(project.id),
     getAllocationsForProject(project.id),
   ]);
 
-  const tab =
-    searchParams.tab === "invoices" ? "invoices" : searchParams.tab === "budget" ? "budget" : "draws";
+  const tab = searchParams.tab === "budget" ? "budget" : "draws";
 
   const totalPaidToOwner = draws
     .filter((d) => d.status !== "draft")
@@ -46,9 +42,7 @@ export default async function ProjectDetailPage({
   const totalOpenToOwner = draws.reduce((acc, d) => acc + openBalance(d), 0);
   const totalBudget = budgetLines.reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0);
   const balanceToComplete = totalBudget - totalPaidToOwner - totalOpenToOwner;
-  const drawRetainage = draws.reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);
-  const subRetainage = subInvoices.reduce((acc, s) => acc + (s.retainage_held ?? 0), 0);
-  const totalRetainage = drawRetainage + subRetainage;
+  const totalRetainage = draws.reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);
 
   return (
     <div className="min-h-screen">
@@ -120,7 +114,7 @@ export default async function ProjectDetailPage({
 
         <MonthlyBillingChart draws={draws} />
 
-        <ProjectSummaryCard draws={draws} subInvoices={subInvoices} />
+        <ProjectSummaryCard draws={draws} />
 
         <ProjectTabs projectId={project.id} active={tab} />
 
@@ -132,9 +126,6 @@ export default async function ProjectDetailPage({
               budgetLines={budgetLines}
               allocations={allocations}
             />
-          )}
-          {tab === "invoices" && (
-            <SubInvoicesSection projectId={project.id} invoices={subInvoices} />
           )}
           {tab === "budget" && (
             <BudgetSection

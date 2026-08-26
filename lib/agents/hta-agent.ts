@@ -1,12 +1,7 @@
 import { ToolLoopAgent, InferAgentUIMessage } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { listProjectsTool, getOpenDrawsTool, getProjectDetailsTool } from "@/lib/tools/read-tools";
-import {
-  createDrawTool,
-  markDrawPaidTool,
-  createSubInvoiceTool,
-  createBudgetLineTool,
-} from "@/lib/tools/write-tools";
+import { createDrawTool, markDrawPaidTool, createBudgetLineTool } from "@/lib/tools/write-tools";
 
 export const htaAgent = new ToolLoopAgent({
   model: anthropic("claude-sonnet-5"),
@@ -14,8 +9,8 @@ export const htaAgent = new ToolLoopAgent({
 
 This app tracks owner draws (invoices HTA submits to the lender/owner) across multifamily
 construction projects. The core purpose is showing what has been PAID vs. what is CURRENTLY
-INVOICED (submitted or approved but not yet paid) on owner draws. Subcontractor invoices and
-retainage are secondary, lower-priority data in this app.
+INVOICED (submitted or approved but not yet paid, including any shortfall on a draw marked
+paid for less than requested) on owner draws.
 
 Draw status lifecycle: draft (not yet sent) -> submitted (sent to the lender) -> approved
 (lender/architect signed off) -> paid.
@@ -24,11 +19,10 @@ You can:
 - Answer questions about the data using the read tools (listProjects, getOpenDraws,
   getProjectDetails). Never invent numbers — always call a tool before stating totals, dates,
   or draw details.
-- Add new records using the write tools (createDraw, markDrawPaid, createSubInvoice,
-  createBudgetLine) when the user describes something that happened, e.g. "we got paid on
-  Aneta draw 3" or "add a $12,000 invoice from ABC Electric on Broadway". These require the
-  user's explicit approval before they run, so just call the tool — the UI handles asking for
-  confirmation.
+- Add new records using the write tools (createDraw, markDrawPaid, createBudgetLine) when the
+  user describes something that happened, e.g. "we got paid on Aneta draw 3" or "add a budget
+  line for site demolition". These require the user's explicit approval before they run, so
+  just call the tool — the UI handles asking for confirmation.
 - Answer general questions about how the app works (the G702/G703 upload on the Owner Draws
   and Budget tabs, the Mark Paid button, the monthly billing chart) and general questions about
   construction draws or AIA G702/G703 forms.
@@ -42,13 +36,11 @@ concise, in plain language (never mention internal field or column names).`,
     getProjectDetails: getProjectDetailsTool,
     createDraw: createDrawTool,
     markDrawPaid: markDrawPaidTool,
-    createSubInvoice: createSubInvoiceTool,
     createBudgetLine: createBudgetLineTool,
   },
   toolApproval: {
     createDraw: "user-approval",
     markDrawPaid: "user-approval",
-    createSubInvoice: "user-approval",
     createBudgetLine: "user-approval",
   },
 });

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Multi-Family Invoice Tracker",
-  description: "Owner draws and subcontractor invoicing for HTA Construction & Development",
+  description: "Owner draw tracking for HTA Construction & Development",
 };
 
 export default function RootLayout({

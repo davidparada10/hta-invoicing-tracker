@@ -22,7 +22,7 @@ export default async function DashboardPage() {
           <AddProjectModal />
         </div>
         <p className="text-sm text-slate-500 mb-6">
-          Owner draws and subcontractor invoicing across all active projects.
+          Owner draws across all active projects.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
@@ -47,10 +47,10 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <div className="rounded-lg bg-slate-100/60 p-4">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
-              Total sub invoices outstanding
+              Total project budget
             </p>
             <p className="text-lg font-medium text-slate-600 mt-1">
-              {formatCurrency(totals.totalOutstanding)}
+              {formatCurrency(totals.totalBudget)}
             </p>
           </div>
           <div className="rounded-lg bg-slate-100/60 p-4">

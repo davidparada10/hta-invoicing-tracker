@@ -1,13 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import {
-  BudgetLine,
-  DrawLineAllocation,
-  OpenDraw,
-  OwnerDraw,
-  Project,
-  ProjectRollup,
-  SubInvoice,
-} from "@/lib/types";
+import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
 
 export async function getProjects(): Promise<Project[]> {
   const supabase = createServerSupabaseClient();
@@ -39,17 +31,6 @@ export async function getDrawsForProject(projectId: string): Promise<OwnerDraw[]
     .order("draw_number", { ascending: true });
   if (error) throw error;
   return data as OwnerDraw[];
-}
-
-export async function getSubInvoicesForProject(projectId: string): Promise<SubInvoice[]> {
-  const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("inv_sub_invoices")
-    .select("*")
-    .eq("project_id", projectId)
-    .order("invoice_date", { ascending: false });
-  if (error) throw error;
-  return data as SubInvoice[];
 }
 
 export async function getBudgetLinesForProject(projectId: string): Promise<BudgetLine[]> {
@@ -96,13 +77,6 @@ export async function getAllDraws(): Promise<OwnerDraw[]> {
   return data as OwnerDraw[];
 }
 
-export async function getAllSubInvoices(): Promise<SubInvoice[]> {
-  const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase.from("inv_sub_invoices").select("*");
-  if (error) throw error;
-  return data as SubInvoice[];
-}
-
 export async function getAllBudgetLines(): Promise<BudgetLine[]> {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase.from("inv_project_budget_lines").select("*");
@@ -147,20 +121,18 @@ export async function getDashboardData(): Promise<{
   totals: {
     totalPaidToOwner: number;
     totalOpenToOwner: number;
-    totalOutstanding: number;
+    totalBudget: number;
     totalRetainage: number;
   };
 }> {
-  const [projects, draws, subInvoices, budgetLines] = await Promise.all([
+  const [projects, draws, budgetLines] = await Promise.all([
     getProjects(),
     getAllDraws(),
-    getAllSubInvoices(),
     getAllBudgetLines(),
   ]);
 
   const rollups: ProjectRollup[] = projects.map((project) => {
     const projectDraws = draws.filter((d) => d.project_id === project.id);
-    const projectSubInvoices = subInvoices.filter((s) => s.project_id === project.id);
     const projectBudgetLines = budgetLines.filter((l) => l.project_id === project.id);
 
     const totalRequested = sum(projectDraws.map((d) => d.amount_requested));
@@ -172,10 +144,6 @@ export async function getDashboardData(): Promise<{
     );
     const totalOpenToOwner = sum(projectDraws.map(openBalance));
 
-    const totalSubInvoiced = sum(projectSubInvoices.map((s) => s.amount));
-    const totalSubPaid = sum(projectSubInvoices.map((s) => s.amount_paid));
-    const totalSubRetainage = sum(projectSubInvoices.map((s) => s.retainage_held));
-
     const totalBudget = sum(projectBudgetLines.map((l) => l.scheduled_value));
     const balanceToComplete = totalBudget - totalPaidToOwner - totalOpenToOwner;
 
@@ -186,10 +154,6 @@ export async function getDashboardData(): Promise<{
       totalDrawRetainage,
       totalPaidToOwner,
       totalOpenToOwner,
-      totalSubInvoiced,
-      totalSubPaid,
-      totalSubOutstanding: totalSubInvoiced - totalSubPaid,
-      totalSubRetainage,
       totalBudget,
       balanceToComplete,
     };
@@ -197,10 +161,10 @@ export async function getDashboardData(): Promise<{
 
   const totalPaidToOwner = sum(rollups.map((r) => r.totalPaidToOwner));
   const totalOpenToOwner = sum(rollups.map((r) => r.totalOpenToOwner));
-  const totalOutstanding = sum(rollups.map((r) => r.totalSubOutstanding));
-  const totalRetainage = sum(rollups.map((r) => r.totalDrawRetainage + r.totalSubRetainage));
+  const totalBudget = sum(rollups.map((r) => r.totalBudget));
+  const totalRetainage = sum(rollups.map((r) => r.totalDrawRetainage));
 
-  return { rollups, totals: { totalPaidToOwner, totalOpenToOwner, totalOutstanding, totalRetainage } };
+  return { rollups, totals: { totalPaidToOwner, totalOpenToOwner, totalBudget, totalRetainage } };
 }
 
 function sum(values: number[]): number {

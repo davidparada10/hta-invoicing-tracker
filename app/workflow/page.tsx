@@ -172,7 +172,7 @@ export default function WorkflowPage() {
             { icon: "⚡", title: "/api/chat", detail: "createAgentUIStreamResponse", category: "server", edgeLabel: "runs" },
             { icon: "🤖", title: "htaAgent (ToolLoopAgent)", detail: "lib/agents/hta-agent.ts · Claude via direct Anthropic API", category: "ai", edgeLabel: "picks a tool" },
             { icon: "🔍", title: "Read tool", detail: "listProjects / getOpenDraws / getProjectDetails — auto-runs", category: "server", edgeLabel: "or" },
-            { icon: "✋", title: "Write tool proposed", detail: "createDraw / markDrawPaid / createSubInvoice / createBudgetLine", category: "decision", edgeLabel: "Confirm" },
+            { icon: "✋", title: "Write tool proposed", detail: "createDraw / markDrawPaid / createBudgetLine", category: "decision", edgeLabel: "Confirm" },
             { icon: "🗄️", title: "Supabase write", detail: "Same tables as the manual forms use", category: "data", edgeLabel: "streams back" },
             { icon: "✅", title: "Chat reply", detail: "Plain-language summary of what happened", category: "output" },
           ]}
@@ -204,14 +204,14 @@ export default function WorkflowPage() {
             fields="project_id → draws to lender: amount_requested/approved/paid · retainage_held · dates · status"
           />
           <DataTable
-            icon="🧾"
-            name="inv_sub_invoices"
-            fields="project_id → subcontractor invoices: amount · amount_paid · retainage_held · status"
-          />
-          <DataTable
             icon="📋"
             name="inv_project_budget_lines"
-            fields="project_id → schedule of values: item_number · category · description · scheduled_value"
+            fields="project_id → schedule of values: item_number · category · description · scheduled_value · retention_exempt"
+          />
+          <DataTable
+            icon="🔗"
+            name="inv_draw_line_allocations"
+            fields="draw_id + budget_line_id → amount billed this period against that budget line"
           />
         </div>
 
@@ -248,7 +248,7 @@ export default function WorkflowPage() {
             <Detail term="lib/g702-parser.ts">G702 and G703 Excel parsing (SheetJS, fixed AIA cell layout)</Detail>
             <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools</Detail>
             <Detail term="lib/auth/session.ts">Passcode session signing/verification</Detail>
-            <Detail term="components/*Section.tsx">The CRUD table + modal for one entity (draws, sub invoices, budget)</Detail>
+            <Detail term="components/*Section.tsx">The CRUD table + modal for one entity (draws, budget)</Detail>
           </dl>
         </div>
       </main>

@@ -10,7 +10,7 @@ import {
 import type { HtaAgentUIMessage } from "@/lib/agents/hta-agent";
 import { formatCurrency, formatDate } from "@/lib/format";
 
-const WRITE_TOOLS = new Set(["createDraw", "markDrawPaid", "createSubInvoice", "createBudgetLine"]);
+const WRITE_TOOLS = new Set(["createDraw", "markDrawPaid", "createBudgetLine"]);
 
 export default function FloatingChat() {
   const [open, setOpen] = useState(false);
@@ -199,10 +199,6 @@ function describeProposal(toolName: string, input: unknown): string {
       )} requested, status ${i.status ?? "draft"}.`;
     case "markDrawPaid":
       return `Mark Draw #${i.drawNumber} on ${i.projectName} as paid.`;
-    case "createSubInvoice":
-      return `Add a ${formatCurrency(i.amount as number)} invoice from ${i.subcontractorName} on ${
-        i.projectName
-      }.`;
     case "createBudgetLine":
       return `Add budget line "${i.description}" (${formatCurrency(
         i.scheduledValue as number

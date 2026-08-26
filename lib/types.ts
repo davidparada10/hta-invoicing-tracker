@@ -1,6 +1,5 @@
 export type ProjectStatus = "active" | "closed";
 export type DrawStatus = "draft" | "submitted" | "approved" | "paid";
-export type SubInvoiceStatus = "received" | "approved" | "paid" | "disputed";
 
 export interface Project {
   id: string;
@@ -26,22 +25,6 @@ export interface OwnerDraw {
   date_approved: string | null;
   date_paid: string | null;
   status: DrawStatus;
-  notes: string | null;
-  created_at: string;
-}
-
-export interface SubInvoice {
-  id: string;
-  project_id: string;
-  subcontractor_name: string;
-  trade: string | null;
-  invoice_number: string | null;
-  invoice_date: string | null;
-  amount: number;
-  retainage_held: number;
-  amount_paid: number;
-  date_paid: string | null;
-  status: SubInvoiceStatus;
   notes: string | null;
   created_at: string;
 }
@@ -77,10 +60,6 @@ export interface ProjectRollup {
   totalDrawRetainage: number;
   totalPaidToOwner: number;
   totalOpenToOwner: number;
-  totalSubInvoiced: number;
-  totalSubPaid: number;
-  totalSubOutstanding: number;
-  totalSubRetainage: number;
   totalBudget: number;
   balanceToComplete: number;
 }

@@ -83,42 +83,6 @@ export const markDrawPaidTool = tool({
   },
 });
 
-export const createSubInvoiceTool = tool({
-  description: "Add a new subcontractor invoice to a project.",
-  inputSchema: z.object({
-    projectName: z.string(),
-    subcontractorName: z.string(),
-    trade: z.string().optional(),
-    invoiceNumber: z.string().optional(),
-    invoiceDate: z.string().optional().describe("YYYY-MM-DD"),
-    amount: z.number(),
-    retainageHeld: z.number().optional(),
-    notes: z.string().optional(),
-  }),
-  execute: async (input) => {
-    const resolved = await resolveProject(input.projectName);
-    if ("error" in resolved) return { error: resolved.error };
-
-    const supabase = createServerSupabaseClient();
-    const { error } = await supabase.from("inv_sub_invoices").insert({
-      project_id: resolved.project.id,
-      subcontractor_name: input.subcontractorName,
-      trade: input.trade ?? null,
-      invoice_number: input.invoiceNumber ?? null,
-      invoice_date: input.invoiceDate ?? null,
-      amount: input.amount,
-      retainage_held: input.retainageHeld ?? 0,
-      amount_paid: 0,
-      status: "received",
-      notes: input.notes ?? null,
-    });
-    if (error) return { error: error.message };
-
-    revalidatePath(`/projects/${resolved.project.id}`);
-    return { success: true, project: resolved.project.name, subcontractor: input.subcontractorName };
-  },
-});
-
 export const createBudgetLineTool = tool({
   description: "Add a new line item to a project's budget.",
   inputSchema: z.object({

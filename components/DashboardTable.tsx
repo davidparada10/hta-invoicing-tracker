@@ -35,7 +35,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               <th className="text-right px-4 py-2">Currently Invoiced</th>
               <th className="text-right px-4 py-2">Paid to Date</th>
               <th className="text-right px-4 py-2">Project Budget</th>
-              <th className="text-right px-4 py-2">Balance to Complete + Retainage</th>
+              <th className="text-right px-4 py-2">Balance to Complete</th>
               <th className="text-left px-4 py-2">Status</th>
             </tr>
           </thead>
@@ -67,7 +67,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <td className="px-4 py-2 text-right">
                   <div className="text-slate-900">{formatCurrency(r.balanceToComplete)}</div>
                   <div className="text-xs text-slate-400">
-                    +{formatCurrency(r.totalDrawRetainage + r.totalSubRetainage)} retainage
+                    +{formatCurrency(r.totalDrawRetainage)} retainage
                   </div>
                 </td>
                 <td className="px-4 py-2">

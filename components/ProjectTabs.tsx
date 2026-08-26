@@ -5,11 +5,10 @@ export default function ProjectTabs({
   active,
 }: {
   projectId: string;
-  active: "draws" | "invoices" | "budget";
+  active: "draws" | "budget";
 }) {
-  const tabs: { key: "draws" | "invoices" | "budget"; label: string }[] = [
+  const tabs: { key: "draws" | "budget"; label: string }[] = [
     { key: "draws", label: "Owner Draws" },
-    { key: "invoices", label: "Sub Invoices" },
     { key: "budget", label: "Budget" },
   ];
 

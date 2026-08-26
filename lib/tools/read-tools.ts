@@ -4,7 +4,6 @@ import {
   getDashboardData,
   getOpenDraws,
   getDrawsForProject,
-  getSubInvoicesForProject,
   getBudgetLinesForProject,
   openBalance,
 } from "@/lib/data";
@@ -12,7 +11,7 @@ import { resolveProject } from "./shared";
 
 export const listProjectsTool = tool({
   description:
-    "List every project with its paid-to-owner, currently-invoiced (open), sub invoice, and retainage totals. Use this for portfolio-wide questions or to find/confirm a project's exact name.",
+    "List every project with its paid-to-owner, currently-invoiced (open), budget, and retainage totals. Use this for portfolio-wide questions or to find/confirm a project's exact name.",
   inputSchema: z.object({}),
   execute: async () => {
     const { rollups, totals } = await getDashboardData();
@@ -24,8 +23,9 @@ export const listProjectsTool = tool({
         status: r.project.status,
         totalPaidToOwner: r.totalPaidToOwner,
         totalOpenToOwner: r.totalOpenToOwner,
-        totalSubOutstanding: r.totalSubOutstanding,
-        totalRetainage: r.totalDrawRetainage + r.totalSubRetainage,
+        totalBudget: r.totalBudget,
+        balanceToComplete: r.balanceToComplete,
+        totalRetainage: r.totalDrawRetainage,
       })),
     };
   },
@@ -51,7 +51,7 @@ export const getOpenDrawsTool = tool({
 
 export const getProjectDetailsTool = tool({
   description:
-    "Get full details for one project by name: every draw (status/dates/amounts), sub invoices, budget line items, and paid/open/budget totals.",
+    "Get full details for one project by name: every draw (status/dates/amounts), budget line items, and paid/open/budget totals.",
   inputSchema: z.object({
     projectName: z
       .string()
@@ -62,9 +62,8 @@ export const getProjectDetailsTool = tool({
     if ("error" in resolved) return { error: resolved.error };
     const project = resolved.project;
 
-    const [draws, subInvoices, budgetLines] = await Promise.all([
+    const [draws, budgetLines] = await Promise.all([
       getDrawsForProject(project.id),
-      getSubInvoicesForProject(project.id),
       getBudgetLinesForProject(project.id),
     ]);
 
@@ -92,13 +91,6 @@ export const getProjectDetailsTool = tool({
         dateSubmitted: d.date_submitted,
         dateApproved: d.date_approved,
         datePaid: d.date_paid,
-      })),
-      subInvoices: subInvoices.map((s) => ({
-        subcontractor: s.subcontractor_name,
-        trade: s.trade,
-        amount: s.amount,
-        amountPaid: s.amount_paid,
-        status: s.status,
       })),
       budgetLineCount: budgetLines.length,
     };
