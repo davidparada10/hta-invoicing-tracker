@@ -32,12 +32,12 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
               <th className="text-left px-4 py-2">Project</th>
-              <th className="text-right px-4 py-2">Draws Requested</th>
-              <th className="text-right px-4 py-2">Draws Approved</th>
-              <th className="text-right px-4 py-2">Sub Invoiced</th>
-              <th className="text-right px-4 py-2">Sub Paid</th>
-              <th className="text-right px-4 py-2">Sub Outstanding</th>
-              <th className="text-right px-4 py-2">Retainage Held</th>
+              <th className="text-right px-4 py-2">Paid to Owner</th>
+              <th className="text-right px-4 py-2">Currently Invoiced</th>
+              <th className="text-right px-4 py-2 text-slate-400">Sub Invoiced</th>
+              <th className="text-right px-4 py-2 text-slate-400">Sub Paid</th>
+              <th className="text-right px-4 py-2 text-slate-400">Sub Outstanding</th>
+              <th className="text-right px-4 py-2 text-slate-400">Retainage Held</th>
               <th className="text-left px-4 py-2">Status</th>
             </tr>
           </thead>
@@ -55,14 +55,22 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     <div className="text-xs text-slate-400">{r.project.address}</div>
                   )}
                 </td>
-                <td className="px-4 py-2 text-right">{formatCurrency(r.totalRequested)}</td>
-                <td className="px-4 py-2 text-right">{formatCurrency(r.totalApproved)}</td>
-                <td className="px-4 py-2 text-right">{formatCurrency(r.totalSubInvoiced)}</td>
-                <td className="px-4 py-2 text-right">{formatCurrency(r.totalSubPaid)}</td>
-                <td className="px-4 py-2 text-right font-medium">
+                <td className="px-4 py-2 text-right font-medium text-emerald-700">
+                  {formatCurrency(r.totalPaidToOwner)}
+                </td>
+                <td className="px-4 py-2 text-right font-medium text-blue-700">
+                  {formatCurrency(r.totalOpenToOwner)}
+                </td>
+                <td className="px-4 py-2 text-right text-slate-400">
+                  {formatCurrency(r.totalSubInvoiced)}
+                </td>
+                <td className="px-4 py-2 text-right text-slate-400">
+                  {formatCurrency(r.totalSubPaid)}
+                </td>
+                <td className="px-4 py-2 text-right text-slate-400">
                   {formatCurrency(r.totalSubOutstanding)}
                 </td>
-                <td className="px-4 py-2 text-right">
+                <td className="px-4 py-2 text-right text-slate-400">
                   {formatCurrency(r.totalDrawRetainage + r.totalSubRetainage)}
                 </td>
                 <td className="px-4 py-2">

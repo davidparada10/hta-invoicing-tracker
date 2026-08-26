@@ -3,7 +3,15 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import DrawsSection from "@/components/DrawsSection";
 import SubInvoicesSection from "@/components/SubInvoicesSection";
-import { getDrawsForProject, getProject, getSubInvoicesForProject } from "@/lib/data";
+import BudgetSection from "@/components/BudgetSection";
+import MonthlyBillingChart from "@/components/MonthlyBillingChart";
+import {
+  getBudgetLinesForProject,
+  getDrawsForProject,
+  getProject,
+  getSubInvoicesForProject,
+} from "@/lib/data";
+import { formatCurrency } from "@/lib/format";
 import ProjectTabs from "@/components/ProjectTabs";
 import EditProjectModal from "@/components/EditProjectModal";
 import ProjectSummaryCard from "@/components/ProjectSummaryCard";
@@ -20,12 +28,22 @@ export default async function ProjectDetailPage({
   const project = await getProject(params.id);
   if (!project) notFound();
 
-  const [draws, subInvoices] = await Promise.all([
+  const [draws, subInvoices, budgetLines] = await Promise.all([
     getDrawsForProject(project.id),
     getSubInvoicesForProject(project.id),
+    getBudgetLinesForProject(project.id),
   ]);
 
-  const tab = searchParams.tab === "invoices" ? "invoices" : "draws";
+  const tab =
+    searchParams.tab === "invoices" ? "invoices" : searchParams.tab === "budget" ? "budget" : "draws";
+
+  const totalPaidToOwner = draws
+    .filter((d) => d.status === "paid")
+    .reduce((acc, d) => acc + (d.amount_paid ?? 0), 0);
+  const totalOpenToOwner = draws
+    .filter((d) => d.status === "submitted" || d.status === "approved")
+    .reduce((acc, d) => acc + (d.amount_requested ?? 0), 0);
+  const totalBudget = budgetLines.reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0);
 
   return (
     <div className="min-h-screen">
@@ -57,15 +75,46 @@ export default async function ProjectDetailPage({
           </div>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Total Paid to Date
+            </p>
+            <p className="text-2xl font-semibold text-emerald-700 mt-1">
+              {formatCurrency(totalPaidToOwner)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Currently Invoiced (Open)
+            </p>
+            <p className="text-2xl font-semibold text-blue-700 mt-1">
+              {formatCurrency(totalOpenToOwner)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Total Budget
+            </p>
+            <p className="text-2xl font-semibold text-slate-900 mt-1">
+              {formatCurrency(totalBudget)}
+            </p>
+          </div>
+        </div>
+
+        <MonthlyBillingChart draws={draws} />
+
         <ProjectSummaryCard draws={draws} subInvoices={subInvoices} />
 
         <ProjectTabs projectId={project.id} active={tab} />
 
         <div className="mt-4">
-          {tab === "draws" ? (
-            <DrawsSection projectId={project.id} draws={draws} />
-          ) : (
+          {tab === "draws" && <DrawsSection projectId={project.id} draws={draws} />}
+          {tab === "invoices" && (
             <SubInvoicesSection projectId={project.id} invoices={subInvoices} />
+          )}
+          {tab === "budget" && (
+            <BudgetSection projectId={project.id} budgetLines={budgetLines} />
           )}
         </div>
       </main>

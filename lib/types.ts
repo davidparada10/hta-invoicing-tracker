@@ -21,8 +21,10 @@ export interface OwnerDraw {
   amount_requested: number;
   amount_approved: number;
   retainage_held: number;
+  amount_paid: number;
   date_submitted: string | null;
   date_approved: string | null;
+  date_paid: string | null;
   status: DrawStatus;
   notes: string | null;
   created_at: string;
@@ -44,11 +46,28 @@ export interface SubInvoice {
   created_at: string;
 }
 
+export interface BudgetLine {
+  id: string;
+  project_id: string;
+  item_number: string | null;
+  category: string | null;
+  description: string;
+  scheduled_value: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface OpenDraw extends OwnerDraw {
+  project: Pick<Project, "id" | "name">;
+}
+
 export interface ProjectRollup {
   project: Project;
   totalRequested: number;
   totalApproved: number;
   totalDrawRetainage: number;
+  totalPaidToOwner: number;
+  totalOpenToOwner: number;
   totalSubInvoiced: number;
   totalSubPaid: number;
   totalSubOutstanding: number;

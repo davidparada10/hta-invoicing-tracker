@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -15,8 +16,17 @@ export default function SiteHeader() {
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="font-semibold text-slate-900">
-          HTA Multifamily Invoicing
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/hta-logo.png"
+            alt="HTA Construction"
+            width={64}
+            height={36}
+            className="h-8 w-auto"
+            priority
+          />
+          <span className="h-6 w-px bg-slate-200" aria-hidden="true" />
+          <span className="font-semibold text-slate-900">Multi-Family Invoice Tracker</span>
         </Link>
         <button
           onClick={handleLogout}

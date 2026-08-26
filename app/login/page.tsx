@@ -37,7 +37,7 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-slate-200 p-8">
         <h1 className="text-xl font-semibold text-slate-900 mb-1">
-          HTA Multifamily Invoicing
+          Multi-Family Invoice Tracker
         </h1>
         <p className="text-sm text-slate-500 mb-6">Enter the site passcode to continue.</p>
         <form onSubmit={handleSubmit} className="space-y-4">

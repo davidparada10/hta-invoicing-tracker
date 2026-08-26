@@ -5,9 +5,58 @@ import { OwnerDraw, DrawStatus } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
 import StatusBadge from "@/components/StatusBadge";
 import Modal from "@/components/Modal";
-import { deleteDraw, upsertDraw } from "@/app/draws/actions";
+import MarkPaidButton from "@/components/MarkPaidButton";
+import { deleteDraw, parseG702Upload, upsertDraw } from "@/app/draws/actions";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
+
+interface DrawFormValues {
+  draw_number: string;
+  status: DrawStatus;
+  period_start: string;
+  period_end: string;
+  amount_requested: string;
+  amount_approved: string;
+  retainage_held: string;
+  amount_paid: string;
+  date_submitted: string;
+  date_approved: string;
+  date_paid: string;
+  notes: string;
+}
+
+const EMPTY_FORM: DrawFormValues = {
+  draw_number: "",
+  status: "draft",
+  period_start: "",
+  period_end: "",
+  amount_requested: "0",
+  amount_approved: "0",
+  retainage_held: "0",
+  amount_paid: "0",
+  date_submitted: "",
+  date_approved: "",
+  date_paid: "",
+  notes: "",
+};
+
+function drawToForm(d: OwnerDraw | null): DrawFormValues {
+  if (!d) return EMPTY_FORM;
+  return {
+    draw_number: String(d.draw_number),
+    status: d.status,
+    period_start: d.period_start ?? "",
+    period_end: d.period_end ?? "",
+    amount_requested: String(d.amount_requested),
+    amount_approved: String(d.amount_approved),
+    retainage_held: String(d.retainage_held),
+    amount_paid: String(d.amount_paid),
+    date_submitted: d.date_submitted ?? "",
+    date_approved: d.date_approved ?? "",
+    date_paid: d.date_paid ?? "",
+    notes: d.notes ?? "",
+  };
+}
 
 export default function DrawsSection({
   projectId,
@@ -20,7 +69,12 @@ export default function DrawsSection({
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<OwnerDraw | null>(null);
+  const [formValues, setFormValues] = useState<DrawFormValues>(EMPTY_FORM);
   const [isPending, startTransition] = useTransition();
+
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [parsedFileName, setParsedFileName] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return draws.filter((d) => {
@@ -33,13 +87,23 @@ export default function DrawsSection({
     });
   }, [draws, search, statusFilter]);
 
+  function resetUploadState() {
+    setParsing(false);
+    setParseError(null);
+    setParsedFileName(null);
+  }
+
   function openAdd() {
     setEditing(null);
+    setFormValues(EMPTY_FORM);
+    resetUploadState();
     setModalOpen(true);
   }
 
   function openEdit(draw: OwnerDraw) {
     setEditing(draw);
+    setFormValues(drawToForm(draw));
+    resetUploadState();
     setModalOpen(true);
   }
 
@@ -53,6 +117,43 @@ export default function DrawsSection({
   async function handleSubmit(formData: FormData) {
     await upsertDraw(formData);
     setModalOpen(false);
+  }
+
+  function updateField<K extends keyof DrawFormValues>(key: K, value: DrawFormValues[K]) {
+    setFormValues((v) => ({ ...v, [key]: value }));
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setParsing(true);
+    setParseError(null);
+    setParsedFileName(null);
+
+    try {
+      const fd = new FormData();
+      fd.set("g702_file", file);
+      const parsed = await parseG702Upload(fd);
+
+      setFormValues((v) => ({
+        ...v,
+        draw_number: parsed.draw_number !== undefined ? String(parsed.draw_number) : v.draw_number,
+        period_end: parsed.period_end ?? v.period_end,
+        date_submitted: parsed.date_submitted ?? v.date_submitted,
+        amount_requested:
+          parsed.amount_requested !== undefined ? String(parsed.amount_requested) : v.amount_requested,
+        retainage_held:
+          parsed.retainage_held !== undefined ? String(parsed.retainage_held) : v.retainage_held,
+        status: v.status === "draft" ? "submitted" : v.status,
+      }));
+      setParsedFileName(file.name);
+    } catch (err) {
+      setParseError(err instanceof Error ? err.message : "Could not read that file.");
+    } finally {
+      setParsing(false);
+      e.target.value = "";
+    }
   }
 
   return (
@@ -95,6 +196,7 @@ export default function DrawsSection({
               <th className="text-right px-4 py-2">Retainage</th>
               <th className="text-left px-4 py-2">Submitted</th>
               <th className="text-left px-4 py-2">Approved</th>
+              <th className="text-left px-4 py-2">Paid</th>
               <th className="text-left px-4 py-2">Status</th>
               <th className="px-4 py-2"></th>
             </tr>
@@ -111,10 +213,19 @@ export default function DrawsSection({
                 <td className="px-4 py-2 text-right">{formatCurrency(d.retainage_held)}</td>
                 <td className="px-4 py-2 text-slate-500">{formatDate(d.date_submitted)}</td>
                 <td className="px-4 py-2 text-slate-500">{formatDate(d.date_approved)}</td>
+                <td className="px-4 py-2 text-slate-500">{formatDate(d.date_paid)}</td>
                 <td className="px-4 py-2">
                   <StatusBadge status={d.status} />
                 </td>
                 <td className="px-4 py-2 text-right whitespace-nowrap">
+                  {(d.status === "submitted" || d.status === "approved") && (
+                    <MarkPaidButton
+                      drawId={d.id}
+                      projectId={projectId}
+                      drawNumber={d.draw_number}
+                      className="text-emerald-600 hover:text-emerald-800 text-xs font-medium mr-3 disabled:opacity-50"
+                    />
+                  )}
                   <button
                     onClick={() => openEdit(d)}
                     className="text-slate-500 hover:text-slate-900 text-xs font-medium mr-3"
@@ -133,7 +244,7 @@ export default function DrawsSection({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={10} className="px-4 py-6 text-center text-slate-400">
                   No draws found.
                 </td>
               </tr>
@@ -151,18 +262,52 @@ export default function DrawsSection({
           <input type="hidden" name="project_id" value={projectId} />
           {editing && <input type="hidden" name="id" value={editing.id} />}
 
+          <div className="rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              {editing
+                ? "Re-upload a G702 (.xlsx) to refresh this draw's numbers"
+                : "Upload G702 (.xlsx) to auto-fill this form"}
+            </label>
+            {editing && (
+              <p className="text-xs text-slate-500 mb-2">
+                Useful if the lender rejected this draw or the amounts changed — this replaces
+                the requested amount, retainage, and dates below with the new file&rsquo;s numbers.
+              </p>
+            )}
+            <input
+              type="file"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={handleFileUpload}
+              disabled={parsing}
+              className="text-sm w-full"
+            />
+            {parsing && <p className="text-xs text-slate-500 mt-1">Reading file…</p>}
+            {parseError && <p className="text-xs text-red-600 mt-1">{parseError}</p>}
+            {parsedFileName && !parsing && !parseError && (
+              <p className="text-xs text-emerald-600 mt-1">
+                Auto-filled from {parsedFileName}. Review the fields below before saving.
+              </p>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <Field label="Draw #">
               <input
                 name="draw_number"
                 type="number"
                 required
-                defaultValue={editing?.draw_number ?? ""}
+                value={formValues.draw_number}
+                onChange={(e) => updateField("draw_number", e.target.value)}
                 className="input"
               />
             </Field>
             <Field label="Status">
-              <select name="status" defaultValue={editing?.status ?? "draft"} className="input">
+              <select
+                name="status"
+                value={formValues.status}
+                onChange={(e) => updateField("status", e.target.value as DrawStatus)}
+                className="input"
+              >
                 {STATUSES.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -177,7 +322,8 @@ export default function DrawsSection({
               <input
                 name="period_start"
                 type="date"
-                defaultValue={editing?.period_start ?? ""}
+                value={formValues.period_start}
+                onChange={(e) => updateField("period_start", e.target.value)}
                 className="input"
               />
             </Field>
@@ -185,7 +331,8 @@ export default function DrawsSection({
               <input
                 name="period_end"
                 type="date"
-                defaultValue={editing?.period_end ?? ""}
+                value={formValues.period_end}
+                onChange={(e) => updateField("period_end", e.target.value)}
                 className="input"
               />
             </Field>
@@ -197,7 +344,8 @@ export default function DrawsSection({
                 name="amount_requested"
                 type="number"
                 step="0.01"
-                defaultValue={editing?.amount_requested ?? 0}
+                value={formValues.amount_requested}
+                onChange={(e) => updateField("amount_requested", e.target.value)}
                 className="input"
               />
             </Field>
@@ -206,28 +354,43 @@ export default function DrawsSection({
                 name="amount_approved"
                 type="number"
                 step="0.01"
-                defaultValue={editing?.amount_approved ?? 0}
+                value={formValues.amount_approved}
+                onChange={(e) => updateField("amount_approved", e.target.value)}
                 className="input"
               />
             </Field>
           </div>
 
-          <Field label="Retainage held">
-            <input
-              name="retainage_held"
-              type="number"
-              step="0.01"
-              defaultValue={editing?.retainage_held ?? 0}
-              className="input"
-            />
-          </Field>
-
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Retainage held">
+              <input
+                name="retainage_held"
+                type="number"
+                step="0.01"
+                value={formValues.retainage_held}
+                onChange={(e) => updateField("retainage_held", e.target.value)}
+                className="input"
+              />
+            </Field>
+            <Field label="Amount paid">
+              <input
+                name="amount_paid"
+                type="number"
+                step="0.01"
+                value={formValues.amount_paid}
+                onChange={(e) => updateField("amount_paid", e.target.value)}
+                className="input"
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
             <Field label="Date submitted">
               <input
                 name="date_submitted"
                 type="date"
-                defaultValue={editing?.date_submitted ?? ""}
+                value={formValues.date_submitted}
+                onChange={(e) => updateField("date_submitted", e.target.value)}
                 className="input"
               />
             </Field>
@@ -235,14 +398,30 @@ export default function DrawsSection({
               <input
                 name="date_approved"
                 type="date"
-                defaultValue={editing?.date_approved ?? ""}
+                value={formValues.date_approved}
+                onChange={(e) => updateField("date_approved", e.target.value)}
+                className="input"
+              />
+            </Field>
+            <Field label="Date paid">
+              <input
+                name="date_paid"
+                type="date"
+                value={formValues.date_paid}
+                onChange={(e) => updateField("date_paid", e.target.value)}
                 className="input"
               />
             </Field>
           </div>
 
           <Field label="Notes">
-            <textarea name="notes" defaultValue={editing?.notes ?? ""} className="input" rows={2} />
+            <textarea
+              name="notes"
+              value={formValues.notes}
+              onChange={(e) => updateField("notes", e.target.value)}
+              className="input"
+              rows={2}
+            />
           </Field>
 
           <div className="flex justify-end gap-2 pt-2">

@@ -5,11 +5,12 @@ export default function ProjectTabs({
   active,
 }: {
   projectId: string;
-  active: "draws" | "invoices";
+  active: "draws" | "invoices" | "budget";
 }) {
-  const tabs: { key: "draws" | "invoices"; label: string }[] = [
+  const tabs: { key: "draws" | "invoices" | "budget"; label: string }[] = [
     { key: "draws", label: "Owner Draws" },
     { key: "invoices", label: "Sub Invoices" },
+    { key: "budget", label: "Budget" },
   ];
 
   return (
@@ -17,7 +18,7 @@ export default function ProjectTabs({
       {tabs.map((t) => (
         <Link
           key={t.key}
-          href={t.key === "draws" ? `/projects/${projectId}` : `/projects/${projectId}?tab=invoices`}
+          href={t.key === "draws" ? `/projects/${projectId}` : `/projects/${projectId}?tab=${t.key}`}
           className={`pb-3 text-sm font-medium border-b-2 -mb-px ${
             active === t.key
               ? "border-slate-900 text-slate-900"

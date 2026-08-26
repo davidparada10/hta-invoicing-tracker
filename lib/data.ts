@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { OwnerDraw, Project, ProjectRollup, SubInvoice } from "@/lib/types";
+import { BudgetLine, OpenDraw, OwnerDraw, Project, ProjectRollup, SubInvoice } from "@/lib/types";
 
 export async function getProjects(): Promise<Project[]> {
   const supabase = createServerSupabaseClient();
@@ -44,6 +44,17 @@ export async function getSubInvoicesForProject(projectId: string): Promise<SubIn
   return data as SubInvoice[];
 }
 
+export async function getBudgetLinesForProject(projectId: string): Promise<BudgetLine[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("inv_project_budget_lines")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data as BudgetLine[];
+}
+
 export async function getAllDraws(): Promise<OwnerDraw[]> {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase.from("inv_owner_draws").select("*");
@@ -58,9 +69,35 @@ export async function getAllSubInvoices(): Promise<SubInvoice[]> {
   return data as SubInvoice[];
 }
 
+export async function getOpenDraws(): Promise<OpenDraw[]> {
+  const [projects, draws] = await Promise.all([getProjects(), getAllDraws()]);
+
+  const projectsById = new Map(projects.map((p) => [p.id, p]));
+
+  const openDraws = draws
+    .filter((d) => d.status === "submitted" || d.status === "approved")
+    .map((d) => {
+      const project = projectsById.get(d.project_id);
+      return {
+        ...d,
+        project: { id: project?.id ?? d.project_id, name: project?.name ?? "Unknown project" },
+      };
+    });
+
+  openDraws.sort((a, b) => {
+    const aDate = a.date_submitted ?? a.created_at;
+    const bDate = b.date_submitted ?? b.created_at;
+    return aDate.localeCompare(bDate);
+  });
+
+  return openDraws;
+}
+
 export async function getDashboardData(): Promise<{
   rollups: ProjectRollup[];
   totals: {
+    totalPaidToOwner: number;
+    totalOpenToOwner: number;
     totalOutstanding: number;
     totalRetainage: number;
   };
@@ -79,6 +116,15 @@ export async function getDashboardData(): Promise<{
     const totalApproved = sum(projectDraws.map((d) => d.amount_approved));
     const totalDrawRetainage = sum(projectDraws.map((d) => d.retainage_held));
 
+    const totalPaidToOwner = sum(
+      projectDraws.filter((d) => d.status === "paid").map((d) => d.amount_paid)
+    );
+    const totalOpenToOwner = sum(
+      projectDraws
+        .filter((d) => d.status === "submitted" || d.status === "approved")
+        .map((d) => d.amount_requested)
+    );
+
     const totalSubInvoiced = sum(projectSubInvoices.map((s) => s.amount));
     const totalSubPaid = sum(projectSubInvoices.map((s) => s.amount_paid));
     const totalSubRetainage = sum(projectSubInvoices.map((s) => s.retainage_held));
@@ -88,6 +134,8 @@ export async function getDashboardData(): Promise<{
       totalRequested,
       totalApproved,
       totalDrawRetainage,
+      totalPaidToOwner,
+      totalOpenToOwner,
       totalSubInvoiced,
       totalSubPaid,
       totalSubOutstanding: totalSubInvoiced - totalSubPaid,
@@ -95,10 +143,12 @@ export async function getDashboardData(): Promise<{
     };
   });
 
+  const totalPaidToOwner = sum(rollups.map((r) => r.totalPaidToOwner));
+  const totalOpenToOwner = sum(rollups.map((r) => r.totalOpenToOwner));
   const totalOutstanding = sum(rollups.map((r) => r.totalSubOutstanding));
   const totalRetainage = sum(rollups.map((r) => r.totalDrawRetainage + r.totalSubRetainage));
 
-  return { rollups, totals: { totalOutstanding, totalRetainage } };
+  return { rollups, totals: { totalPaidToOwner, totalOpenToOwner, totalOutstanding, totalRetainage } };
 }
 
 function sum(values: number[]): number {

@@ -13,7 +13,14 @@ export default function ProjectSummaryCard({
   subInvoices: SubInvoice[];
 }) {
   const totalRequested = sum(draws.map((d) => d.amount_requested));
-  const totalApproved = sum(draws.map((d) => d.amount_approved));
+  const totalPaidToOwner = sum(
+    draws.filter((d) => d.status === "paid").map((d) => d.amount_paid)
+  );
+  const totalOpenToOwner = sum(
+    draws
+      .filter((d) => d.status === "submitted" || d.status === "approved")
+      .map((d) => d.amount_requested)
+  );
   const drawRetainage = sum(draws.map((d) => d.retainage_held));
 
   const totalSubInvoiced = sum(subInvoices.map((s) => s.amount));
@@ -21,8 +28,9 @@ export default function ProjectSummaryCard({
   const totalSubOutstanding = totalSubInvoiced - totalSubPaid;
   const subRetainage = sum(subInvoices.map((s) => s.retainage_held));
 
-  const approvedPct = totalRequested > 0 ? Math.min(100, (totalApproved / totalRequested) * 100) : 0;
-  const paidPct = totalSubInvoiced > 0 ? Math.min(100, (totalSubPaid / totalSubInvoiced) * 100) : 0;
+  const paidPct = totalRequested > 0 ? Math.min(100, (totalPaidToOwner / totalRequested) * 100) : 0;
+  const subPaidPct =
+    totalSubInvoiced > 0 ? Math.min(100, (totalSubPaid / totalSubInvoiced) * 100) : 0;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 mb-6">
@@ -30,34 +38,33 @@ export default function ProjectSummaryCard({
         <div>
           <div className="flex items-baseline justify-between mb-1">
             <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Draws Approved of Requested
+              Draws Paid of Requested
             </span>
-            <span className="text-sm font-medium text-slate-900">
-              {approvedPct.toFixed(0)}%
-            </span>
+            <span className="text-sm font-medium text-slate-900">{paidPct.toFixed(0)}%</span>
           </div>
           <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
             <div
               className="h-full bg-emerald-500 rounded-full"
-              style={{ width: `${approvedPct}%` }}
+              style={{ width: `${paidPct}%` }}
             />
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            {formatCurrency(totalApproved)} of {formatCurrency(totalRequested)} approved
+            {formatCurrency(totalPaidToOwner)} paid · {formatCurrency(totalOpenToOwner)} open of{" "}
+            {formatCurrency(totalRequested)} requested
           </p>
         </div>
 
         <div>
           <div className="flex items-baseline justify-between mb-1">
-            <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">
               Sub Invoices Paid
             </span>
-            <span className="text-sm font-medium text-slate-900">{paidPct.toFixed(0)}%</span>
+            <span className="text-sm font-medium text-slate-500">{subPaidPct.toFixed(0)}%</span>
           </div>
           <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${paidPct}%` }} />
+            <div className="h-full bg-slate-400 rounded-full" style={{ width: `${subPaidPct}%` }} />
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-400 mt-1">
             {formatCurrency(totalSubPaid)} of {formatCurrency(totalSubInvoiced)} paid
           </p>
         </div>

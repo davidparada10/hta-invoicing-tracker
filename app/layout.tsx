@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "HTA Multifamily Invoicing Tracker",
+  title: "Multi-Family Invoice Tracker",
   description: "Owner draws and subcontractor invoicing for HTA Construction & Development",
 };
 
