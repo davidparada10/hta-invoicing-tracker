@@ -12,7 +12,7 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
         // Bright stop-sign red — outstanding / currently invoiced amounts
-        invoiced: "#FF1F1F",
+        invoiced: "#ED1C24",
       },
     },
   },
