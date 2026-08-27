@@ -30,12 +30,12 @@ export default function SiteHeader() {
             <Image
               src="/hta-logo.png"
               alt="HTA Construction"
-              width={112}
-              height={63}
+              width={3840}
+              height={2160}
               className="h-16 sm:h-20 w-auto"
               priority
             />
-            <p className="text-sm font-medium text-slate-500 mt-1">Multi-Family Invoice Tracker</p>
+            <p className="text-sm font-bold text-slate-900 mt-1">Multi-Family Invoice Tracker</p>
           </Link>
         </div>
 
