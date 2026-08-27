@@ -25,14 +25,14 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search by project name or address..."
-        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-72 mb-4"
+        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-full sm:w-72 mb-4"
       />
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2">Project</th>
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Project</th>
               <th className="text-right px-4 py-2">Currently Invoiced</th>
               <th className="text-right px-4 py-2">Paid to Date</th>
               <th className="text-right px-4 py-2">Project Budget</th>
@@ -43,7 +43,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           <tbody className="divide-y divide-slate-100">
             {filtered.map((r) => (
               <tr key={r.project.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 sticky left-0 z-10 bg-white">
                   <Link
                     href={`/projects/${r.project.id}`}
                     className="block -mx-4 -my-2 px-4 py-2"

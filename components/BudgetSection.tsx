@@ -184,7 +184,7 @@ export default function BudgetSection({
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2">Item #</th>
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Item #</th>
               <th className="text-left px-4 py-2">Category</th>
               <th className="text-left px-4 py-2">Description</th>
               <th className="text-right px-4 py-2">Scheduled Value</th>
@@ -198,7 +198,9 @@ export default function BudgetSection({
               const drawn = drawnByLine.get(l.id) ?? 0;
               return (
               <tr key={l.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2 text-slate-500">{l.item_number ?? "—"}</td>
+                <td className="px-4 py-2 text-slate-500 sticky left-0 z-10 bg-white">
+                  {l.item_number ?? "—"}
+                </td>
                 <td className="px-4 py-2 text-slate-500">{l.category ?? "—"}</td>
                 <td className="px-4 py-2 font-medium">
                   {l.description}

@@ -84,7 +84,7 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2">Project</th>
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Project</th>
               <th className="text-left px-4 py-2">Draw #</th>
               <th className="text-left px-4 py-2">Submitted</th>
               <th className="text-left px-4 py-2">Age</th>
@@ -101,7 +101,7 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
               const bucket = agingBucket(age);
               return (
                 <tr key={d.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 sticky left-0 z-10 bg-white">
                     <Link
                       href={`/projects/${d.project.id}`}
                       className="font-medium text-slate-900 hover:underline"

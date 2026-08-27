@@ -87,7 +87,7 @@ export default async function BillingPage({
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
               <tr>
-                <th className="text-left px-4 py-2">Quarter</th>
+                <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Quarter</th>
                 <th className="text-right px-4 py-2">Billed</th>
                 <th className="text-right px-4 py-2">Received</th>
                 <th className="text-right px-4 py-2">Outstanding</th>
@@ -98,7 +98,11 @@ export default async function BillingPage({
                 const isActive = q.quarter === activeQuarter;
                 return (
                   <tr key={q.quarter} className={isActive ? "bg-amber-50" : ""}>
-                    <td className="px-4 py-2 font-medium text-slate-900">
+                    <td
+                      className={`px-4 py-2 font-medium text-slate-900 sticky left-0 z-10 ${
+                        isActive ? "bg-amber-50" : "bg-white"
+                      }`}
+                    >
                       {QUARTER_LABEL[q.quarter]}
                       {isActive && (
                         <span className="ml-2 text-xs font-normal text-amber-700">
@@ -119,7 +123,7 @@ export default async function BillingPage({
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 font-semibold text-slate-900">
-                <td className="px-4 py-2">Total ({year})</td>
+                <td className="px-4 py-2 sticky left-0 z-10 bg-white">Total ({year})</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(report.ytdRequested)}</td>
                 <td className="px-4 py-2 text-right text-emerald-700">
                   {formatCurrency(report.ytdReceived)}
@@ -137,7 +141,7 @@ export default async function BillingPage({
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
               <tr>
-                <th className="text-left px-4 py-2">Project</th>
+                <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Project</th>
                 <th className="text-right px-4 py-2">Billed</th>
                 <th className="text-right px-4 py-2">Received</th>
                 <th className="text-right px-4 py-2">Outstanding</th>
@@ -146,7 +150,7 @@ export default async function BillingPage({
             <tbody className="divide-y divide-slate-100">
               {projectRows.map((p) => (
                 <tr key={p.projectId} className="hover:bg-slate-50">
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 sticky left-0 z-10 bg-white">
                     <Link
                       href={`/projects/${p.projectId}`}
                       className="font-medium text-slate-900 hover:underline"
@@ -173,7 +177,7 @@ export default async function BillingPage({
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 font-semibold text-slate-900">
-                <td className="px-4 py-2">Total ({year})</td>
+                <td className="px-4 py-2 sticky left-0 z-10 bg-white">Total ({year})</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(report.ytdRequested)}</td>
                 <td className="px-4 py-2 text-right text-emerald-700">
                   {formatCurrency(report.ytdReceived)}

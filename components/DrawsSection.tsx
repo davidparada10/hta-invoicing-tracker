@@ -88,7 +88,7 @@ export default function DrawsSection({
         <table className="min-w-full text-sm">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2">Draw #</th>
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Draw #</th>
               <th className="text-left px-4 py-2">Period</th>
               <th className="text-right px-4 py-2">Requested</th>
               <th className="text-right px-4 py-2">Approved</th>
@@ -103,7 +103,7 @@ export default function DrawsSection({
           <tbody className="divide-y divide-slate-100">
             {filtered.map((d) => (
               <tr key={d.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 sticky left-0 z-10 bg-white">
                   <button
                     type="button"
                     onClick={() => openEdit(d)}
