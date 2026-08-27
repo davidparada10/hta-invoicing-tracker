@@ -51,7 +51,17 @@ export default async function DashboardPage() {
               {formatCurrency(billingYtd.ytdRequested)}
             </p>
           </Link>
-          <div className="rounded-xl border border-dashed border-slate-200 bg-white/50 p-5" />
+          <Link
+            href="/billing"
+            className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+          >
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Payments Received YTD ({currentYear})
+            </p>
+            <p className="text-2xl font-semibold text-emerald-700 mt-1">
+              {formatCurrency(billingYtd.ytdReceived)}
+            </p>
+          </Link>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
