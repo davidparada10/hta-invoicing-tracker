@@ -54,7 +54,7 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
   }
 
   return (
-    <div className="mb-8">
+    <div id="open-draws" className="mb-8 scroll-mt-4">
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="text-lg font-semibold text-slate-900">Open Draws</h2>
         <span className="text-sm text-slate-500">
