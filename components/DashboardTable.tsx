@@ -53,7 +53,58 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      {/* Mobile: one card per project — avoids horizontal scrolling through 6 columns */}
+      <div className="sm:hidden space-y-3">
+        {filtered.map((r) => (
+          <div key={r.project.id} className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-2">
+              <Link href={`/projects/${r.project.id}`} className="min-w-0">
+                <span className="font-medium text-foreground hover:underline">
+                  {r.project.name}
+                </span>
+                {r.project.address && (
+                  <div className="text-xs text-muted-foreground truncate">{r.project.address}</div>
+                )}
+              </Link>
+              <div className="shrink-0">
+                <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Currently Invoiced</p>
+                <p className="font-medium text-invoiced">{formatCurrency(r.totalOpenToOwner)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Paid to Date</p>
+                <p className="font-medium text-emerald-700 dark:text-emerald-400">
+                  {formatCurrency(r.totalPaidToOwner)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Contract Value</p>
+                <p>{formatCurrency(r.totalBudget)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Balance to Complete</p>
+                <p>{formatCurrency(r.balanceToComplete)}</p>
+                <p className="text-xs text-muted-foreground">
+                  +{formatCurrency(r.totalDrawRetainage)} retainage
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
+            No {statusFilter === "active" && !search.trim() ? "active " : ""}projects found.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop/tablet: full table */}
+      <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>

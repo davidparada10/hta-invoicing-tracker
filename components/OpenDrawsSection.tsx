@@ -152,7 +152,75 @@ export default function OpenDrawsSection({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      {/* Mobile: one card per draw — avoids horizontal scrolling through 8+ columns */}
+      <div className="sm:hidden space-y-3">
+        {displayed.map((d) => {
+          const age = ageOf(d);
+          const bucket = agingBucket(age);
+          return (
+            <div key={d.id} className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-start justify-between gap-2">
+                <Link
+                  href={`/projects/${d.project.id}`}
+                  className="font-medium text-foreground hover:underline"
+                >
+                  {d.project.name}
+                </Link>
+                <span
+                  className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${AGING_BUCKET_BADGE_STYLE[bucket]}`}
+                >
+                  {age}d
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openDraw(d)}
+                disabled={openingId === d.id}
+                className="text-xs text-muted-foreground hover:underline disabled:opacity-50 mt-0.5"
+              >
+                {openingId === d.id ? "Opening…" : `Draw #${d.draw_number}`} · Submitted{" "}
+                {formatDate(d.date_submitted)}
+              </button>
+
+              <div className="grid grid-cols-3 gap-2 mt-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Requested</p>
+                  <p>{formatCurrency(d.amount_requested)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Approved</p>
+                  <p>{formatCurrency(d.amount_approved)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Outstanding</p>
+                  <p className="font-medium text-invoiced">{formatCurrency(openBalance(d))}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+                <DrawStatusSelect drawId={d.id} projectId={d.project.id} status={d.status} />
+                <MarkPaidButton
+                  drawId={d.id}
+                  projectId={d.project.id}
+                  drawNumber={d.draw_number}
+                  amountRequested={d.amount_requested}
+                  amountPaid={d.amount_paid}
+                />
+              </div>
+            </div>
+          );
+        })}
+        {displayed.length === 0 && (
+          <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
+            {draws.length === 0
+              ? "No open draws. Everything invoiced has been paid."
+              : "No open draws in this age range."}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop/tablet: full table */}
+      <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
