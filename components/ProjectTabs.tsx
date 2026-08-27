@@ -9,7 +9,7 @@ export default function ProjectTabs({
 }) {
   const tabs: { key: "draws" | "budget"; label: string }[] = [
     { key: "draws", label: "Owner Draws" },
-    { key: "budget", label: "Budget" },
+    { key: "budget", label: "Schedule of Values" },
   ];
 
   return (

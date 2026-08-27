@@ -65,7 +65,7 @@ export default function BudgetSection({
   }
 
   function handleDelete(line: BudgetLine) {
-    if (!confirm(`Delete budget line "${line.description}"?`)) return;
+    if (!confirm(`Delete line "${line.description}"?`)) return;
     startTransition(() => {
       deleteBudgetLine(line.id, projectId);
     });
@@ -87,7 +87,7 @@ export default function BudgetSection({
     if (
       budgetLines.length > 0 &&
       !confirm(
-        `This project already has ${budgetLines.length} budget line(s). Importing will replace all of them with the line items from this file. Continue?`
+        `This project already has ${budgetLines.length} line item(s). Importing will replace all of them with the line items from this file. Continue?`
       )
     ) {
       e.target.value = "";
@@ -236,7 +236,7 @@ export default function BudgetSection({
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
-                  No budget line items yet. Add one manually or import from a G702/G703 workbook.
+                  No line items yet. Add one manually or import from a G702/G703 workbook.
                 </td>
               </tr>
             )}
@@ -247,7 +247,7 @@ export default function BudgetSection({
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editing ? "Edit Budget Line" : "Add Budget Line"}
+        title={editing ? "Edit Line" : "Add Line"}
       >
         <form action={handleSubmit} className="space-y-3">
           <input type="hidden" name="project_id" value={projectId} />

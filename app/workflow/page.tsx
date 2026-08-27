@@ -138,14 +138,14 @@ export default function WorkflowPage() {
         <Flow
           number="2"
           title="G703 Budget Import"
-          subtitle="Budget tab, on-demand — destructive: replaces every existing line item"
+          subtitle="Schedule of Values tab, on-demand — destructive: replaces every existing line item"
           steps={[
-            { icon: "👤", title: "Upload .xlsx", detail: "Budget tab — Import button", category: "trigger", edgeLabel: "confirms" },
+            { icon: "👤", title: "Upload .xlsx", detail: "Schedule of Values tab — Import button", category: "trigger", edgeLabel: "confirms" },
             { icon: "❓", title: "Lines exist?", detail: "Browser confirm() if project has any", category: "decision", edgeLabel: "yes/no" },
             { icon: "📄", title: "parseBudgetFromXlsx", detail: "lib/g702-parser.ts — walks G703 rows", category: "server", edgeLabel: "returns rows" },
             { icon: "⚡", title: "importBudgetFromXlsx", detail: "app/budget/actions.ts (Server Action)", category: "server", edgeLabel: "delete + insert" },
             { icon: "🗄️", title: "inv_project_budget_lines", detail: "Supabase — full replace, one project", category: "data", edgeLabel: "revalidates" },
-            { icon: "✅", title: "Budget tab refreshed", detail: "Contract value + line table", category: "output" },
+            { icon: "✅", title: "Schedule of Values refreshed", detail: "Contract value + line table", category: "output" },
           ]}
         />
 

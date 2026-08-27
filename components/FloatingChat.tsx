@@ -222,7 +222,7 @@ function describeProposal(toolName: string, input: unknown): string {
         ? `Record ${formatCurrency(i.amountReceived as number)} on Draw #${i.drawNumber} (${i.projectName}).`
         : `Mark Draw #${i.drawNumber} on ${i.projectName} as paid.`;
     case "createBudgetLine":
-      return `Add budget line "${i.description}" (${formatCurrency(
+      return `Add schedule line "${i.description}" (${formatCurrency(
         i.scheduledValue as number
       )}) to ${i.projectName}.`;
     default:

@@ -2,7 +2,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { getBillingReport, getProjectBillingBreakdown } from "@/lib/data";
 import { currentQuarter } from "@/lib/billing";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDaysToPay } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +56,7 @@ export default async function BillingPage({
           accrual.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
               Billed {isCurrentYear ? "YTD" : year}
@@ -81,6 +81,14 @@ export default async function BillingPage({
               {formatCurrency(outstandingYtd)}
             </p>
           </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Avg days to pay
+            </p>
+            <p className="text-2xl font-semibold text-slate-900 mt-1">
+              {formatDaysToPay(report.ytdAvgDaysToPay)}
+            </p>
+          </div>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -91,6 +99,7 @@ export default async function BillingPage({
                 <th className="text-right px-4 py-2">Billed</th>
                 <th className="text-right px-4 py-2">Received</th>
                 <th className="text-right px-4 py-2">Outstanding</th>
+                <th className="text-right px-4 py-2">Avg days to pay</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -117,6 +126,9 @@ export default async function BillingPage({
                     <td className="px-4 py-2 text-right text-red-600">
                       {formatCurrency(q.requested - q.received)}
                     </td>
+                    <td className="px-4 py-2 text-right">
+                      {formatDaysToPay(q.avgDaysToPay)}
+                    </td>
                   </tr>
                 );
               })}
@@ -130,6 +142,9 @@ export default async function BillingPage({
                 </td>
                 <td className="px-4 py-2 text-right text-red-600">
                   {formatCurrency(outstandingYtd)}
+                </td>
+                <td className="px-4 py-2 text-right">
+                  {formatDaysToPay(report.ytdAvgDaysToPay)}
                 </td>
               </tr>
             </tfoot>
@@ -145,6 +160,7 @@ export default async function BillingPage({
                 <th className="text-right px-4 py-2">Billed</th>
                 <th className="text-right px-4 py-2">Received</th>
                 <th className="text-right px-4 py-2">Outstanding</th>
+                <th className="text-right px-4 py-2">Avg days to pay</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -165,11 +181,14 @@ export default async function BillingPage({
                   <td className="px-4 py-2 text-right text-red-600">
                     {formatCurrency(p.requested - p.received)}
                   </td>
+                  <td className="px-4 py-2 text-right">
+                    {formatDaysToPay(p.avgDaysToPay)}
+                  </td>
                 </tr>
               ))}
               {projectRows.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
                     No billing activity for {year}.
                   </td>
                 </tr>
@@ -184,6 +203,9 @@ export default async function BillingPage({
                 </td>
                 <td className="px-4 py-2 text-right text-red-600">
                   {formatCurrency(outstandingYtd)}
+                </td>
+                <td className="px-4 py-2 text-right">
+                  {formatDaysToPay(report.ytdAvgDaysToPay)}
                 </td>
               </tr>
             </tfoot>

@@ -24,3 +24,8 @@ export function formatDate(value: string | null | undefined): string {
     day: "numeric",
   });
 }
+
+export function formatDaysToPay(days: number | null | undefined): string {
+  if (days == null) return "—";
+  return `${days} day${days === 1 ? "" : "s"}`;
+}

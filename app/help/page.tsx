@@ -17,7 +17,7 @@ export default function HelpPage() {
           upload button you use: the <strong className="text-slate-700">G702</strong> sheet
           auto-fills a single draw (accepts <strong className="text-slate-700">.xlsx or .pdf</strong>),
           while the <strong className="text-slate-700">G703</strong> continuation sheet
-          replaces a project&rsquo;s entire line-item budget (
+          replaces a project&rsquo;s entire schedule of values (
           <strong className="text-slate-700">.xlsx only</strong> — its dense table isn&rsquo;t
           reliable to read from a PDF). Neither upload saves automatically — you review and
           confirm every value before it&rsquo;s stored.
@@ -27,7 +27,7 @@ export default function HelpPage() {
           <svg
             viewBox="0 0 1040 748"
             role="img"
-            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form which moves through draft, submitted, approved and paid status with a one-click Mark Paid shortcut and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk budget import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
+            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form which moves through draft, submitted, approved and paid status with a one-click Mark Paid shortcut and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk schedule-of-values import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
             className="mx-auto min-w-[720px]"
           >
             <defs>
@@ -74,8 +74,8 @@ export default function HelpPage() {
             <text x="280" y="299" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill="#64748B">retainage — you review before saving</text>
 
             <rect x="610" y="248" width="340" height="64" rx="10" fill="white" stroke={BUDGET_COLOR} strokeWidth={1.4} />
-            <text x="780" y="270" textAnchor="middle" fontWeight="600" fontSize="12.5" fill="#0F172A">Budget tab — Import from G702/G703</text>
-            <text x="780" y="286" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill="#64748B">replaces ALL existing budget lines</text>
+            <text x="780" y="270" textAnchor="middle" fontWeight="600" fontSize="12.5" fill="#0F172A">Schedule of Values — Import from G702/G703</text>
+            <text x="780" y="286" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill="#64748B">replaces ALL existing line items</text>
             <text x="780" y="299" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill="#64748B">— confirmation required if any exist</text>
 
             <line x1="780" y1="312" x2="780" y2="360" stroke={BUDGET_COLOR} strokeWidth={1.6} markerEnd="url(#arrowBudget)" />
@@ -139,8 +139,8 @@ export default function HelpPage() {
           <p className="text-xs text-slate-500 mt-4 pt-4 border-t border-slate-100 max-w-2xl mx-auto">
             Uploading the same workbook from different tabs produces different results: the
             Owner Draws tab reads the G702 summary into one draw&rsquo;s fields for you to
-            review before saving; the Budget tab reads the G703 continuation sheet and
-            replaces the project&rsquo;s full line-item budget in one pass.
+            review before saving; the Schedule of Values tab reads the G703 continuation sheet and
+            replaces the project&rsquo;s full line-item schedule in one pass.
           </p>
         </div>
 
@@ -151,7 +151,7 @@ export default function HelpPage() {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: BUDGET_COLOR }} />
-            G703 → budget path
+            G703 → schedule of values
           </span>
         </div>
 
@@ -181,7 +181,7 @@ export default function HelpPage() {
 
         <h2 className="text-sm font-semibold text-slate-900 mb-1">What gets read from the G703 sheet</h2>
         <p className="text-xs text-slate-500 mb-3">
-          One row per budget line, grouped under each &ldquo;DIVISION —&rdquo; header row.
+          One row per schedule-of-values line, grouped under each &ldquo;DIVISION —&rdquo; header row.
         </p>
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
           <table className="min-w-full text-sm">

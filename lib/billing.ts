@@ -2,6 +2,8 @@
 // lib/data.ts (server-only) the same way lib/aging.ts is, so this stays
 // reusable and independently testable.
 
+import { daysOpen } from "@/lib/aging";
+
 export interface DrawForBilling {
   project_id: string;
   status: string;
@@ -17,18 +19,21 @@ export interface ProjectBillingRow {
   projectName: string;
   requested: number;
   received: number;
+  avgDaysToPay: number | null;
 }
 
 export interface QuarterBucket {
   quarter: 1 | 2 | 3 | 4;
   requested: number;
   received: number;
+  avgDaysToPay: number | null;
 }
 
 export interface BillingReport {
   year: number;
   ytdRequested: number;
   ytdReceived: number;
+  ytdAvgDaysToPay: number | null;
   quarters: QuarterBucket[];
 }
 
@@ -41,6 +46,19 @@ export function currentQuarter(now: Date = new Date()): 1 | 2 | 3 | 4 {
   return (Math.floor(now.getMonth() / 3) + 1) as 1 | 2 | 3 | 4;
 }
 
+function averageDays(sum: number, count: number): number | null {
+  if (count === 0) return null;
+  return Math.round(sum / count);
+}
+
+// Days from billed (submitted, else created) to paid. Only defined when a
+// real date_paid is on the draw — unpaid draws and paid-without-a-date are
+// excluded so a missing date doesn't read as "paid in 0 days".
+function daysToPay(d: DrawForBilling): number | null {
+  if (!d.date_paid) return null;
+  return daysOpen(d.date_submitted ?? d.created_at, new Date(d.date_paid));
+}
+
 // "Requested" is bucketed by when a draw was submitted (billed); "received"
 // by when it was actually paid — a draw billed in one quarter can be paid in
 // a later one, which is the point of showing both columns side by side.
@@ -51,7 +69,11 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
     quarter: quarter as 1 | 2 | 3 | 4,
     requested: 0,
     received: 0,
+    avgDaysToPay: null,
   }));
+  const daysByQuarter = [1, 2, 3, 4].map(() => ({ sum: 0, count: 0 }));
+  let ytdDaysSum = 0;
+  let ytdDaysCount = 0;
 
   for (const d of draws) {
     if (d.status === "draft") continue;
@@ -70,12 +92,28 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
         quarters[received.quarter - 1].received += amountPaid;
       }
     }
+
+    const lag = daysToPay(d);
+    if (lag !== null) {
+      const paid = yearAndQuarterOf(d.date_paid as string);
+      if (paid.year === year) {
+        daysByQuarter[paid.quarter - 1].sum += lag;
+        daysByQuarter[paid.quarter - 1].count += 1;
+        ytdDaysSum += lag;
+        ytdDaysCount += 1;
+      }
+    }
+  }
+
+  for (let i = 0; i < 4; i++) {
+    quarters[i].avgDaysToPay = averageDays(daysByQuarter[i].sum, daysByQuarter[i].count);
   }
 
   return {
     year,
     ytdRequested: quarters.reduce((acc, q) => acc + q.requested, 0),
     ytdReceived: quarters.reduce((acc, q) => acc + q.received, 0),
+    ytdAvgDaysToPay: averageDays(ytdDaysSum, ytdDaysCount),
     quarters,
   };
 }
@@ -90,6 +128,7 @@ export function buildProjectBillingBreakdown(
 ): ProjectBillingRow[] {
   const nameById = new Map(projects.map((p) => [p.id, p.name]));
   const rows = new Map<string, ProjectBillingRow>();
+  const daysByProject = new Map<string, { sum: number; count: number }>();
 
   const rowFor = (projectId: string) => {
     let row = rows.get(projectId);
@@ -99,6 +138,7 @@ export function buildProjectBillingBreakdown(
         projectName: nameById.get(projectId) ?? "Unknown project",
         requested: 0,
         received: 0,
+        avgDaysToPay: null,
       };
       rows.set(projectId, row);
     }
@@ -122,6 +162,23 @@ export function buildProjectBillingBreakdown(
         rowFor(d.project_id).received += amountPaid;
       }
     }
+
+    const lag = daysToPay(d);
+    if (lag !== null) {
+      const paid = yearAndQuarterOf(d.date_paid as string);
+      if (paid.year === year) {
+        rowFor(d.project_id);
+        const sample = daysByProject.get(d.project_id) ?? { sum: 0, count: 0 };
+        sample.sum += lag;
+        sample.count += 1;
+        daysByProject.set(d.project_id, sample);
+      }
+    }
+  }
+
+  for (const [projectId, sample] of Array.from(daysByProject.entries())) {
+    const row = rows.get(projectId);
+    if (row) row.avgDaysToPay = averageDays(sample.sum, sample.count);
   }
 
   return Array.from(rows.values()).sort((a, b) => b.requested - a.requested);

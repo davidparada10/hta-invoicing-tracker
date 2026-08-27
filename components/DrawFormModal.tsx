@@ -406,7 +406,7 @@ export default function DrawFormModal({
           <div className="rounded-lg border border-slate-200 p-3">
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <span className="block text-xs font-medium text-slate-600">
-                Schedule of values — amount billed this period, by budget line
+                Schedule of values — amount billed this period, by line
               </span>
               <div className="flex items-center gap-3">
                 <label className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -437,13 +437,13 @@ export default function DrawFormModal({
               </p>
             )}
             <p className="text-[11px] text-slate-400 mb-2">
-              Lines marked &ldquo;No retention&rdquo; in the Budget tab are excluded from the calculation.
+              Lines marked &ldquo;No retention&rdquo; in the Schedule of Values tab are excluded from the calculation.
             </p>
             <div className="max-h-64 overflow-y-auto rounded-md border border-slate-100">
               <table className="min-w-full text-xs">
                 <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide sticky top-0">
                   <tr>
-                    <th className="text-left px-2 py-1.5">Budget line</th>
+                    <th className="text-left px-2 py-1.5">Line</th>
                     <th className="text-right px-2 py-1.5">Scheduled</th>
                     <th className="text-right px-2 py-1.5">Previous</th>
                     <th className="text-right px-2 py-1.5 w-28">This draw</th>

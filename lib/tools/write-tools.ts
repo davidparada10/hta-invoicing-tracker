@@ -101,7 +101,7 @@ export const markDrawPaidTool = tool({
 });
 
 export const createBudgetLineTool = tool({
-  description: "Add a new line item to a project's budget.",
+  description: "Add a new line item to a project's schedule of values.",
   inputSchema: z.object({
     projectName: z.string(),
     description: z.string(),

@@ -26,7 +26,7 @@ export default function AddProjectModal() {
 
       const budgetFile = formData.get("budget_file");
       if (budgetFile instanceof File && budgetFile.size > 0) {
-        setStatusText("Importing budget…");
+        setStatusText("Importing schedule of values…");
         const budgetFormData = new FormData();
         budgetFormData.set("budget_file", budgetFile);
         budgetFormData.set("project_id", id);
@@ -35,13 +35,13 @@ export default function AddProjectModal() {
         } catch (budgetErr) {
           // The project was created successfully; only the budget import
           // failed. Don't block navigation — let them retry it from the
-          // Budget tab, where the same import lives.
+          // Schedule of Values tab, where the same import lives.
           setOpen(false);
           router.push(`/projects/${id}?tab=budget`);
           alert(
-            `Project created, but the budget import failed: ${
+            `Project created, but the schedule-of-values import failed: ${
               budgetErr instanceof Error ? budgetErr.message : "Unknown error"
-            }\n\nYou can retry the import from the Budget tab.`
+            }\n\nYou can retry the import from the Schedule of Values tab.`
           );
           return;
         }
@@ -93,7 +93,7 @@ export default function AddProjectModal() {
 
           <div className="rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
             <label className="block text-xs font-medium text-slate-600 mb-1">
-              Upload G702/G703 (.xlsx) to create the initial budget (optional)
+              Upload G702/G703 (.xlsx) to create the initial schedule of values (optional)
             </label>
             <input
               type="file"
