@@ -25,52 +25,55 @@ export default function SiteHeader() {
   return (
     <>
       <header className="border-b border-slate-200 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-4 flex items-end justify-between gap-4">
-          <Link href="/" className="inline-block min-w-0">
-            <Image
-              src="/hta-logo.png"
-              alt="HTA Construction"
-              width={4745}
-              height={1500}
-              className="h-16 sm:h-20 w-auto"
-              priority
-            />
-            <p className="text-base font-bold text-slate-900 mt-3">
-              Multi-Family Invoice Tracker
-            </p>
-          </Link>
-
-          <div className="hidden sm:flex items-center gap-4 shrink-0">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="text-sm text-slate-500 hover:text-slate-900"
-              >
-                {link.label}
-              </Link>
-            ))}
-            <button onClick={handleLogout} className="text-sm text-slate-500 hover:text-slate-900">
-              Log out
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-4 flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-4">
+            <Link href="/" className="inline-block min-w-0">
+              <Image
+                src="/hta-logo.png"
+                alt="HTA Construction"
+                width={4745}
+                height={1500}
+                className="h-16 sm:h-20 w-auto"
+                priority
+              />
+            </Link>
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="sm:hidden -mr-2 p-2 text-slate-500 hover:text-slate-900"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
+            >
+              {menuOpen ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+                </svg>
+              )}
             </button>
           </div>
 
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            className="sm:hidden -mr-2 p-2 text-slate-500 hover:text-slate-900"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-              </svg>
-            ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
-              </svg>
-            )}
-          </button>
+          <div className="flex items-baseline justify-between gap-4">
+            <Link href="/" className="text-xl font-bold text-slate-900 min-w-0">
+              Multi-Family Invoice Tracker
+            </Link>
+            <div className="hidden sm:flex items-baseline gap-4 shrink-0">
+              {NAV_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="text-base text-slate-500 hover:text-slate-900"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <button onClick={handleLogout} className="text-base text-slate-500 hover:text-slate-900">
+                Log out
+              </button>
+            </div>
+          </div>
         </div>
 
         {menuOpen && (
@@ -80,14 +83,14 @@ export default function SiteHeader() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="text-sm text-slate-600 hover:text-slate-900 py-2"
+                className="text-base text-slate-600 hover:text-slate-900 py-2"
               >
                 {link.label}
               </Link>
             ))}
             <button
               onClick={handleLogout}
-              className="text-sm text-slate-600 hover:text-slate-900 py-2 text-left"
+              className="text-base text-slate-600 hover:text-slate-900 py-2 text-left"
             >
               Log out
             </button>
