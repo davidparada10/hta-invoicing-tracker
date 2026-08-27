@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from "@/lib/format";
 import ProjectTabs from "@/components/ProjectTabs";
 import EditProjectModal from "@/components/EditProjectModal";
+import ProjectStatusSelect from "@/components/ProjectStatusSelect";
 import ProjectSummaryCard from "@/components/ProjectSummaryCard";
 
 export const dynamic = "force-dynamic";
@@ -61,15 +62,7 @@ export default async function ProjectDetailPage({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                project.status === "active"
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-slate-200 text-slate-600"
-              }`}
-            >
-              {project.status}
-            </span>
+            <ProjectStatusSelect projectId={project.id} status={project.status} />
             <EditProjectModal project={project} />
           </div>
         </div>

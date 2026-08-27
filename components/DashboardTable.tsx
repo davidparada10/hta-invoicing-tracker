@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ProjectRollup } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
+import ProjectStatusSelect from "@/components/ProjectStatusSelect";
 
 export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }) {
   const [search, setSearch] = useState("");
@@ -71,15 +72,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                   </div>
                 </td>
                 <td className="px-4 py-2">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${
-                      r.project.status === "active"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-slate-200 text-slate-600"
-                    }`}
-                  >
-                    {r.project.status}
-                  </span>
+                  <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
                 </td>
               </tr>
             ))}

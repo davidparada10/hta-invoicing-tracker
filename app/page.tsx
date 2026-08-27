@@ -76,8 +76,12 @@ export default async function DashboardPage() {
             </p>
           </Link>
           <div className="rounded-lg bg-slate-100/60 p-4">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Projects</p>
-            <p className="text-lg font-medium text-slate-600 mt-1">{rollups.length}</p>
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+              Active projects
+            </p>
+            <p className="text-lg font-medium text-slate-600 mt-1">
+              {rollups.filter((r) => r.project.status === "active").length}
+            </p>
           </div>
         </div>
 

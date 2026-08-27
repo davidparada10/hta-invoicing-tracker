@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { ProjectStatus } from "@/lib/types";
 
 function toNullableString(value: FormDataEntryValue | null): string | null {
   const s = (value ?? "").toString().trim();
@@ -46,6 +47,14 @@ export async function updateProject(formData: FormData) {
   const { error } = await supabase.from("inv_projects").update(payload).eq("id", id);
   if (error) throw error;
 
+  revalidatePath(`/projects/${id}`);
+  revalidatePath("/");
+}
+
+export async function updateProjectStatus(id: string, status: ProjectStatus) {
+  const supabase = createServerSupabaseClient();
+  const { error } = await supabase.from("inv_projects").update({ status }).eq("id", id);
+  if (error) throw error;
   revalidatePath(`/projects/${id}`);
   revalidatePath("/");
 }
