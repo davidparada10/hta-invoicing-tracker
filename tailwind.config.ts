@@ -11,6 +11,8 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        // Bright stop-sign red — outstanding / currently invoiced amounts
+        invoiced: "#FF1F1F",
       },
     },
   },

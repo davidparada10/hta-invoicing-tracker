@@ -201,7 +201,7 @@ export default function OpenDrawsSection({
                   </td>
                   <td className="px-4 py-2 text-right">{formatCurrency(d.amount_requested)}</td>
                   <td className="px-4 py-2 text-right">{formatCurrency(d.amount_approved)}</td>
-                  <td className="px-4 py-2 text-right font-medium text-red-600">
+                  <td className="px-4 py-2 text-right font-medium text-invoiced">
                     {formatCurrency(openBalance(d))}
                   </td>
                   <td className="px-4 py-2">

@@ -16,4 +16,9 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Bright stop-sign red — currently invoiced / outstanding AR amounts */
+  .text-invoiced {
+    color: #FF1F1F;
+  }
 }

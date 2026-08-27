@@ -37,7 +37,7 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
         <SummaryStat
           label="Currently Invoiced"
           value={formatCurrency(totalOpenToOwner)}
-          valueClassName="text-red-500"
+          valueClassName="text-invoiced"
         />
         <SummaryStat
           label="Paid"

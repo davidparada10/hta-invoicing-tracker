@@ -247,7 +247,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
             {projects.map((p, i) => (
               <tr key={i} className="border-t border-slate-100">
                 <td className="px-1 py-1">{String(p.name)}</td>
-                <td className="px-1 py-1 text-right text-red-500">
+                <td className="px-1 py-1 text-right text-invoiced">
                   {formatCurrency(p.totalOpenToOwner as number)}
                 </td>
                 <td className="px-1 py-1 text-right text-emerald-700">
@@ -297,7 +297,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
       <div className="mt-1 space-y-1">
         <p className="text-xs font-medium">{String(project.name)}</p>
         <div className="flex gap-3 text-xs">
-          <span className="text-red-500">Open: {formatCurrency(totals.totalOpenToOwner as number)}</span>
+          <span className="text-invoiced">Open: {formatCurrency(totals.totalOpenToOwner as number)}</span>
           <span className="text-emerald-700">
             Paid: {formatCurrency(totals.totalPaidToOwner as number)}
           </span>

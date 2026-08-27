@@ -77,7 +77,7 @@ export default async function BillingPage({
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
               Outstanding {isCurrentYear ? "YTD" : year}
             </p>
-            <p className="text-2xl font-semibold text-red-500 mt-1">
+            <p className="text-2xl font-semibold text-invoiced mt-1">
               {formatCurrency(outstandingYtd)}
             </p>
           </div>
@@ -123,7 +123,7 @@ export default async function BillingPage({
                     <td className="px-4 py-2 text-right text-emerald-700">
                       {formatCurrency(q.received)}
                     </td>
-                    <td className="px-4 py-2 text-right text-red-600">
+                    <td className="px-4 py-2 text-right text-invoiced">
                       {formatCurrency(q.requested - q.received)}
                     </td>
                     <td className="px-4 py-2 text-right">
@@ -140,7 +140,7 @@ export default async function BillingPage({
                 <td className="px-4 py-2 text-right text-emerald-700">
                   {formatCurrency(report.ytdReceived)}
                 </td>
-                <td className="px-4 py-2 text-right text-red-600">
+                <td className="px-4 py-2 text-right text-invoiced">
                   {formatCurrency(outstandingYtd)}
                 </td>
                 <td className="px-4 py-2 text-right">
@@ -178,7 +178,7 @@ export default async function BillingPage({
                   <td className="px-4 py-2 text-right text-emerald-700">
                     {formatCurrency(p.received)}
                   </td>
-                  <td className="px-4 py-2 text-right text-red-600">
+                  <td className="px-4 py-2 text-right text-invoiced">
                     {formatCurrency(p.requested - p.received)}
                   </td>
                   <td className="px-4 py-2 text-right">
@@ -201,7 +201,7 @@ export default async function BillingPage({
                 <td className="px-4 py-2 text-right text-emerald-700">
                   {formatCurrency(report.ytdReceived)}
                 </td>
-                <td className="px-4 py-2 text-right text-red-600">
+                <td className="px-4 py-2 text-right text-invoiced">
                   {formatCurrency(outstandingYtd)}
                 </td>
                 <td className="px-4 py-2 text-right">

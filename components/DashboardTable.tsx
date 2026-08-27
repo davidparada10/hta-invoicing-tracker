@@ -81,7 +81,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     )}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-right font-medium text-red-500">
+                <td className="px-4 py-2 text-right font-medium text-invoiced">
                   {formatCurrency(r.totalOpenToOwner)}
                 </td>
                 <td className="px-4 py-2 text-right font-medium text-emerald-700">

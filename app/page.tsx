@@ -41,7 +41,7 @@ export default async function DashboardPage({
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
               Currently invoiced (awaiting payment)
             </p>
-            <p className="text-2xl font-semibold text-red-500 mt-1">
+            <p className="text-2xl font-semibold text-invoiced mt-1">
               {formatCurrency(totals.totalOpenToOwner)}
             </p>
           </div>
