@@ -1,6 +1,31 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
 
+// Supabase's PostgREST API silently caps a plain select() at 1000 rows with
+// no error — inv_project_budget_lines alone passed that as soon as ~10
+// projects each had a full schedule of values, which made the most
+// recently-created project's budget quietly vanish from every dashboard
+// total. Page through in fixed-size chunks so "all rows" actually means all
+// rows, ordered by id for a stable cursor across pages.
+async function fetchAllRows<T>(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  table: string
+): Promise<T[]> {
+  const pageSize = 1000;
+  const rows: T[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .order("id", { ascending: true })
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data as T[]));
+    if (data.length < pageSize) break;
+  }
+  return rows;
+}
+
 export async function getProjects(): Promise<Project[]> {
   const supabase = createServerSupabaseClient();
   const { data, error } = await supabase
@@ -18,7 +43,13 @@ export async function getProject(id: string): Promise<Project | null> {
     .select("*")
     .eq("id", id)
     .maybeSingle();
-  if (error) throw error;
+  if (error) {
+    // A malformed id (e.g. a stale link or a typo) isn't a valid uuid, which
+    // Postgres rejects as error 22P02 rather than just finding no rows —
+    // treat it the same as "not found" instead of crashing the page.
+    if (error.code === "22P02") return null;
+    throw error;
+  }
   return data as Project | null;
 }
 
@@ -72,16 +103,12 @@ export async function getAllocationsForDraw(drawId: string): Promise<DrawLineAll
 
 export async function getAllDraws(): Promise<OwnerDraw[]> {
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase.from("inv_owner_draws").select("*");
-  if (error) throw error;
-  return data as OwnerDraw[];
+  return fetchAllRows<OwnerDraw>(supabase, "inv_owner_draws");
 }
 
 export async function getAllBudgetLines(): Promise<BudgetLine[]> {
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase.from("inv_project_budget_lines").select("*");
-  if (error) throw error;
-  return data as BudgetLine[];
+  return fetchAllRows<BudgetLine>(supabase, "inv_project_budget_lines");
 }
 
 // A draw's outstanding balance: what's been billed but not yet actually
