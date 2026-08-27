@@ -25,22 +25,20 @@ export default function SiteHeader() {
   return (
     <>
       <header className="border-b border-slate-200 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 min-w-0">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-4">
+          <Link href="/" className="inline-block">
             <Image
               src="/hta-logo.png"
               alt="HTA Construction"
               width={112}
               height={63}
-              className="h-10 sm:h-14 w-auto shrink-0"
+              className="h-16 sm:h-20 w-auto"
               priority
             />
-            <span className="hidden sm:block h-6 w-px bg-slate-200" aria-hidden="true" />
-            <span className="hidden sm:block font-semibold text-slate-900 truncate">
-              Multi-Family Invoice Tracker
-            </span>
           </Link>
+        </div>
 
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-4 flex items-center justify-end">
           <div className="hidden sm:flex items-center gap-4">
             {NAV_LINKS.map((link) => (
               <Link
