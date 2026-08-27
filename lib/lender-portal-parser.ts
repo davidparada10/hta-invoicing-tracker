@@ -23,12 +23,6 @@ export interface ParsedLenderDraw {
   allocations: ParsedLenderAllocation[];
 }
 
-export interface ParsedLenderBudgetLine {
-  item_number: string;
-  description: string;
-  scheduled_value: number;
-}
-
 export function isLenderPortalPdfText(text: string): boolean {
   return /ITEM\s*#/i.test(text) && /REVISED/i.test(text) && /SCHEDULED/i.test(text) && /TOTALS/i.test(text);
 }
@@ -200,23 +194,4 @@ export async function parseLenderDrawFromPdf(buffer: Buffer): Promise<ParsedLend
     retainage_held,
     allocations,
   };
-}
-
-export async function parseLenderBudgetFromPdf(buffer: Buffer): Promise<ParsedLenderBudgetLine[]> {
-  const text = await extractPdfText(buffer);
-  const { rows, totals } = scanLenderPdf(text);
-  const [totalsRevised] = totals;
-
-  const sumRevised = round2(rows.reduce((acc, r) => acc + r.numbers[0], 0));
-  if (Math.abs(sumRevised - totalsRevised) > 0.02) {
-    throw new Error(
-      `The line items in this file don't add up to its own TOTALS row (scheduled value: parsed ${sumRevised} vs file's ${totalsRevised}). Something in this file's layout wasn't read correctly — import the budget from an Excel schedule of values instead.`
-    );
-  }
-
-  return rows.map((r) => ({
-    item_number: r.item_number,
-    description: r.description,
-    scheduled_value: round2(r.numbers[0]),
-  }));
 }
