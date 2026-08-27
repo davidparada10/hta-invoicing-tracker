@@ -25,22 +25,22 @@ export default function SiteHeader() {
   return (
     <>
       <header className="border-b border-slate-200 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-4">
-          <Link href="/" className="inline-block">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-4 flex items-end justify-between gap-4">
+          <Link href="/" className="inline-block min-w-0">
             <Image
               src="/hta-logo.png"
               alt="HTA Construction"
-              width={6000}
+              width={4745}
               height={1500}
               className="h-16 sm:h-20 w-auto"
               priority
             />
-            <p className="text-sm font-bold text-slate-900 mt-1">Multi-Family Invoice Tracker</p>
+            <p className="text-base font-bold text-slate-900 mt-3">
+              Multi-Family Invoice Tracker
+            </p>
           </Link>
-        </div>
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-4 flex items-center justify-end">
-          <div className="hidden sm:flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-4 shrink-0">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
