@@ -138,57 +138,57 @@ body {
 }
 
 .tone-emerald {
-  --tone-fill: #065f46;
-  --tone-fill-hover: #047857;
-  --tone-fill-strong: #059669;
-  --tone-ring: rgba(167, 243, 208, 0.45);
-  --tone-ring-strong: rgba(167, 243, 208, 0.75);
-  --tone-text: #a7f3d0;
+  --tone-fill: rgba(16, 185, 129, 0.12);
+  --tone-fill-hover: rgba(16, 185, 129, 0.18);
+  --tone-fill-strong: rgba(16, 185, 129, 0.24);
+  --tone-ring: rgba(5, 150, 105, 0.3);
+  --tone-ring-strong: rgba(5, 150, 105, 0.55);
+  --tone-text: #047857;
 }
 
 .tone-amber {
-  --tone-fill: #92400e;
-  --tone-fill-hover: #b45309;
-  --tone-fill-strong: #d97706;
-  --tone-ring: rgba(253, 230, 138, 0.45);
-  --tone-ring-strong: rgba(253, 230, 138, 0.75);
-  --tone-text: #fde68a;
+  --tone-fill: rgba(245, 158, 11, 0.12);
+  --tone-fill-hover: rgba(245, 158, 11, 0.18);
+  --tone-fill-strong: rgba(245, 158, 11, 0.24);
+  --tone-ring: rgba(180, 83, 9, 0.3);
+  --tone-ring-strong: rgba(180, 83, 9, 0.55);
+  --tone-text: #b45309;
 }
 
 .tone-orange {
-  --tone-fill: #9a3412;
-  --tone-fill-hover: #c2410c;
-  --tone-fill-strong: #ea580c;
-  --tone-ring: rgba(254, 215, 170, 0.45);
-  --tone-ring-strong: rgba(254, 215, 170, 0.75);
-  --tone-text: #fed7aa;
+  --tone-fill: rgba(249, 115, 22, 0.12);
+  --tone-fill-hover: rgba(249, 115, 22, 0.18);
+  --tone-fill-strong: rgba(249, 115, 22, 0.24);
+  --tone-ring: rgba(194, 65, 12, 0.3);
+  --tone-ring-strong: rgba(194, 65, 12, 0.55);
+  --tone-text: #c2410c;
 }
 
 .tone-red {
-  --tone-fill: #991b1b;
-  --tone-fill-hover: #b91c1c;
-  --tone-fill-strong: #dc2626;
-  --tone-ring: rgba(254, 202, 202, 0.45);
-  --tone-ring-strong: rgba(254, 202, 202, 0.75);
-  --tone-text: #fecaca;
+  --tone-fill: rgba(237, 28, 36, 0.12);
+  --tone-fill-hover: rgba(237, 28, 36, 0.18);
+  --tone-fill-strong: rgba(237, 28, 36, 0.24);
+  --tone-ring: rgba(185, 28, 28, 0.3);
+  --tone-ring-strong: rgba(185, 28, 28, 0.55);
+  --tone-text: #b91c1c;
 }
 
 .tone-sky {
-  --tone-fill: #075985;
-  --tone-fill-hover: #0369a1;
-  --tone-fill-strong: #0284c7;
-  --tone-ring: rgba(186, 230, 253, 0.45);
-  --tone-ring-strong: rgba(186, 230, 253, 0.75);
-  --tone-text: #bae6fd;
+  --tone-fill: rgba(14, 165, 233, 0.12);
+  --tone-fill-hover: rgba(14, 165, 233, 0.18);
+  --tone-fill-strong: rgba(14, 165, 233, 0.24);
+  --tone-ring: rgba(3, 105, 161, 0.3);
+  --tone-ring-strong: rgba(3, 105, 161, 0.55);
+  --tone-text: #0369a1;
 }
 
 .tone-slate {
-  --tone-fill: #334155;
-  --tone-fill-hover: #475569;
-  --tone-fill-strong: #64748b;
-  --tone-ring: rgba(226, 232, 240, 0.35);
-  --tone-ring-strong: rgba(226, 232, 240, 0.6);
-  --tone-text: #e2e8f0;
+  --tone-fill: rgba(100, 116, 139, 0.12);
+  --tone-fill-hover: rgba(100, 116, 139, 0.18);
+  --tone-fill-strong: rgba(100, 116, 139, 0.24);
+  --tone-ring: rgba(51, 65, 85, 0.25);
+  --tone-ring-strong: rgba(51, 65, 85, 0.45);
+  --tone-text: #334155;
 }
 
 .dark .tone-emerald {
