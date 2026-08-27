@@ -7,6 +7,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import {
   AGING_BUCKETS,
   AGING_BUCKET_BADGE_STYLE,
+  AGING_BUCKET_CARD_STYLE,
   AGING_BUCKET_LABEL,
   AgingBucket,
   agingBucket,
@@ -103,14 +104,14 @@ export default function OpenDrawsSection({
   return (
     <div id="open-draws" className="mb-8 scroll-mt-4">
       <div className="flex items-baseline justify-between mb-1">
-        <h2 className="text-lg font-semibold text-slate-900">Open Draws</h2>
-        <span className="text-sm text-slate-500">
+        <h2 className="text-lg font-semibold text-foreground">Open Draws</h2>
+        <span className="text-sm text-muted-foreground">
           {bucketFilter
             ? `${displayed.length} of ${draws.length} open · ${formatCurrency(displayedOpen)} showing`
             : `${draws.length} open · ${formatCurrency(totalOpen)} awaiting payment`}
         </span>
       </div>
-      <p className="text-sm text-slate-500 mb-4">
+      <p className="text-sm text-muted-foreground mb-4">
         Draws with a balance still owed by the lender/owner — including any marked paid for less
         than requested — oldest first.
         {bucketFilter && (
@@ -119,7 +120,7 @@ export default function OpenDrawsSection({
             <button
               type="button"
               onClick={() => setBucketFilter(null)}
-              className="text-slate-700 underline hover:text-slate-900"
+              className="text-foreground underline hover:text-foreground"
             >
               Clear age filter
             </button>
@@ -137,13 +138,13 @@ export default function OpenDrawsSection({
               aria-pressed={bucketSelected(bucket)}
               className={`rounded-xl border p-3 text-left transition-colors ${
                 bucketSelected(bucket)
-                  ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900"
-                  : "border-slate-200 bg-white hover:bg-slate-50"
+                  ? AGING_BUCKET_CARD_STYLE[bucket].selected
+                  : AGING_BUCKET_CARD_STYLE[bucket].idle
               }`}
             >
-              <p className="text-xs font-medium text-slate-500">{AGING_BUCKET_LABEL[bucket]}</p>
-              <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatCurrency(amount)}</p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs font-medium opacity-80">{AGING_BUCKET_LABEL[bucket]}</p>
+              <p className="text-lg font-semibold mt-0.5">{formatCurrency(amount)}</p>
+              <p className="text-xs opacity-70">
                 {count} {count === 1 ? "draw" : "draws"}
               </p>
             </button>
@@ -151,11 +152,11 @@ export default function OpenDrawsSection({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+          <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Project</th>
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Project</th>
               <th className="text-left px-4 py-2">Draw #</th>
               <th className="text-left px-4 py-2">Submitted</th>
               <th className="text-left px-4 py-2">Age</th>
@@ -166,16 +167,16 @@ export default function OpenDrawsSection({
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {displayed.map((d) => {
               const age = ageOf(d);
               const bucket = agingBucket(age);
               return (
-                <tr key={d.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-2 sticky left-0 z-10 bg-white">
+                <tr key={d.id} className="group hover:bg-muted">
+                  <td className="px-4 py-2 sticky left-0 z-10 bg-card group-hover:bg-muted">
                     <Link
                       href={`/projects/${d.project.id}`}
-                      className="font-medium text-slate-900 hover:underline"
+                      className="font-medium text-foreground hover:underline"
                     >
                       {d.project.name}
                     </Link>
@@ -185,13 +186,13 @@ export default function OpenDrawsSection({
                       type="button"
                       onClick={() => openDraw(d)}
                       disabled={openingId === d.id}
-                      className="font-medium text-slate-900 hover:underline disabled:opacity-50"
+                      className="font-medium text-foreground hover:underline disabled:opacity-50"
                       title="Edit draw"
                     >
                       {openingId === d.id ? "…" : d.draw_number}
                     </button>
                   </td>
-                  <td className="px-4 py-2 text-slate-500">{formatDate(d.date_submitted)}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
                   <td className="px-4 py-2">
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${AGING_BUCKET_BADGE_STYLE[bucket]}`}
@@ -221,7 +222,7 @@ export default function OpenDrawsSection({
             })}
             {displayed.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
                   {draws.length === 0
                     ? "No open draws. Everything invoiced has been paid."
                     : "No open draws in this age range."}

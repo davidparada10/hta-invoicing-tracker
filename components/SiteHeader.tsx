@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import FloatingChat from "@/components/FloatingChat";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_LINKS = [
   { href: "/help", label: "How it works" },
@@ -24,7 +25,7 @@ export default function SiteHeader() {
 
   return (
     <>
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-4 flex flex-col gap-3">
           <div className="flex items-start justify-between gap-4">
             <Link href="/" className="inline-block min-w-0">
@@ -39,7 +40,7 @@ export default function SiteHeader() {
             </Link>
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className="sm:hidden -mr-2 p-2 text-slate-500 hover:text-slate-900"
+              className="sm:hidden -mr-2 p-2 text-muted-foreground hover:text-foreground"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               aria-expanded={menuOpen}
             >
@@ -55,45 +56,49 @@ export default function SiteHeader() {
             </button>
           </div>
 
-          <div className="flex items-baseline justify-between gap-4">
-            <Link href="/" className="text-xl font-bold text-slate-900 min-w-0">
+          <div className="flex items-center justify-between gap-4">
+            <Link href="/" className="text-xl font-bold text-foreground min-w-0">
               Multi-Family Invoice Tracker
             </Link>
-            <div className="hidden sm:flex items-baseline gap-4 shrink-0">
+            <div className="hidden sm:flex items-center gap-4 shrink-0">
               {NAV_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="text-base text-slate-500 hover:text-slate-900"
+                  className="text-base text-muted-foreground hover:text-foreground"
                 >
                   {link.label}
                 </Link>
               ))}
-              <button onClick={handleLogout} className="text-base text-slate-500 hover:text-slate-900">
+              <button onClick={handleLogout} className="text-base text-muted-foreground hover:text-foreground">
                 Log out
               </button>
+              <ThemeToggle />
             </div>
           </div>
         </div>
 
         {menuOpen && (
-          <div className="sm:hidden border-t border-slate-200 px-4 py-3 flex flex-col gap-1">
+          <div className="sm:hidden border-t border-border px-4 py-3 flex flex-col gap-1">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
-                className="text-base text-slate-600 hover:text-slate-900 py-2"
+                className="text-base text-muted-foreground hover:text-foreground py-2"
               >
                 {link.label}
               </Link>
             ))}
             <button
               onClick={handleLogout}
-              className="text-base text-slate-600 hover:text-slate-900 py-2 text-left"
+              className="text-base text-muted-foreground hover:text-foreground py-2 text-left"
             >
               Log out
             </button>
+            <div className="pt-2">
+              <ThemeToggle />
+            </div>
           </div>
         )}
       </header>

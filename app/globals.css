@@ -2,23 +2,286 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --primary: #0f172a;
+  --invoiced: #ed1c24;
+  --diagram-draw-fill: #eff6ff;
+  --diagram-budget-fill: #fff7ed;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #020617;
+  --foreground: #f1f5f9;
+  --card: #0f172a;
+  --border: #334155;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --primary: #f1f5f9;
+  --invoiced: #ff3344;
+  --diagram-draw-fill: rgba(29, 78, 216, 0.18);
+  --diagram-budget-fill: rgba(194, 65, 12, 0.18);
+}
+
 body {
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 @layer components {
   .input {
-    @apply w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900;
+    @apply w-full rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2;
+    background-color: var(--card);
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+  .input::placeholder {
+    color: var(--muted-foreground);
+  }
+  .input:focus {
+    --tw-ring-color: var(--primary);
   }
 }
 
 @layer utilities {
+  .bg-card {
+    background-color: var(--card);
+  }
+  .bg-muted {
+    background-color: var(--muted);
+  }
+  .bg-primary {
+    background-color: var(--primary);
+  }
+  .text-muted-foreground {
+    color: var(--muted-foreground);
+  }
+  .text-primary {
+    color: var(--primary);
+  }
+  .border-border {
+    border-color: var(--border);
+  }
+  .divide-border > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--border);
+  }
+  .hover\:bg-muted:hover {
+    background-color: var(--muted);
+  }
+  .group:hover .group-hover\:bg-muted {
+    background-color: var(--muted);
+  }
+  .hover\:text-foreground:hover {
+    color: var(--foreground);
+  }
+  .ring-border {
+    --tw-ring-color: var(--border);
+  }
+  .ring-primary {
+    --tw-ring-color: var(--primary);
+  }
+
   .text-balance {
     text-wrap: balance;
   }
 
   /* Bright stop-sign red — currently invoiced / outstanding AR amounts */
   .text-invoiced {
-    color: #ED1C24;
+    color: var(--invoiced);
   }
+
+  .select-caret {
+    background-repeat: no-repeat;
+    background-size: 10px;
+    background-position: right 0.45rem center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M3 4.5 6 8l3-3.5'/%3E%3C/svg%3E");
+  }
+
+  .dark .select-caret {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%23cbd5e1' d='M3 4.5 6 8l3-3.5'/%3E%3C/svg%3E");
+  }
+}
+
+/* Shared chip/card tones. Dark keeps the translucent glow on the page.
+   Light uses a solid dark fill + the same light ink so the chips actually
+   match that look instead of a pale wash. */
+.tone-chip {
+  box-shadow: inset 0 0 0 1px var(--tone-ring);
+  background-color: var(--tone-fill);
+  color: var(--tone-text);
+}
+
+.tone-chip.select-caret {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='%23e2e8f0' d='M3 4.5 6 8l3-3.5'/%3E%3C/svg%3E");
+}
+
+.tone-card {
+  border-color: var(--tone-ring);
+  background-color: var(--tone-fill);
+  color: var(--tone-text);
+}
+
+.tone-card:hover {
+  background-color: var(--tone-fill-hover);
+}
+
+.tone-card.tone-card-selected {
+  border-color: var(--tone-ring-strong);
+  background-color: var(--tone-fill-strong);
+  box-shadow: 0 0 0 1px var(--tone-ring-strong);
+}
+
+.tone-emerald {
+  --tone-fill: #065f46;
+  --tone-fill-hover: #047857;
+  --tone-fill-strong: #059669;
+  --tone-ring: rgba(167, 243, 208, 0.45);
+  --tone-ring-strong: rgba(167, 243, 208, 0.75);
+  --tone-text: #a7f3d0;
+}
+
+.tone-amber {
+  --tone-fill: #92400e;
+  --tone-fill-hover: #b45309;
+  --tone-fill-strong: #d97706;
+  --tone-ring: rgba(253, 230, 138, 0.45);
+  --tone-ring-strong: rgba(253, 230, 138, 0.75);
+  --tone-text: #fde68a;
+}
+
+.tone-orange {
+  --tone-fill: #9a3412;
+  --tone-fill-hover: #c2410c;
+  --tone-fill-strong: #ea580c;
+  --tone-ring: rgba(254, 215, 170, 0.45);
+  --tone-ring-strong: rgba(254, 215, 170, 0.75);
+  --tone-text: #fed7aa;
+}
+
+.tone-red {
+  --tone-fill: #991b1b;
+  --tone-fill-hover: #b91c1c;
+  --tone-fill-strong: #dc2626;
+  --tone-ring: rgba(254, 202, 202, 0.45);
+  --tone-ring-strong: rgba(254, 202, 202, 0.75);
+  --tone-text: #fecaca;
+}
+
+.tone-sky {
+  --tone-fill: #075985;
+  --tone-fill-hover: #0369a1;
+  --tone-fill-strong: #0284c7;
+  --tone-ring: rgba(186, 230, 253, 0.45);
+  --tone-ring-strong: rgba(186, 230, 253, 0.75);
+  --tone-text: #bae6fd;
+}
+
+.tone-slate {
+  --tone-fill: #334155;
+  --tone-fill-hover: #475569;
+  --tone-fill-strong: #64748b;
+  --tone-ring: rgba(226, 232, 240, 0.35);
+  --tone-ring-strong: rgba(226, 232, 240, 0.6);
+  --tone-text: #e2e8f0;
+}
+
+.dark .tone-emerald {
+  --tone-fill: rgba(16, 185, 129, 0.15);
+  --tone-fill-hover: rgba(16, 185, 129, 0.22);
+  --tone-fill-strong: rgba(16, 185, 129, 0.28);
+  --tone-ring: rgba(16, 185, 129, 0.28);
+  --tone-ring-strong: rgba(16, 185, 129, 0.55);
+  --tone-text: #6ee7b7;
+}
+
+.dark .tone-amber {
+  --tone-fill: rgba(245, 158, 11, 0.15);
+  --tone-fill-hover: rgba(245, 158, 11, 0.22);
+  --tone-fill-strong: rgba(245, 158, 11, 0.28);
+  --tone-ring: rgba(245, 158, 11, 0.32);
+  --tone-ring-strong: rgba(245, 158, 11, 0.55);
+  --tone-text: #fde68a;
+}
+
+.dark .tone-orange {
+  --tone-fill: rgba(249, 115, 22, 0.15);
+  --tone-fill-hover: rgba(249, 115, 22, 0.22);
+  --tone-fill-strong: rgba(249, 115, 22, 0.28);
+  --tone-ring: rgba(249, 115, 22, 0.32);
+  --tone-ring-strong: rgba(249, 115, 22, 0.55);
+  --tone-text: #fdba74;
+}
+
+.dark .tone-red {
+  --tone-fill: rgba(255, 51, 68, 0.15);
+  --tone-fill-hover: rgba(255, 51, 68, 0.22);
+  --tone-fill-strong: rgba(255, 51, 68, 0.28);
+  --tone-ring: rgba(255, 51, 68, 0.32);
+  --tone-ring-strong: rgba(255, 51, 68, 0.55);
+  --tone-text: #ff3344;
+}
+
+.dark .tone-sky {
+  --tone-fill: rgba(14, 165, 233, 0.15);
+  --tone-fill-hover: rgba(14, 165, 233, 0.22);
+  --tone-fill-strong: rgba(14, 165, 233, 0.28);
+  --tone-ring: rgba(14, 165, 233, 0.28);
+  --tone-ring-strong: rgba(14, 165, 233, 0.55);
+  --tone-text: #7dd3fc;
+}
+
+.dark .tone-slate {
+  --tone-fill: rgba(148, 163, 184, 0.12);
+  --tone-fill-hover: rgba(148, 163, 184, 0.18);
+  --tone-fill-strong: rgba(148, 163, 184, 0.24);
+  --tone-ring: rgba(148, 163, 184, 0.25);
+  --tone-ring-strong: rgba(148, 163, 184, 0.45);
+  --tone-text: #94a3b8;
+}
+
+/* Google's widget defaults to color-scheme: light dark (OS preference), not our
+   next-themes class. Force it to follow html.light / html.dark, and match .input. */
+.input:has(> .place-autocomplete-input),
+.input:has(> gmp-place-autocomplete) {
+  padding: 0;
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+gmp-place-autocomplete,
+.place-autocomplete-input {
+  display: block;
+  width: 100%;
+  background-color: var(--card);
+  color: var(--foreground);
+  color-scheme: light;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.dark gmp-place-autocomplete,
+.dark .place-autocomplete-input {
+  color-scheme: dark;
+}
+
+gmp-place-autocomplete:focus-within,
+.place-autocomplete-input:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 0;
+}
+
+gmp-place-autocomplete::part(prediction-list) {
+  background-color: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
 }

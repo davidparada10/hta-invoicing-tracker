@@ -54,7 +54,7 @@ export default function MarkPaidButton({
         disabled={isPending}
         className={
           className ??
-          "text-emerald-600 hover:text-emerald-800 text-xs font-medium disabled:opacity-50"
+          "text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 text-xs font-medium disabled:opacity-50"
         }
       >
         {isPending ? "Marking…" : "Mark Paid"}
@@ -62,13 +62,13 @@ export default function MarkPaidButton({
 
       <Modal open={open} onClose={() => setOpen(false)} title={`Mark Draw #${drawNumber} paid`}>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Requested {formatCurrency(amountRequested)}
             {(amountPaid ?? 0) > 0 ? ` · already paid ${formatCurrency(amountPaid)}` : ""}
             {` · outstanding ${formatCurrency(outstanding)}`}
           </p>
           <label className="block">
-            <span className="block text-xs font-medium text-slate-500 mb-1">Amount received</span>
+            <span className="block text-xs font-medium text-muted-foreground mb-1">Amount received</span>
             <input
               type="number"
               step="0.01"
@@ -80,7 +80,7 @@ export default function MarkPaidButton({
             />
           </label>
           <label className="block">
-            <span className="block text-xs font-medium text-slate-500 mb-1">Date paid</span>
+            <span className="block text-xs font-medium text-muted-foreground mb-1">Date paid</span>
             <input
               type="date"
               required
@@ -93,14 +93,14 @@ export default function MarkPaidButton({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-sm px-3 py-1.5 rounded-lg border border-slate-300"
+              className="text-sm px-3 py-1.5 rounded-lg border border-border"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="text-sm px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium disabled:opacity-50"
+              className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium disabled:opacity-50"
             >
               {isPending ? "Saving…" : "Record payment"}
             </button>

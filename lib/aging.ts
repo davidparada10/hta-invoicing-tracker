@@ -2,6 +2,8 @@
 // the server-only Supabase client) so components that need this can stay
 // "use client" without bundling server code.
 
+import { badgeCard, badgeTone } from "@/lib/badgeTone";
+
 export type AgingBucket = "current" | "31-60" | "61-90" | "90+";
 
 export function daysOpen(referenceDateISO: string, now: Date = new Date()): number {
@@ -27,8 +29,16 @@ export const AGING_BUCKET_LABEL: Record<AgingBucket, string> = {
 };
 
 export const AGING_BUCKET_BADGE_STYLE: Record<AgingBucket, string> = {
-  current: "bg-emerald-100 text-emerald-700",
-  "31-60": "bg-amber-100 text-amber-700",
-  "61-90": "bg-orange-100 text-orange-700",
-  "90+": "bg-red-100 text-red-700",
+  current: badgeTone("emerald"),
+  "31-60": badgeTone("amber"),
+  "61-90": badgeTone("orange"),
+  "90+": badgeTone("red"),
+};
+
+/** Filter cards above the open-draws table — same hue as the age chips, stronger when selected. */
+export const AGING_BUCKET_CARD_STYLE: Record<AgingBucket, { idle: string; selected: string }> = {
+  current: { idle: badgeCard("emerald"), selected: badgeCard("emerald", true) },
+  "31-60": { idle: badgeCard("amber"), selected: badgeCard("amber", true) },
+  "61-90": { idle: badgeCard("orange"), selected: badgeCard("orange", true) },
+  "90+": { idle: badgeCard("red"), selected: badgeCard("red", true) },
 };

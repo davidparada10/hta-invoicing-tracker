@@ -13,15 +13,15 @@ export default function ProjectTabs({
   ];
 
   return (
-    <div className="border-b border-slate-200 flex gap-6">
+    <div className="border-b border-border flex gap-6">
       {tabs.map((t) => (
         <Link
           key={t.key}
           href={t.key === "draws" ? `/projects/${projectId}` : `/projects/${projectId}?tab=${t.key}`}
           className={`pb-3 text-sm font-medium border-b-2 -mb-px ${
             active === t.key
-              ? "border-slate-900 text-slate-900"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
           }`}
         >
           {t.label}

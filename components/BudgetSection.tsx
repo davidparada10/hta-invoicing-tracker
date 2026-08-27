@@ -117,27 +117,27 @@ export default function BudgetSection({
   return (
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Contract Value (Scheduled Value)
           </p>
-          <p className="text-2xl font-semibold text-slate-900 mt-1">
+          <p className="text-2xl font-semibold text-foreground mt-1">
             {formatCurrency(totalBudget)}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Drawn to Date
           </p>
-          <p className="text-2xl font-semibold text-blue-700 mt-1">
+          <p className="text-2xl font-semibold text-blue-700 dark:text-blue-400 mt-1">
             {formatCurrency(totalDrawn)}
           </p>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Balance to Finish
           </p>
-          <p className="text-2xl font-semibold text-slate-900 mt-1">
+          <p className="text-2xl font-semibold text-foreground mt-1">
             {formatCurrency(totalBudget - totalDrawn)}
           </p>
         </div>
@@ -148,7 +148,7 @@ export default function BudgetSection({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search item, category, or description..."
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-72"
+          className="input w-72"
         />
         <div className="ml-auto flex items-center gap-2">
           <input
@@ -162,29 +162,29 @@ export default function BudgetSection({
           <button
             onClick={handleImportClick}
             disabled={importing}
-            className="rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium px-3 py-1.5 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded-lg border border-border bg-card text-foreground text-sm font-medium px-3 py-1.5 hover:bg-muted disabled:opacity-50"
           >
             {importing ? "Importing…" : "Import from G702/G703"}
           </button>
           <button
             onClick={openAdd}
-            className="rounded-lg bg-slate-900 text-white text-sm font-medium px-3 py-1.5"
+            className="rounded-lg bg-primary text-background text-sm font-medium px-3 py-1.5"
           >
             + Add Line
           </button>
         </div>
       </div>
 
-      {importError && <p className="text-sm text-red-600 mb-3">{importError}</p>}
+      {importError && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{importError}</p>}
       {importMessage && !importError && (
-        <p className="text-sm text-emerald-600 mb-3">{importMessage}</p>
+        <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-3">{importMessage}</p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+          <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Item #</th>
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Item #</th>
               <th className="text-left px-4 py-2">Category</th>
               <th className="text-left px-4 py-2">Description</th>
               <th className="text-right px-4 py-2">Scheduled Value</th>
@@ -193,39 +193,39 @@ export default function BudgetSection({
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {filtered.map((l) => {
               const drawn = drawnByLine.get(l.id) ?? 0;
               return (
-              <tr key={l.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2 text-slate-500 sticky left-0 z-10 bg-white">
+              <tr key={l.id} className="group hover:bg-muted">
+                <td className="px-4 py-2 text-muted-foreground sticky left-0 z-10 bg-card group-hover:bg-muted">
                   {l.item_number ?? "—"}
                 </td>
-                <td className="px-4 py-2 text-slate-500">{l.category ?? "—"}</td>
+                <td className="px-4 py-2 text-muted-foreground">{l.category ?? "—"}</td>
                 <td className="px-4 py-2 font-medium">
                   {l.description}
                   {l.retention_exempt && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                    <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                       No retention
                     </span>
                   )}
                 </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(l.scheduled_value)}</td>
-                <td className="px-4 py-2 text-right text-blue-700">{formatCurrency(drawn)}</td>
-                <td className="px-4 py-2 text-right text-slate-500">
+                <td className="px-4 py-2 text-right text-blue-700 dark:text-blue-400">{formatCurrency(drawn)}</td>
+                <td className="px-4 py-2 text-right text-muted-foreground">
                   {formatCurrency(l.scheduled_value - drawn)}
                 </td>
                 <td className="px-4 py-2 text-right whitespace-nowrap">
                   <button
                     onClick={() => openEdit(l)}
-                    className="text-slate-500 hover:text-slate-900 text-xs font-medium mr-3"
+                    className="text-muted-foreground hover:text-foreground text-xs font-medium mr-3"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(l)}
                     disabled={isPending}
-                    className="text-red-500 hover:text-red-700 text-xs font-medium"
+                    className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs font-medium"
                   >
                     Delete
                   </button>
@@ -235,7 +235,7 @@ export default function BudgetSection({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                   No line items yet. Add one manually or import from a G702/G703 workbook.
                 </td>
               </tr>
@@ -285,12 +285,12 @@ export default function BudgetSection({
             />
           </Field>
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
               name="retention_exempt"
               defaultChecked={editing?.retention_exempt ?? false}
-              className="rounded border-slate-300"
+              className="rounded border-border"
             />
             No retention held on this line (e.g. bonds, insurance, GC fee)
           </label>
@@ -299,13 +299,13 @@ export default function BudgetSection({
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="text-sm px-3 py-1.5 rounded-lg border border-slate-300"
+              className="text-sm px-3 py-1.5 rounded-lg border border-border"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="text-sm px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium"
+              className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium"
             >
               Save
             </button>
@@ -319,7 +319,7 @@ export default function BudgetSection({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-slate-500 mb-1">{label}</span>
+      <span className="block text-xs font-medium text-muted-foreground mb-1">{label}</span>
       {children}
     </label>
   );

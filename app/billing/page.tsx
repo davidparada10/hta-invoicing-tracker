@@ -35,92 +35,92 @@ export default async function BillingPage({
       <SiteHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-1">
-          <h1 className="text-2xl font-semibold text-slate-900">Billing Summary</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Billing Summary</h1>
           <div className="flex items-center gap-3 text-sm">
-            <Link href={`/billing?year=${year - 1}`} className="text-slate-500 hover:text-slate-900">
+            <Link href={`/billing?year=${year - 1}`} className="text-muted-foreground hover:text-foreground">
               ← {year - 1}
             </Link>
-            <span className="font-medium text-slate-900">{year}</span>
+            <span className="font-medium text-foreground">{year}</span>
             {year < thisYear ? (
-              <Link href={`/billing?year=${year + 1}`} className="text-slate-500 hover:text-slate-900">
+              <Link href={`/billing?year=${year + 1}`} className="text-muted-foreground hover:text-foreground">
                 {year + 1} →
               </Link>
             ) : (
-              <span className="text-slate-300">{year + 1} →</span>
+              <span className="text-muted-foreground">{year + 1} →</span>
             )}
           </div>
         </div>
-        <p className="text-sm text-slate-500 mb-6">
+        <p className="text-sm text-muted-foreground mb-6">
           Amounts billed (submitted) vs. actually received (paid), by quarter, across all
           projects. Billed and received can land in different quarters — this is cash-basis, not
           accrual.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Billed {isCurrentYear ? "YTD" : year}
             </p>
-            <p className="text-2xl font-semibold text-slate-900 mt-1">
+            <p className="text-2xl font-semibold text-foreground mt-1">
               {formatCurrency(report.ytdRequested)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Received {isCurrentYear ? "YTD" : year}
             </p>
-            <p className="text-2xl font-semibold text-emerald-700 mt-1">
+            <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400 mt-1">
               {formatCurrency(report.ytdReceived)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Outstanding {isCurrentYear ? "YTD" : year}
             </p>
             <p className="text-2xl font-semibold text-invoiced mt-1">
               {formatCurrency(outstandingYtd)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Avg days to pay
             </p>
-            <p className="text-2xl font-semibold text-slate-900 mt-1">
+            <p className="text-2xl font-semibold text-foreground mt-1">
               {formatDaysToPay(report.ytdAvgDaysToPay)}
             </p>
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
               <tr>
-                <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Quarter</th>
+                <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Quarter</th>
                 <th className="text-right px-4 py-2">Billed</th>
                 <th className="text-right px-4 py-2">Received</th>
                 <th className="text-right px-4 py-2">Outstanding</th>
                 <th className="text-right px-4 py-2">Avg days to pay</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {report.quarters.map((q) => {
                 const isActive = q.quarter === activeQuarter;
                 return (
-                  <tr key={q.quarter} className={isActive ? "bg-amber-50" : ""}>
+                  <tr key={q.quarter} className={isActive ? "bg-amber-50 dark:bg-amber-950/40" : ""}>
                     <td
-                      className={`px-4 py-2 font-medium text-slate-900 sticky left-0 z-10 ${
-                        isActive ? "bg-amber-50" : "bg-white"
+                      className={`px-4 py-2 font-medium text-foreground sticky left-0 z-10 ${
+                        isActive ? "bg-amber-50 dark:bg-amber-950/40" : "bg-card"
                       }`}
                     >
                       {QUARTER_LABEL[q.quarter]}
                       {isActive && (
-                        <span className="ml-2 text-xs font-normal text-amber-700">
+                        <span className="ml-2 text-xs font-normal text-amber-700 dark:text-amber-300">
                           (quarter to date)
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">{formatCurrency(q.requested)}</td>
-                    <td className="px-4 py-2 text-right text-emerald-700">
+                    <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
                       {formatCurrency(q.received)}
                     </td>
                     <td className="px-4 py-2 text-right text-invoiced">
@@ -134,10 +134,10 @@ export default async function BillingPage({
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t border-slate-200 font-semibold text-slate-900">
-                <td className="px-4 py-2 sticky left-0 z-10 bg-white">Total ({year})</td>
+              <tr className="border-t border-border font-semibold text-foreground">
+                <td className="px-4 py-2 sticky left-0 z-10 bg-card">Total ({year})</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(report.ytdRequested)}</td>
-                <td className="px-4 py-2 text-right text-emerald-700">
+                <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
                   {formatCurrency(report.ytdReceived)}
                 </td>
                 <td className="px-4 py-2 text-right text-invoiced">
@@ -151,31 +151,31 @@ export default async function BillingPage({
           </table>
         </div>
 
-        <h2 className="text-lg font-semibold text-slate-900 mt-8 mb-3">By Project ({year})</h2>
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <h2 className="text-lg font-semibold text-foreground mt-8 mb-3">By Project ({year})</h2>
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+            <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
               <tr>
-                <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Project</th>
+                <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Project</th>
                 <th className="text-right px-4 py-2">Billed</th>
                 <th className="text-right px-4 py-2">Received</th>
                 <th className="text-right px-4 py-2">Outstanding</th>
                 <th className="text-right px-4 py-2">Avg days to pay</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {projectRows.map((p) => (
-                <tr key={p.projectId} className="hover:bg-slate-50">
-                  <td className="px-4 py-2 sticky left-0 z-10 bg-white">
+                <tr key={p.projectId} className="group hover:bg-muted">
+                  <td className="px-4 py-2 sticky left-0 z-10 bg-card group-hover:bg-muted">
                     <Link
                       href={`/projects/${p.projectId}`}
-                      className="font-medium text-slate-900 hover:underline"
+                      className="font-medium text-foreground hover:underline"
                     >
                       {p.projectName}
                     </Link>
                   </td>
                   <td className="px-4 py-2 text-right">{formatCurrency(p.requested)}</td>
-                  <td className="px-4 py-2 text-right text-emerald-700">
+                  <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
                     {formatCurrency(p.received)}
                   </td>
                   <td className="px-4 py-2 text-right text-invoiced">
@@ -188,17 +188,17 @@ export default async function BillingPage({
               ))}
               {projectRows.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
                     No billing activity for {year}.
                   </td>
                 </tr>
               )}
             </tbody>
             <tfoot>
-              <tr className="border-t border-slate-200 font-semibold text-slate-900">
-                <td className="px-4 py-2 sticky left-0 z-10 bg-white">Total ({year})</td>
+              <tr className="border-t border-border font-semibold text-foreground">
+                <td className="px-4 py-2 sticky left-0 z-10 bg-card">Total ({year})</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(report.ytdRequested)}</td>
-                <td className="px-4 py-2 text-right text-emerald-700">
+                <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
                   {formatCurrency(report.ytdReceived)}
                 </td>
                 <td className="px-4 py-2 text-right text-invoiced">

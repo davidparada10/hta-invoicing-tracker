@@ -238,14 +238,14 @@ export default function DrawFormModal({
         <input type="hidden" name="project_id" value={projectId} />
         {editing && <input type="hidden" name="id" value={editing.id} />}
 
-        <div className="rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
-          <label className="block text-xs font-medium text-slate-600 mb-1">
+        <div className="rounded-lg border border-dashed border-border p-3 bg-muted">
+          <label className="block text-xs font-medium text-muted-foreground mb-1">
             {editing
               ? "Re-upload a G702 (.xlsx or .pdf) to refresh this draw's numbers"
               : "Upload G702 (.xlsx or .pdf) to auto-fill this form"}
           </label>
           {editing && (
-            <p className="text-xs text-slate-500 mb-2">
+            <p className="text-xs text-muted-foreground mb-2">
               Useful if the lender rejected this draw or the amounts changed — this replaces
               the requested amount, retainage, and dates below with the new file&rsquo;s numbers.
             </p>
@@ -257,10 +257,10 @@ export default function DrawFormModal({
             disabled={parsing}
             className="text-sm w-full"
           />
-          {parsing && <p className="text-xs text-slate-500 mt-1">Reading file…</p>}
-          {parseError && <p className="text-xs text-red-600 mt-1">{parseError}</p>}
+          {parsing && <p className="text-xs text-muted-foreground mt-1">Reading file…</p>}
+          {parseError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{parseError}</p>}
           {parsedFileName && !parsing && !parseError && (
-            <p className="text-xs text-emerald-600 mt-1">
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
               Auto-filled from {parsedFileName}.
               {parsedAllocationsCount
                 ? ` Also filled in ${parsedAllocationsCount} schedule-of-values line${
@@ -352,10 +352,10 @@ export default function DrawFormModal({
               value={formValues.retainage_held}
               onChange={(e) => updateField("retainage_held", e.target.value)}
               readOnly={retentionMode !== "manual"}
-              className={`input ${retentionMode !== "manual" ? "bg-slate-50 text-slate-500" : ""}`}
+              className={`input ${retentionMode !== "manual" ? "bg-muted text-muted-foreground" : ""}`}
             />
             {retentionMode !== "manual" && (
-              <p className="text-[11px] text-slate-400 mt-1">
+              <p className="text-[11px] text-muted-foreground mt-1">
                 Computed from {retentionMode}% retention on the schedule of values below.
               </p>
             )}
@@ -403,18 +403,18 @@ export default function DrawFormModal({
         </div>
 
         {budgetLines.length > 0 && (
-          <div className="rounded-lg border border-slate-200 p-3">
+          <div className="rounded-lg border border-border p-3">
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-              <span className="block text-xs font-medium text-slate-600">
+              <span className="block text-xs font-medium text-muted-foreground">
                 Schedule of values — amount billed this period, by line
               </span>
               <div className="flex items-center gap-3">
-                <label className="flex items-center gap-1.5 text-xs text-slate-500">
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   Retention
                   <select
                     value={retentionMode}
                     onChange={(e) => setRetentionMode(e.target.value as typeof retentionMode)}
-                    className="rounded border border-slate-300 px-1.5 py-0.5 text-xs"
+                    className="rounded border border-border bg-card px-1.5 py-0.5 text-xs text-foreground"
                   >
                     <option value="manual">Manual</option>
                     <option value="0">0%</option>
@@ -423,7 +423,7 @@ export default function DrawFormModal({
                   </select>
                 </label>
                 <span
-                  className={`text-xs ${allocationMismatch ? "font-medium text-amber-700" : "text-slate-500"}`}
+                  className={`text-xs ${allocationMismatch ? "font-medium text-amber-700 dark:text-amber-300" : "text-muted-foreground"}`}
                 >
                   {formatCurrency(allocationsTotal)} allocated
                   {allocationMismatch ? ` · requested ${formatCurrency(requestedAmount)}` : ""}
@@ -431,17 +431,17 @@ export default function DrawFormModal({
               </div>
             </div>
             {allocationMismatch && (
-              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 mb-2">
+              <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-md px-2 py-1.5 mb-2">
                 Schedule of values total doesn&rsquo;t match the G702 amount requested. Check line
                 billings before saving — lenders often reject a mismatch.
               </p>
             )}
-            <p className="text-[11px] text-slate-400 mb-2">
+            <p className="text-[11px] text-muted-foreground mb-2">
               Lines marked &ldquo;No retention&rdquo; in the Schedule of Values tab are excluded from the calculation.
             </p>
-            <div className="max-h-64 overflow-y-auto rounded-md border border-slate-100">
+            <div className="max-h-64 overflow-y-auto rounded-md border border-border">
               <table className="min-w-full text-xs">
-                <thead className="bg-slate-50 text-slate-500 uppercase tracking-wide sticky top-0">
+                <thead className="bg-muted text-muted-foreground uppercase tracking-wide sticky top-0">
                   <tr>
                     <th className="text-left px-2 py-1.5">Line</th>
                     <th className="text-right px-2 py-1.5">Scheduled</th>
@@ -450,21 +450,21 @@ export default function DrawFormModal({
                     <th className="text-right px-2 py-1.5">Balance</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {budgetLines.map((line) => {
                     const previous = previousByLine.get(line.id) ?? 0;
                     const thisDraw = Number(lineAmounts[line.id]) || 0;
                     const balance = line.scheduled_value - previous - thisDraw;
                     return (
                       <tr key={line.id}>
-                        <td className="px-2 py-1.5 text-slate-700 min-w-[14rem]">
+                        <td className="px-2 py-1.5 text-foreground min-w-[14rem]">
                           {line.item_number ? `${line.item_number} — ` : ""}
                           {line.description}
                         </td>
-                        <td className="px-2 py-1.5 text-right text-slate-500 whitespace-nowrap">
+                        <td className="px-2 py-1.5 text-right text-muted-foreground whitespace-nowrap">
                           {formatCurrency(line.scheduled_value)}
                         </td>
-                        <td className="px-2 py-1.5 text-right text-slate-500 whitespace-nowrap">
+                        <td className="px-2 py-1.5 text-right text-muted-foreground whitespace-nowrap">
                           {formatCurrency(previous)}
                         </td>
                         <td className="px-2 py-1.5 text-right">
@@ -474,10 +474,10 @@ export default function DrawFormModal({
                             value={lineAmounts[line.id] ?? ""}
                             onChange={(e) => updateLineAmount(line.id, e.target.value)}
                             placeholder="0"
-                            className="w-full rounded border border-slate-300 px-1.5 py-0.5 text-right text-xs"
+                            className="w-full rounded border border-border bg-card px-1.5 py-0.5 text-right text-xs text-foreground"
                           />
                         </td>
-                        <td className="px-2 py-1.5 text-right text-slate-500 whitespace-nowrap">
+                        <td className="px-2 py-1.5 text-right text-muted-foreground whitespace-nowrap">
                           {formatCurrency(balance)}
                         </td>
                       </tr>
@@ -503,13 +503,13 @@ export default function DrawFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-sm px-3 py-1.5 rounded-lg border border-slate-300"
+            className="text-sm px-3 py-1.5 rounded-lg border border-border"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="text-sm px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium"
+            className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium"
           >
             Save
           </button>
@@ -522,7 +522,7 @@ export default function DrawFormModal({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-slate-500 mb-1">{label}</span>
+      <span className="block text-xs font-medium text-muted-foreground mb-1">{label}</span>
       {children}
     </label>
   );

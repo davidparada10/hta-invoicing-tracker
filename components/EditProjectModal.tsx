@@ -20,7 +20,7 @@ export default function EditProjectModal({ project }: { project: Project }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-lg border border-slate-300 bg-white text-slate-700 text-sm font-medium px-3 py-1.5 hover:bg-slate-50"
+        className="rounded-lg border border-border bg-card text-foreground text-sm font-medium px-3 py-1.5 hover:bg-muted"
       >
         Edit Project
       </button>
@@ -56,13 +56,13 @@ export default function EditProjectModal({ project }: { project: Project }) {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-sm px-3 py-1.5 rounded-lg border border-slate-300"
+              className="text-sm px-3 py-1.5 rounded-lg border border-border"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="text-sm px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium"
+              className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium"
             >
               Save
             </button>
@@ -76,7 +76,7 @@ export default function EditProjectModal({ project }: { project: Project }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-slate-500 mb-1">{label}</span>
+      <span className="block text-xs font-medium text-muted-foreground mb-1">{label}</span>
       {children}
     </label>
   );

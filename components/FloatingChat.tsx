@@ -64,13 +64,13 @@ export default function FloatingChat() {
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
       {open && (
-        <div className="mb-3 w-[22rem] sm:w-96 h-[32rem] max-h-[75vh] rounded-2xl border border-slate-200 bg-white shadow-2xl flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-900 text-white">
+        <div className="mb-3 w-[22rem] sm:w-96 h-[32rem] max-h-[75vh] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-primary text-background">
             <span className="text-sm font-semibold">Assistant</span>
             <button
               onClick={() => setOpen(false)}
               aria-label="Close"
-              className="text-slate-300 hover:text-white text-lg leading-none"
+              className="text-background/70 hover:text-background text-lg leading-none"
             >
               ×
             </button>
@@ -78,7 +78,7 @@ export default function FloatingChat() {
 
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {messages.length === 0 && (
-              <div className="text-xs text-slate-400 text-center py-10 px-2">
+              <div className="text-xs text-muted-foreground text-center py-10 px-2">
                 Try: &ldquo;What&rsquo;s the status on Aneta?&rdquo; or &ldquo;Mark draw 2 on
                 Broadway as paid.&rdquo;
               </div>
@@ -91,8 +91,8 @@ export default function FloatingChat() {
                 <div
                   className={`max-w-[88%] rounded-xl px-3 py-2 text-sm ${
                     message.role === "user"
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-50 border border-slate-200 text-slate-800"
+                      ? "bg-primary text-background"
+                      : "bg-muted border border-border text-foreground"
                   }`}
                 >
                   {message.parts.map((part, i) => (
@@ -102,12 +102,12 @@ export default function FloatingChat() {
               </div>
             ))}
             {(status === "submitted" || status === "streaming") && (
-              <div className="text-xs text-slate-400 px-1">Thinking…</div>
+              <div className="text-xs text-muted-foreground px-1">Thinking…</div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} className="border-t border-slate-200 p-2.5 flex gap-2">
+          <form onSubmit={handleSubmit} className="border-t border-border p-2.5 flex gap-2">
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -116,14 +116,14 @@ export default function FloatingChat() {
                   ? "Confirm or cancel the pending action above first..."
                   : "Ask or describe something to add..."
               }
-              className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="input flex-1 py-2"
               disabled={isBusy}
               autoFocus
             />
             <button
               type="submit"
               disabled={isBusy || !input.trim()}
-              className="rounded-lg bg-slate-900 text-white text-sm font-medium px-3 py-2 disabled:opacity-50"
+              className="rounded-lg bg-primary text-background text-sm font-medium px-3 py-2 disabled:opacity-50"
             >
               Send
             </button>
@@ -134,7 +134,7 @@ export default function FloatingChat() {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Close assistant" : "Open assistant"}
-        className="w-14 h-14 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center text-2xl hover:bg-slate-800 transition-colors"
+        className="w-14 h-14 rounded-full bg-primary text-background shadow-lg flex items-center justify-center text-2xl hover:opacity-90 transition-colors"
       >
         {open ? "×" : "✨"}
       </button>
@@ -159,23 +159,23 @@ function ChatPart({
   const isWrite = WRITE_TOOLS.has(toolName);
 
   if (part.state === "input-streaming" || part.state === "input-available") {
-    return <p className="text-xs text-slate-400 italic">Looking that up…</p>;
+    return <p className="text-xs text-muted-foreground italic">Looking that up…</p>;
   }
 
   if (part.state === "approval-requested") {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 my-1">
-        <p className="text-xs font-medium text-amber-800 mb-2">{describeProposal(toolName, part.input)}</p>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 my-1 dark:border-amber-800 dark:bg-amber-950/50">
+        <p className="text-xs font-medium text-amber-800 dark:text-amber-200 mb-2">{describeProposal(toolName, part.input)}</p>
         <div className="flex gap-2">
           <button
             onClick={() => addToolApprovalResponse({ id: part.approval.id, approved: true })}
-            className="text-xs font-medium rounded-md bg-slate-900 text-white px-3 py-1"
+            className="text-xs font-medium rounded-md bg-primary text-background px-3 py-1"
           >
             Confirm
           </button>
           <button
             onClick={() => addToolApprovalResponse({ id: part.approval.id, approved: false })}
-            className="text-xs font-medium rounded-md border border-slate-300 px-3 py-1"
+            className="text-xs font-medium rounded-md border border-border px-3 py-1"
           >
             Cancel
           </button>
@@ -185,24 +185,24 @@ function ChatPart({
   }
 
   if (part.state === "approval-responded") {
-    return <p className="text-xs text-slate-400 italic">Working…</p>;
+    return <p className="text-xs text-muted-foreground italic">Working…</p>;
   }
 
   if (part.state === "output-denied") {
-    return <p className="text-xs text-slate-500">Cancelled.</p>;
+    return <p className="text-xs text-muted-foreground">Cancelled.</p>;
   }
 
   if (part.state === "output-error") {
-    return <p className="text-xs text-red-600">{part.errorText}</p>;
+    return <p className="text-xs text-red-600 dark:text-red-400">{part.errorText}</p>;
   }
 
   if (part.state === "output-available") {
     const output = part.output as Record<string, unknown>;
     if (output && typeof output === "object" && "error" in output) {
-      return <p className="text-xs text-red-600">{String(output.error)}</p>;
+      return <p className="text-xs text-red-600 dark:text-red-400">{String(output.error)}</p>;
     }
     if (isWrite) {
-      return <p className="text-xs text-emerald-700 font-medium">✓ Done.</p>;
+      return <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">✓ Done.</p>;
     }
     return <ToolResult toolName={toolName} output={output} />;
   }
@@ -236,7 +236,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
     return (
       <div className="overflow-x-auto -mx-1 mt-1">
         <table className="text-xs w-full">
-          <thead className="text-slate-400">
+          <thead className="text-muted-foreground">
             <tr>
               <th className="text-left px-1 py-1">Project</th>
               <th className="text-right px-1 py-1">Open</th>
@@ -245,12 +245,12 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
           </thead>
           <tbody>
             {projects.map((p, i) => (
-              <tr key={i} className="border-t border-slate-100">
+              <tr key={i} className="border-t border-border">
                 <td className="px-1 py-1">{String(p.name)}</td>
                 <td className="px-1 py-1 text-right text-invoiced">
                   {formatCurrency(p.totalOpenToOwner as number)}
                 </td>
-                <td className="px-1 py-1 text-right text-emerald-700">
+                <td className="px-1 py-1 text-right text-emerald-700 dark:text-emerald-400">
                   {formatCurrency(p.totalPaidToOwner as number)}
                 </td>
               </tr>
@@ -263,11 +263,11 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
 
   if (toolName === "getOpenDraws" && Array.isArray(output)) {
     const draws = output as Array<Record<string, unknown>>;
-    if (draws.length === 0) return <p className="text-xs text-slate-400 mt-1">No open draws.</p>;
+    if (draws.length === 0) return <p className="text-xs text-muted-foreground mt-1">No open draws.</p>;
     return (
       <div className="overflow-x-auto -mx-1 mt-1">
         <table className="text-xs w-full">
-          <thead className="text-slate-400">
+          <thead className="text-muted-foreground">
             <tr>
               <th className="text-left px-1 py-1">Project</th>
               <th className="text-left px-1 py-1">Draw</th>
@@ -277,7 +277,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
           </thead>
           <tbody>
             {draws.map((d, i) => (
-              <tr key={i} className="border-t border-slate-100">
+              <tr key={i} className="border-t border-border">
                 <td className="px-1 py-1">{String(d.project)}</td>
                 <td className="px-1 py-1">#{String(d.drawNumber)}</td>
                 <td className="px-1 py-1 text-right">{formatCurrency(d.amountRequested as number)}</td>
@@ -298,14 +298,14 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
         <p className="text-xs font-medium">{String(project.name)}</p>
         <div className="flex gap-3 text-xs">
           <span className="text-invoiced">Open: {formatCurrency(totals.totalOpenToOwner as number)}</span>
-          <span className="text-emerald-700">
+          <span className="text-emerald-700 dark:text-emerald-400">
             Paid: {formatCurrency(totals.totalPaidToOwner as number)}
           </span>
-          <span className="text-slate-500">Contract: {formatCurrency(totals.totalBudget as number)}</span>
+          <span className="text-muted-foreground">Contract: {formatCurrency(totals.totalBudget as number)}</span>
         </div>
       </div>
     );
   }
 
-  return <pre className="text-xs text-slate-500 mt-1 whitespace-pre-wrap">{JSON.stringify(output, null, 2)}</pre>;
+  return <pre className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{JSON.stringify(output, null, 2)}</pre>;
 }

@@ -45,9 +45,9 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
 
   if (months.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-5 mb-6">
-        <h2 className="text-sm font-semibold text-slate-900 mb-1">Monthly Billing</h2>
-        <p className="text-sm text-slate-400 py-8 text-center">
+      <div className="rounded-xl border border-border bg-card p-5 mb-6">
+        <h2 className="text-sm font-semibold text-foreground mb-1">Monthly Billing</h2>
+        <p className="text-sm text-muted-foreground py-8 text-center">
           No draws yet — add one to see billing by month.
         </p>
       </div>
@@ -73,10 +73,10 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
   const barGap = 4;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 mb-6">
+    <div className="rounded-xl border border-border bg-card p-5 mb-6">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-sm font-semibold text-slate-900">Monthly Billing</h2>
-        <div className="flex items-center gap-4 text-xs text-slate-500">
+        <h2 className="text-sm font-semibold text-foreground">Monthly Billing</h2>
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: INVOICED_COLOR }} />
             Invoiced
@@ -87,7 +87,7 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
           </span>
         </div>
       </div>
-      <p className="text-xs text-slate-500 mb-3">By draw period — what was billed each month vs. paid so far.</p>
+      <p className="text-xs text-muted-foreground mb-3">By draw period — what was billed each month vs. paid so far.</p>
 
       <div className="overflow-x-auto">
         <svg
@@ -104,7 +104,7 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
                   x2={chartWidth}
                   y1={scaleY(t)}
                   y2={scaleY(t)}
-                  stroke="#E2E8F0"
+                  stroke="var(--border)"
                   strokeWidth={1}
                 />
                 <text
@@ -113,7 +113,7 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
                   textAnchor="end"
                   dominantBaseline="middle"
                   fontSize={10.5}
-                  fill="#94A3B8"
+                  fill="var(--muted-foreground)"
                   fontFamily="ui-sans-serif, system-ui"
                 >
                   {formatCurrencyCompact(t)}
@@ -152,7 +152,7 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
                     y={plotHeight + 18}
                     textAnchor="middle"
                     fontSize={10.5}
-                    fill="#64748B"
+                    fill="var(--muted-foreground)"
                     fontFamily="ui-sans-serif, system-ui"
                   >
                     {m.label}
@@ -161,7 +161,7 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
               );
             })}
 
-            <line x1={0} x2={chartWidth} y1={plotHeight} y2={plotHeight} stroke="#CBD5E1" strokeWidth={1} />
+            <line x1={0} x2={chartWidth} y1={plotHeight} y2={plotHeight} stroke="var(--border)" strokeWidth={1} />
           </g>
         </svg>
       </div>

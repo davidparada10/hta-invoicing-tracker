@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 
 declare global {
   interface Window {
@@ -72,7 +73,15 @@ export default function AddressAutocomplete({
   className?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const elementRef = useRef<(HTMLElement & { value?: string }) | null>(null);
+  const { resolvedTheme } = useTheme();
   const [value, setValue] = useState(defaultValue ?? "");
+
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element) return;
+    element.style.colorScheme = resolvedTheme === "dark" ? "dark" : "light";
+  }, [resolvedTheme]);
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -100,6 +109,9 @@ export default function AddressAutocomplete({
         });
         element.classList.add("place-autocomplete-input");
         element.style.width = "100%";
+        element.style.colorScheme =
+          document.documentElement.classList.contains("dark") ? "dark" : "light";
+        elementRef.current = element;
         if (defaultValue) {
           try {
             element.value = defaultValue;
@@ -137,6 +149,7 @@ export default function AddressAutocomplete({
 
     return () => {
       cancelled = true;
+      elementRef.current = null;
       if (element && container.contains(element)) {
         container.removeChild(element);
       }

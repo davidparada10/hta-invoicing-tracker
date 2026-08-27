@@ -61,7 +61,7 @@ export default function AddProjectModal() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-lg bg-slate-900 text-white text-sm font-medium px-3 py-1.5 hover:bg-slate-800"
+        className="rounded-lg bg-primary text-background text-sm font-medium px-3 py-1.5 hover:opacity-90"
       >
         + Add Project
       </button>
@@ -91,8 +91,8 @@ export default function AddProjectModal() {
             </Field>
           </div>
 
-          <div className="rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
-            <label className="block text-xs font-medium text-slate-600 mb-1">
+          <div className="rounded-lg border border-dashed border-border p-3 bg-muted">
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
               Upload G702/G703 (.xlsx) to create the initial schedule of values (optional)
             </label>
             <input
@@ -104,22 +104,22 @@ export default function AddProjectModal() {
             />
           </div>
 
-          {statusText && <p className="text-xs text-slate-500">{statusText}</p>}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {statusText && <p className="text-xs text-muted-foreground">{statusText}</p>}
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
               onClick={() => setOpen(false)}
               disabled={submitting}
-              className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 disabled:opacity-50"
+              className="text-sm px-3 py-1.5 rounded-lg border border-border disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="text-sm px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium disabled:opacity-50"
+              className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium disabled:opacity-50"
             >
               {submitting ? "Saving…" : "Save"}
             </button>
@@ -133,7 +133,7 @@ export default function AddProjectModal() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-xs font-medium text-slate-500 mb-1">{label}</span>
+      <span className="block text-xs font-medium text-muted-foreground mb-1">{label}</span>
       {children}
     </label>
   );

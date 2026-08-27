@@ -49,14 +49,14 @@ export default async function ProjectDetailPage({
     <div className="min-h-screen">
       <SiteHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        <Link href="/" className="text-sm text-slate-500 hover:text-slate-900">
+        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
           ← All projects
         </Link>
 
         <div className="mt-2 mb-6 flex items-start justify-between flex-wrap gap-2">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{project.name}</h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <h1 className="text-2xl font-semibold text-foreground">{project.name}</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               {project.address ?? "—"}
               {project.lender ? ` · Lender: ${project.lender}` : ""}
             </p>
@@ -68,38 +68,38 @@ export default async function ProjectDetailPage({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Currently Invoiced (Open)
             </p>
             <p className="text-2xl font-semibold text-invoiced mt-1">
               {formatCurrency(totalOpenToOwner)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Total Paid to Date
             </p>
-            <p className="text-2xl font-semibold text-emerald-700 mt-1">
+            <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400 mt-1">
               {formatCurrency(totalPaidToOwner)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Contract Value
             </p>
-            <p className="text-2xl font-semibold text-slate-900 mt-1">
+            <p className="text-2xl font-semibold text-foreground mt-1">
               {formatCurrency(totalBudget)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Balance to Complete
             </p>
-            <p className="text-2xl font-semibold text-slate-900 mt-1">
+            <p className="text-2xl font-semibold text-foreground mt-1">
               {formatCurrency(balanceToComplete)}
             </p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {formatCurrency(totalRetainage)} retainage to date
             </p>
           </div>

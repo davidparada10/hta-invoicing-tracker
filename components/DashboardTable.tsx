@@ -29,14 +29,14 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by project name or address..."
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-full sm:w-72"
+          className="input sm:w-72"
         />
-        <div className="inline-flex rounded-lg border border-slate-300 text-sm overflow-hidden">
+        <div className="inline-flex rounded-lg border border-border text-sm overflow-hidden">
           <button
             type="button"
             onClick={() => setStatusFilter("active")}
             className={`px-3 py-1.5 ${
-              statusFilter === "active" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"
+              statusFilter === "active" ? "bg-primary text-background" : "text-muted-foreground hover:bg-muted"
             }`}
           >
             Active
@@ -44,8 +44,8 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           <button
             type="button"
             onClick={() => setStatusFilter("all")}
-            className={`px-3 py-1.5 border-l border-slate-300 ${
-              statusFilter === "all" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"
+            className={`px-3 py-1.5 border-l border-border ${
+              statusFilter === "all" ? "bg-primary text-background" : "text-muted-foreground hover:bg-muted"
             }`}
           >
             All
@@ -53,11 +53,11 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+          <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Project</th>
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Project</th>
               <th className="text-right px-4 py-2">Currently Invoiced</th>
               <th className="text-right px-4 py-2">Paid to Date</th>
               <th className="text-right px-4 py-2">Contract Value</th>
@@ -65,34 +65,34 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               <th className="text-left px-4 py-2">Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {filtered.map((r) => (
-              <tr key={r.project.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2 sticky left-0 z-10 bg-white">
+              <tr key={r.project.id} className="group hover:bg-muted">
+                <td className="px-4 py-2 sticky left-0 z-10 bg-card group-hover:bg-muted">
                   <Link
                     href={`/projects/${r.project.id}`}
                     className="block -mx-4 -my-2 px-4 py-2"
                   >
-                    <span className="font-medium text-slate-900 hover:underline">
+                    <span className="font-medium text-foreground hover:underline">
                       {r.project.name}
                     </span>
                     {r.project.address && (
-                      <div className="text-xs text-slate-400">{r.project.address}</div>
+                      <div className="text-xs text-muted-foreground">{r.project.address}</div>
                     )}
                   </Link>
                 </td>
                 <td className="px-4 py-2 text-right font-medium text-invoiced">
                   {formatCurrency(r.totalOpenToOwner)}
                 </td>
-                <td className="px-4 py-2 text-right font-medium text-emerald-700">
+                <td className="px-4 py-2 text-right font-medium text-emerald-700 dark:text-emerald-400">
                   {formatCurrency(r.totalPaidToOwner)}
                 </td>
-                <td className="px-4 py-2 text-right text-slate-900">
+                <td className="px-4 py-2 text-right text-foreground">
                   {formatCurrency(r.totalBudget)}
                 </td>
                 <td className="px-4 py-2 text-right">
-                  <div className="text-slate-900">{formatCurrency(r.balanceToComplete)}</div>
-                  <div className="text-xs text-slate-400">
+                  <div className="text-foreground">{formatCurrency(r.balanceToComplete)}</div>
+                  <div className="text-xs text-muted-foreground">
                     +{formatCurrency(r.totalDrawRetainage)} retainage
                   </div>
                 </td>
@@ -103,7 +103,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
                   No {statusFilter === "active" && !search.trim() ? "active " : ""}projects found.
                 </td>
               </tr>

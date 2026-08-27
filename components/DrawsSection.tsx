@@ -62,12 +62,12 @@ export default function DrawsSection({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search draw # or notes..."
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-56"
+          className="input w-56"
         />
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+          className="input w-auto"
         >
           <option value="all">All statuses</option>
           {STATUSES.map((s) => (
@@ -78,17 +78,17 @@ export default function DrawsSection({
         </select>
         <button
           onClick={openAdd}
-          className="ml-auto rounded-lg bg-slate-900 text-white text-sm font-medium px-3 py-1.5"
+          className="ml-auto rounded-lg bg-primary text-background text-sm font-medium px-3 py-1.5"
         >
           + Add Draw
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+          <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-slate-50">Draw #</th>
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Draw #</th>
               <th className="text-left px-4 py-2">Period</th>
               <th className="text-right px-4 py-2">Requested</th>
               <th className="text-right px-4 py-2">Approved</th>
@@ -100,28 +100,28 @@ export default function DrawsSection({
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {filtered.map((d) => (
-              <tr key={d.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2 sticky left-0 z-10 bg-white">
+              <tr key={d.id} className="group hover:bg-muted">
+                <td className="px-4 py-2 sticky left-0 z-10 bg-card group-hover:bg-muted">
                   <button
                     type="button"
                     onClick={() => openEdit(d)}
-                    className="font-medium text-slate-900 hover:underline"
+                    className="font-medium text-foreground hover:underline"
                     title="Edit draw"
                   >
                     {d.draw_number}
                   </button>
                 </td>
-                <td className="px-4 py-2 text-slate-500">
+                <td className="px-4 py-2 text-muted-foreground">
                   {formatDate(d.period_start)} – {formatDate(d.period_end)}
                 </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.amount_requested)}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.amount_approved)}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.retainage_held)}</td>
-                <td className="px-4 py-2 text-slate-500">{formatDate(d.date_submitted)}</td>
-                <td className="px-4 py-2 text-slate-500">{formatDate(d.date_approved)}</td>
-                <td className="px-4 py-2 text-slate-500">{formatDate(d.date_paid)}</td>
+                <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
+                <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_approved)}</td>
+                <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_paid)}</td>
                 <td className="px-4 py-2">
                   <DrawStatusSelect drawId={d.id} projectId={projectId} status={d.status} />
                 </td>
@@ -133,19 +133,19 @@ export default function DrawsSection({
                       drawNumber={d.draw_number}
                       amountRequested={d.amount_requested}
                       amountPaid={d.amount_paid}
-                      className="text-emerald-600 hover:text-emerald-800 text-xs font-medium mr-3 disabled:opacity-50"
+                      className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 text-xs font-medium mr-3 disabled:opacity-50"
                     />
                   )}
                   <button
                     onClick={() => openEdit(d)}
-                    className="text-slate-500 hover:text-slate-900 text-xs font-medium mr-3"
+                    className="text-muted-foreground hover:text-foreground text-xs font-medium mr-3"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(d)}
                     disabled={isPending}
-                    className="text-red-500 hover:text-red-700 text-xs font-medium"
+                    className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs font-medium"
                   >
                     Delete
                   </button>
@@ -154,7 +154,7 @@ export default function DrawsSection({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
                   No draws found.
                 </td>
               </tr>

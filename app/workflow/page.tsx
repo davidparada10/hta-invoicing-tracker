@@ -12,13 +12,13 @@ type Category =
   | "output";
 
 const CATEGORY_STYLES: Record<Category, { dot: string; border: string; bg: string }> = {
-  trigger: { dot: "bg-blue-500", border: "border-blue-200", bg: "bg-blue-50" },
-  ui: { dot: "bg-indigo-500", border: "border-indigo-200", bg: "bg-indigo-50" },
-  server: { dot: "bg-purple-500", border: "border-purple-200", bg: "bg-purple-50" },
-  ai: { dot: "bg-violet-500", border: "border-violet-200", bg: "bg-violet-50" },
-  data: { dot: "bg-emerald-500", border: "border-emerald-200", bg: "bg-emerald-50" },
-  decision: { dot: "bg-amber-500", border: "border-amber-200", bg: "bg-amber-50" },
-  output: { dot: "bg-slate-400", border: "border-slate-200", bg: "bg-slate-50" },
+  trigger: { dot: "bg-blue-500", border: "border-blue-200 dark:border-blue-800", bg: "bg-blue-50 dark:bg-blue-950/40" },
+  ui: { dot: "bg-indigo-500", border: "border-indigo-200 dark:border-indigo-800", bg: "bg-indigo-50 dark:bg-indigo-950/40" },
+  server: { dot: "bg-purple-500", border: "border-purple-200 dark:border-purple-800", bg: "bg-purple-50 dark:bg-purple-950/40" },
+  ai: { dot: "bg-violet-500", border: "border-violet-200 dark:border-violet-800", bg: "bg-violet-50 dark:bg-violet-950/40" },
+  data: { dot: "bg-emerald-500", border: "border-emerald-200 dark:border-emerald-800", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
+  decision: { dot: "bg-amber-500", border: "border-amber-200 dark:border-amber-800", bg: "bg-amber-50 dark:bg-amber-950/40" },
+  output: { dot: "bg-slate-400", border: "border-border", bg: "bg-muted" },
 };
 
 const CATEGORY_LABELS: Record<Category, string> = {
@@ -44,8 +44,8 @@ function StepCard({ step }: { step: Step }) {
   return (
     <div className={`shrink-0 w-44 rounded-lg border ${style.border} ${style.bg} p-3`}>
       <div className="text-lg mb-1">{step.icon}</div>
-      <p className="text-xs font-semibold text-slate-900 leading-tight">{step.title}</p>
-      <p className="text-[11px] text-slate-500 leading-tight mt-0.5">{step.detail}</p>
+      <p className="text-xs font-semibold text-foreground leading-tight">{step.title}</p>
+      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{step.detail}</p>
     </div>
   );
 }
@@ -58,9 +58,9 @@ function FlowRow({ steps }: { steps: Step[] }) {
           <StepCard step={step} />
           {i < steps.length - 1 && (
             <div className="flex flex-col items-center justify-center px-1 shrink-0 w-12">
-              <span className="text-slate-300">→</span>
+              <span className="text-muted-foreground">→</span>
               {step.edgeLabel && (
-                <span className="text-[10px] text-slate-400 text-center leading-tight">
+                <span className="text-[10px] text-muted-foreground text-center leading-tight">
                   {step.edgeLabel}
                 </span>
               )}
@@ -85,11 +85,11 @@ function Flow({
 }) {
   return (
     <div className="mb-8">
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">
         Flow {number}
       </p>
-      <h3 className="text-sm font-semibold text-slate-900 mb-0.5">{title}</h3>
-      <p className="text-xs text-slate-500 mb-3">{subtitle}</p>
+      <h3 className="text-sm font-semibold text-foreground mb-0.5">{title}</h3>
+      <p className="text-xs text-muted-foreground mb-3">{subtitle}</p>
       <FlowRow steps={steps} />
     </div>
   );
@@ -100,20 +100,20 @@ export default function WorkflowPage() {
     <div className="min-h-screen">
       <SiteHeader />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
           HTA Construction &amp; Development
         </p>
-        <h1 className="text-2xl font-semibold text-slate-900 mb-1">
+        <h1 className="text-2xl font-semibold text-foreground mb-1">
           Multi-Family Invoice Tracker — System Workflow
         </h1>
-        <p className="text-sm text-slate-500 max-w-3xl mb-8">
+        <p className="text-sm text-muted-foreground max-w-3xl mb-8">
           Seven flows: G702 draw upload · G703 schedule-of-values import · draw lifecycle &amp;
           Mark Paid (partial pay supported) · aging alerts &amp; collections filters · billing
           summary reporting · AI assistant (read + confirm-to-write) · passcode auth gate.
           Written for anyone who needs to pick up maintenance on this app.
         </p>
 
-        <div className="flex flex-wrap gap-x-5 gap-y-2 mb-10 text-xs text-slate-500">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 mb-10 text-xs text-muted-foreground">
           {(Object.keys(CATEGORY_LABELS) as Category[]).map((c) => (
             <span key={c} className="flex items-center gap-1.5">
               <span className={`inline-block w-2.5 h-2.5 rounded-full ${CATEGORY_STYLES[c].dot}`} />
@@ -218,7 +218,7 @@ export default function WorkflowPage() {
           ]}
         />
 
-        <h2 className="text-sm font-semibold text-slate-900 mb-3 mt-10">Data Architecture</h2>
+        <h2 className="text-sm font-semibold text-foreground mb-3 mt-10">Data Architecture</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
           <DataTable
             icon="🏗️"
@@ -242,8 +242,8 @@ export default function WorkflowPage() {
           />
         </div>
 
-        <h2 className="text-sm font-semibold text-slate-900 mb-3">Deployment &amp; Environment</h2>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 mb-10 text-sm">
+        <h2 className="text-sm font-semibold text-foreground mb-3">Deployment &amp; Environment</h2>
+        <div className="rounded-xl border border-border bg-card p-5 mb-10 text-sm">
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
             <Detail term="Hosting">Vercel — auto-deploys on push to GitHub `main`</Detail>
             <Detail term="Database">Supabase Postgres, project &ldquo;hta-multifamily-invoicing&rdquo;</Detail>
@@ -269,8 +269,8 @@ export default function WorkflowPage() {
           </dl>
         </div>
 
-        <h2 className="text-sm font-semibold text-slate-900 mb-3">Where Things Live</h2>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 mb-6 text-sm">
+        <h2 className="text-sm font-semibold text-foreground mb-3">Where Things Live</h2>
+        <div className="rounded-xl border border-border bg-card p-5 mb-6 text-sm">
           <dl className="space-y-2.5">
             <Detail term="app/*/page.tsx">Pages — dashboard, project detail, billing, chat, help, workflow (this page)</Detail>
             <Detail term="app/*/actions.ts">Every write — Server Actions called directly from client forms</Detail>
@@ -295,8 +295,8 @@ function DataTable({ icon, name, fields }: { icon: string; name: string; fields:
   return (
     <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
       <div className="text-lg mb-1">{icon}</div>
-      <p className="text-xs font-mono font-semibold text-slate-900">{name}</p>
-      <p className="text-[11px] text-slate-600 mt-1 leading-snug">{fields}</p>
+      <p className="text-xs font-mono font-semibold text-foreground">{name}</p>
+      <p className="text-[11px] text-muted-foreground mt-1 leading-snug">{fields}</p>
     </div>
   );
 }
@@ -304,8 +304,8 @@ function DataTable({ icon, name, fields }: { icon: string; name: string; fields:
 function Detail({ term, children }: { term: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-xs font-medium text-slate-400 uppercase tracking-wide mb-0.5">{term}</dt>
-      <dd className="text-slate-700">{children}</dd>
+      <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">{term}</dt>
+      <dd className="text-foreground">{children}</dd>
     </div>
   );
 }
