@@ -11,7 +11,7 @@ import { resolveProject } from "./shared";
 
 export const listProjectsTool = tool({
   description:
-    "List every project with its paid-to-owner, currently-invoiced (open), budget, and retainage totals. Use this for portfolio-wide questions or to find/confirm a project's exact name.",
+    "List every project with its paid-to-owner, currently-invoiced (open), contract value, and retainage totals. Use this for portfolio-wide questions or to find/confirm a project's exact name.",
   inputSchema: z.object({}),
   execute: async () => {
     const { rollups, totals } = await getDashboardData();
@@ -51,7 +51,7 @@ export const getOpenDrawsTool = tool({
 
 export const getProjectDetailsTool = tool({
   description:
-    "Get full details for one project by name: every draw (status/dates/amounts), budget line items, and paid/open/budget totals.",
+    "Get full details for one project by name: every draw (status/dates/amounts), schedule-of-values line items, and paid/open/contract-value totals.",
   inputSchema: z.object({
     projectName: z
       .string()

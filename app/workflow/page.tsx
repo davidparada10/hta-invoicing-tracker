@@ -107,9 +107,10 @@ export default function WorkflowPage() {
           Multi-Family Invoice Tracker — System Workflow
         </h1>
         <p className="text-sm text-slate-500 max-w-3xl mb-8">
-          Five flows: G702 draw upload · G703 budget import · draw lifecycle &amp; Mark Paid ·
-          AI assistant (read + confirm-to-write) · passcode auth gate. Written for anyone who
-          needs to pick up maintenance on this app.
+          Seven flows: G702 draw upload · G703 schedule-of-values import · draw lifecycle &amp;
+          Mark Paid (partial pay supported) · aging alerts &amp; collections filters · billing
+          summary reporting · AI assistant (read + confirm-to-write) · passcode auth gate.
+          Written for anyone who needs to pick up maintenance on this app.
         </p>
 
         <div className="flex flex-wrap gap-x-5 gap-y-2 mb-10 text-xs text-slate-500">
@@ -124,10 +125,12 @@ export default function WorkflowPage() {
         <Flow
           number="1"
           title="G702 Draw Upload"
-          subtitle="Owner Draws tab, on-demand — auto-fills the Add/Edit Draw form from an AIA G702 sheet"
+          subtitle="Owner Draws tab, on-demand — auto-fills the Add/Edit Draw form from .xlsx or .pdf"
           steps={[
-            { icon: "👤", title: "Upload .xlsx", detail: "Owner Draws tab, Add/Edit Draw modal", category: "trigger", edgeLabel: "reads" },
-            { icon: "📄", title: "parseG702FromXlsx", detail: "lib/g702-parser.ts — fixed AIA cell refs", category: "server", edgeLabel: "fills" },
+            { icon: "👤", title: "Upload .xlsx or .pdf", detail: "Owner Draws tab, Add/Edit Draw modal", category: "trigger", edgeLabel: "detects format" },
+            { icon: "❓", title: "Lender-portal PDF?", detail: "isLenderPortalPdfText() text-signature check", category: "decision", edgeLabel: "yes/no" },
+            { icon: "📄", title: "parseG702FromXlsx/Pdf or parseLenderDrawFromPdf", detail: "lib/g702-parser.ts (AIA) or lib/lender-portal-parser.ts (Conventus/SwiftDraws)", category: "server", edgeLabel: "fills" },
+            { icon: "⚠️", title: "SoV mismatch check", detail: "Warns if schedule-of-values total ≠ amount requested", category: "decision", edgeLabel: "confirm to override" },
             { icon: "📝", title: "Draw form", detail: "Controlled fields — user reviews", category: "ui", edgeLabel: "on Save" },
             { icon: "⚡", title: "upsertDraw", detail: "app/draws/actions.ts (Server Action)", category: "server", edgeLabel: "writes" },
             { icon: "🗄️", title: "inv_owner_draws", detail: "Supabase — insert or update by id", category: "data", edgeLabel: "revalidates" },
@@ -137,7 +140,7 @@ export default function WorkflowPage() {
 
         <Flow
           number="2"
-          title="G703 Budget Import"
+          title="G703 Schedule of Values Import"
           subtitle="Schedule of Values tab, on-demand — destructive: replaces every existing line item"
           steps={[
             { icon: "👤", title: "Upload .xlsx", detail: "Schedule of Values tab — Import button", category: "trigger", edgeLabel: "confirms" },
@@ -152,19 +155,43 @@ export default function WorkflowPage() {
         <Flow
           number="3"
           title="Draw Lifecycle & Mark Paid"
-          subtitle="draft → submitted → approved → paid, or one click straight to paid"
+          subtitle="draft → submitted → approved → paid — Mark Paid supports partial payments"
           steps={[
             { icon: "📝", title: "Draw created", detail: "status: draft or submitted", category: "ui", edgeLabel: "edit status" },
             { icon: "🔄", title: "submitted / approved", detail: "Edit Draw modal, manual status change", category: "decision", edgeLabel: "or" },
-            { icon: "👤", title: "Mark Paid click", detail: "Dashboard or project draws table", category: "trigger", edgeLabel: "calls" },
-            { icon: "⚡", title: "markDrawPaid", detail: "sets amount_paid, date_paid = today", category: "server", edgeLabel: "writes" },
-            { icon: "🗄️", title: "inv_owner_draws", detail: "status → paid", category: "data", edgeLabel: "drops from" },
-            { icon: "✅", title: "Open Owner Draws", detail: "Dashboard list — only submitted/approved show", category: "output" },
+            { icon: "👤", title: "Mark Paid click", detail: "Opens a modal — amount received + date paid, defaults to full outstanding balance today", category: "trigger", edgeLabel: "calls" },
+            { icon: "⚡", title: "markDrawPaid", detail: "amount_paid += received (accumulates); status always → paid", category: "server", edgeLabel: "writes" },
+            { icon: "🗄️", title: "inv_owner_draws", detail: "status paid, but a short payment still counts as open", category: "data", edgeLabel: "checked by" },
+            { icon: "✅", title: "openBalance()", detail: "lib/data.ts — max(0, requested − paid); underpaid draws stay in Open Draws", category: "output" },
           ]}
         />
 
         <Flow
           number="4"
+          title="Aging Alerts & Collections Filters"
+          subtitle="Open draws are bucketed by days-since-submission — no cron, computed on every page load"
+          steps={[
+            { icon: "🗄️", title: "getOpenDraws()", detail: "lib/data.ts — draws with a balance still owed", category: "data", edgeLabel: "each draw" },
+            { icon: "⚡", title: "daysOpen / agingBucket", detail: "lib/aging.ts — pure functions, 0-30/31-60/61-90/90+ day buckets", category: "server", edgeLabel: "60+ days" },
+            { icon: "🔔", title: "AgingAlertBanner", detail: "Dashboard banner — only renders when a draw is 61+ days old", category: "decision", edgeLabel: "click bucket" },
+            { icon: "✅", title: "Filtered Open Draws", detail: "Bucket buttons + project Active/All toggle narrow both tables", category: "output" },
+          ]}
+        />
+
+        <Flow
+          number="5"
+          title="Billing Summary Reporting"
+          subtitle="/billing — read-only, cash-basis: billed by submission date, received by payment date"
+          steps={[
+            { icon: "👤", title: "Visit /billing", detail: "Optional ?year= query param, defaults to current year", category: "trigger", edgeLabel: "fetches" },
+            { icon: "🗄️", title: "getAllDraws()", detail: "Same paginated helper the dashboard uses", category: "data", edgeLabel: "feeds" },
+            { icon: "⚡", title: "buildBillingReport / buildProjectBillingBreakdown", detail: "lib/billing.ts — pure calc, no new tables", category: "server", edgeLabel: "returns" },
+            { icon: "✅", title: "YTD/QTD by quarter + by project", detail: "Billed vs. received vs. outstanding, avg days to pay", category: "output" },
+          ]}
+        />
+
+        <Flow
+          number="6"
           title="AI Assistant"
           subtitle="/chat — reads run automatically; writes pause for user confirmation"
           steps={[
@@ -172,14 +199,14 @@ export default function WorkflowPage() {
             { icon: "⚡", title: "/api/chat", detail: "createAgentUIStreamResponse", category: "server", edgeLabel: "runs" },
             { icon: "🤖", title: "htaAgent (ToolLoopAgent)", detail: "lib/agents/hta-agent.ts · Claude via direct Anthropic API", category: "ai", edgeLabel: "picks a tool" },
             { icon: "🔍", title: "Read tool", detail: "listProjects / getOpenDraws / getProjectDetails — auto-runs", category: "server", edgeLabel: "or" },
-            { icon: "✋", title: "Write tool proposed", detail: "createDraw / markDrawPaid / createBudgetLine", category: "decision", edgeLabel: "Confirm" },
+            { icon: "✋", title: "Write tool proposed", detail: "createDraw / markDrawPaid (partial pay) / createBudgetLine", category: "decision", edgeLabel: "Confirm" },
             { icon: "🗄️", title: "Supabase write", detail: "Same tables as the manual forms use", category: "data", edgeLabel: "streams back" },
             { icon: "✅", title: "Chat reply", detail: "Plain-language summary of what happened", category: "output" },
           ]}
         />
 
         <Flow
-          number="5"
+          number="7"
           title="Passcode Auth Gate"
           subtitle="Every request except /login and static assets"
           steps={[
@@ -229,7 +256,10 @@ export default function WorkflowPage() {
               <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_URL</code>,{" "}
               <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>,{" "}
               <code className="font-mono text-xs">SITE_PASSCODE</code>,{" "}
-              <code className="font-mono text-xs">ANTHROPIC_API_KEY</code>
+              <code className="font-mono text-xs">ANTHROPIC_API_KEY</code>,{" "}
+              <code className="font-mono text-xs">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>{" "}
+              (Places API — address autocomplete on Add/Edit Project; the field still works as
+              plain text if this is missing)
             </Detail>
             <Detail term="Local dev">
               <code className="font-mono text-xs">vercel env pull</code> (per-environment —
@@ -242,13 +272,18 @@ export default function WorkflowPage() {
         <h2 className="text-sm font-semibold text-slate-900 mb-3">Where Things Live</h2>
         <div className="rounded-xl border border-slate-200 bg-white p-5 mb-6 text-sm">
           <dl className="space-y-2.5">
-            <Detail term="app/*/page.tsx">Pages — dashboard, project detail, chat, help, workflow (this page)</Detail>
+            <Detail term="app/*/page.tsx">Pages — dashboard, project detail, billing, chat, help, workflow (this page)</Detail>
             <Detail term="app/*/actions.ts">Every write — Server Actions called directly from client forms</Detail>
-            <Detail term="lib/data.ts">Every read — all Supabase SELECT queries live here</Detail>
-            <Detail term="lib/g702-parser.ts">G702 and G703 Excel parsing (SheetJS, fixed AIA cell layout)</Detail>
+            <Detail term="lib/data.ts">Every read — all Supabase SELECT queries live here, including the paginated fetchAllRows() helper (PostgREST caps a plain select() at 1000 rows)</Detail>
+            <Detail term="lib/g702-parser.ts">AIA G702/G703 Excel and PDF parsing (SheetJS + pdf-parse, fixed AIA cell layout)</Detail>
+            <Detail term="lib/lender-portal-parser.ts">Alternate PDF format (Conventus/SwiftDraws-style lender portal exports), auto-detected by text signature — draw-only, does not import a schedule of values</Detail>
+            <Detail term="lib/aging.ts">Days-open / aging-bucket math for the dashboard alert banner and Open Draws filters</Detail>
+            <Detail term="lib/billing.ts">YTD/QTD billed-vs-received calc for the Billing Summary page</Detail>
             <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools</Detail>
             <Detail term="lib/auth/session.ts">Passcode session signing/verification</Detail>
-            <Detail term="components/*Section.tsx">The CRUD table + modal for one entity (draws, budget)</Detail>
+            <Detail term="components/*Section.tsx">The CRUD table + modal for one entity (draws, schedule of values)</Detail>
+            <Detail term="components/AddressAutocomplete.tsx">Google Places autocomplete for the project Address field, with a plain-text fallback</Detail>
+            <Detail term="components/AgingAlertBanner.tsx, ProjectStatusSelect.tsx">Dashboard 60+ day alert; inline active/closed status dropdown</Detail>
           </dl>
         </div>
       </main>
