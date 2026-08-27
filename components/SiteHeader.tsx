@@ -30,8 +30,8 @@ export default function SiteHeader() {
             <Image
               src="/hta-logo.png"
               alt="HTA Construction"
-              width={3840}
-              height={2160}
+              width={6000}
+              height={1500}
               className="h-16 sm:h-20 w-auto"
               priority
             />
