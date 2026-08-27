@@ -37,6 +37,9 @@ export default function SiteHeader() {
             <Link href="/workflow" className="text-sm text-slate-500 hover:text-slate-900">
               Workflow
             </Link>
+            <Link href="/billing" className="text-sm text-slate-500 hover:text-slate-900">
+              Billing Summary
+            </Link>
             <button
               onClick={handleLogout}
               className="text-sm text-slate-500 hover:text-slate-900"

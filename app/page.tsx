@@ -1,5 +1,6 @@
+import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
-import { getDashboardData, getOpenDraws } from "@/lib/data";
+import { getBillingReport, getDashboardData, getOpenDraws } from "@/lib/data";
 import { formatCurrency } from "@/lib/format";
 import DashboardTable from "@/components/DashboardTable";
 import OpenDrawsSection from "@/components/OpenDrawsSection";
@@ -9,9 +10,11 @@ import AgingAlertBanner from "@/components/AgingAlertBanner";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [{ rollups, totals }, openDraws] = await Promise.all([
+  const currentYear = new Date().getFullYear();
+  const [{ rollups, totals }, openDraws, billingYtd] = await Promise.all([
     getDashboardData(),
     getOpenDraws(),
+    getBillingReport(currentYear),
   ]);
 
   return (
@@ -47,7 +50,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="rounded-lg bg-slate-100/60 p-4">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
               Total project budget
@@ -63,6 +66,18 @@ export default async function DashboardPage() {
             <p className="text-lg font-medium text-slate-600 mt-1">
               {formatCurrency(totals.totalRetainage)}
             </p>
+          </div>
+          <Link href="/billing" className="rounded-lg bg-slate-100/60 p-4 hover:bg-slate-200/60">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+              Billed YTD ({currentYear})
+            </p>
+            <p className="text-lg font-medium text-slate-600 mt-1">
+              {formatCurrency(billingYtd.ytdRequested)}
+            </p>
+          </Link>
+          <div className="rounded-lg bg-slate-100/60 p-4">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Projects</p>
+            <p className="text-lg font-medium text-slate-600 mt-1">{rollups.length}</p>
           </div>
         </div>
 
