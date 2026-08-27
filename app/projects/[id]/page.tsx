@@ -86,7 +86,7 @@ export default async function ProjectDetailPage({
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Total Budget
+              Contract Value
             </p>
             <p className="text-2xl font-semibold text-slate-900 mt-1">
               {formatCurrency(totalBudget)}

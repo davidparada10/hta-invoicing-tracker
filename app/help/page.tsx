@@ -27,7 +27,7 @@ export default function HelpPage() {
           <svg
             viewBox="0 0 1040 748"
             role="img"
-            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form which moves through draft, submitted, approved and paid status with a one-click Mark Paid shortcut and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk budget import that replaces all line items and rolls up into a total budget figure. Both flows converge on the project detail page."
+            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form which moves through draft, submitted, approved and paid status with a one-click Mark Paid shortcut and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk budget import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
             className="mx-auto min-w-[720px]"
           >
             <defs>
@@ -87,7 +87,7 @@ export default function HelpPage() {
 
             <line x1="780" y1="414" x2="780" y2="462" stroke={BUDGET_COLOR} strokeWidth={1.6} markerEnd="url(#arrowBudget)" />
             <rect x="610" y="464" width="340" height="48" rx="10" fill="white" stroke="#E2E8F0" />
-            <text x="780" y="484" textAnchor="middle" fontWeight="600" fontSize="12.5" fill="#0F172A">Total Budget rolls up</text>
+            <text x="780" y="484" textAnchor="middle" fontWeight="600" fontSize="12.5" fill="#0F172A">Contract value rolls up</text>
             <text x="780" y="500" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill="#64748B">sum of every line&rsquo;s scheduled value</text>
 
             <line x1="280" y1="312" x2="280" y2="352" stroke={DRAW_COLOR} strokeWidth={1.6} markerEnd="url(#arrowDraw)" />
@@ -132,7 +132,7 @@ export default function HelpPage() {
             <rect x="300" y="614" width="440" height="64" rx="10" fill="#F8FAFC" stroke="#E2E8F0" strokeWidth={1.4} />
             <text x="520" y="638" textAnchor="middle" fontWeight="600" fontSize="13" fill="#0F172A">Project Detail Page</text>
             <text x="520" y="656" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill="#64748B">
-              &quot;Total Paid to Date&quot;  next to  &quot;Currently Invoiced (Open)&quot;  next to  &quot;Total Budget&quot;
+              &quot;Total Paid to Date&quot;  next to  &quot;Currently Invoiced (Open)&quot;  next to  &quot;Contract Value&quot;
             </text>
           </svg>
 

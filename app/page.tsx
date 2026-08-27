@@ -67,7 +67,7 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <div className="rounded-lg bg-slate-100/60 p-4">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
-              Total project budget
+              Total contract value
             </p>
             <p className="text-lg font-medium text-slate-600 mt-1">
               {formatCurrency(totals.totalBudget)}
@@ -81,14 +81,7 @@ export default async function DashboardPage() {
               {formatCurrency(totals.totalPaidToOwner)}
             </p>
           </div>
-          <div className="rounded-lg bg-slate-100/60 p-4">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
-              Total retainage held
-            </p>
-            <p className="text-lg font-medium text-slate-600 mt-1">
-              {formatCurrency(totals.totalRetainage)}
-            </p>
-          </div>
+          <div className="rounded-lg bg-slate-100/60 p-4 min-h-[80px]" aria-hidden="true" />
           <div className="rounded-lg bg-slate-100/60 p-4">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
               Active projects

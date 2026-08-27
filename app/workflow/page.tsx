@@ -145,7 +145,7 @@ export default function WorkflowPage() {
             { icon: "📄", title: "parseBudgetFromXlsx", detail: "lib/g702-parser.ts — walks G703 rows", category: "server", edgeLabel: "returns rows" },
             { icon: "⚡", title: "importBudgetFromXlsx", detail: "app/budget/actions.ts (Server Action)", category: "server", edgeLabel: "delete + insert" },
             { icon: "🗄️", title: "inv_project_budget_lines", detail: "Supabase — full replace, one project", category: "data", edgeLabel: "revalidates" },
-            { icon: "✅", title: "Budget tab refreshed", detail: "Total Budget + line table", category: "output" },
+            { icon: "✅", title: "Budget tab refreshed", detail: "Contract value + line table", category: "output" },
           ]}
         />
 

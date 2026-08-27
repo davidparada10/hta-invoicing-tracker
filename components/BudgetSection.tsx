@@ -119,7 +119,7 @@ export default function BudgetSection({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <div className="rounded-xl border border-slate-200 bg-white p-5">
           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-            Total Budget (Scheduled Value)
+            Contract Value (Scheduled Value)
           </p>
           <p className="text-2xl font-semibold text-slate-900 mt-1">
             {formatCurrency(totalBudget)}

@@ -279,7 +279,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
           <span className="text-emerald-700">
             Paid: {formatCurrency(totals.totalPaidToOwner as number)}
           </span>
-          <span className="text-slate-500">Budget: {formatCurrency(totals.totalBudget as number)}</span>
+          <span className="text-slate-500">Contract: {formatCurrency(totals.totalBudget as number)}</span>
         </div>
       </div>
     );
