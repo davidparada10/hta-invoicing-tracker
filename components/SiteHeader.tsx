@@ -35,6 +35,7 @@ export default function SiteHeader() {
               className="h-16 sm:h-20 w-auto"
               priority
             />
+            <p className="text-sm font-medium text-slate-500 mt-1">Multi-Family Invoice Tracker</p>
           </Link>
         </div>
 
