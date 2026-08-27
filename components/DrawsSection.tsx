@@ -131,6 +131,8 @@ export default function DrawsSection({
                       drawId={d.id}
                       projectId={projectId}
                       drawNumber={d.draw_number}
+                      amountRequested={d.amount_requested}
+                      amountPaid={d.amount_paid}
                       className="text-emerald-600 hover:text-emerald-800 text-xs font-medium mr-3 disabled:opacity-50"
                     />
                   )}

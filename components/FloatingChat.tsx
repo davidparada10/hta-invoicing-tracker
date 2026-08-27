@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -15,10 +16,29 @@ const WRITE_TOOLS = new Set(["createDraw", "markDrawPaid", "createBudgetLine"]);
 export default function FloatingChat() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const router = useRouter();
+  const refreshedIds = useRef(new Set<string>());
   const { messages, sendMessage, addToolApprovalResponse, status } = useChat<HtaAgentUIMessage>({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
+
+  useEffect(() => {
+    for (const message of messages) {
+      if (message.role !== "assistant") continue;
+      message.parts.forEach((part, i) => {
+        if (!isToolUIPart(part)) return;
+        const toolName = part.type.slice(5);
+        if (!WRITE_TOOLS.has(toolName) || part.state !== "output-available") return;
+        const output = part.output as Record<string, unknown> | undefined;
+        if (output && typeof output === "object" && "error" in output) return;
+        const key = `${message.id}:${i}`;
+        if (refreshedIds.current.has(key)) return;
+        refreshedIds.current.add(key);
+        router.refresh();
+      });
+    }
+  }, [messages, router]);
 
   const lastMessage = messages[messages.length - 1];
   const hasPendingApproval =
@@ -198,7 +218,9 @@ function describeProposal(toolName: string, input: unknown): string {
         i.amountRequested as number
       )} requested, status ${i.status ?? "draft"}.`;
     case "markDrawPaid":
-      return `Mark Draw #${i.drawNumber} on ${i.projectName} as paid.`;
+      return i.amountReceived != null
+        ? `Record ${formatCurrency(i.amountReceived as number)} on Draw #${i.drawNumber} (${i.projectName}).`
+        : `Mark Draw #${i.drawNumber} on ${i.projectName} as paid.`;
     case "createBudgetLine":
       return `Add budget line "${i.description}" (${formatCurrency(
         i.scheduledValue as number
@@ -225,7 +247,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
             {projects.map((p, i) => (
               <tr key={i} className="border-t border-slate-100">
                 <td className="px-1 py-1">{String(p.name)}</td>
-                <td className="px-1 py-1 text-right text-blue-700">
+                <td className="px-1 py-1 text-right text-red-500">
                   {formatCurrency(p.totalOpenToOwner as number)}
                 </td>
                 <td className="px-1 py-1 text-right text-emerald-700">
@@ -275,7 +297,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
       <div className="mt-1 space-y-1">
         <p className="text-xs font-medium">{String(project.name)}</p>
         <div className="flex gap-3 text-xs">
-          <span className="text-blue-700">Open: {formatCurrency(totals.totalOpenToOwner as number)}</span>
+          <span className="text-red-500">Open: {formatCurrency(totals.totalOpenToOwner as number)}</span>
           <span className="text-emerald-700">
             Paid: {formatCurrency(totals.totalPaidToOwner as number)}
           </span>

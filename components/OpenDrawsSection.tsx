@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { AGING_BUCKETS, AGING_BUCKET_BADGE_STYLE, AGING_BUCKET_LABEL, agingBucket, daysOpen } from "@/lib/aging";
+import {
+  AGING_BUCKETS,
+  AGING_BUCKET_BADGE_STYLE,
+  AGING_BUCKET_LABEL,
+  AgingBucket,
+  agingBucket,
+  daysOpen,
+} from "@/lib/aging";
 import DrawStatusSelect from "@/components/DrawStatusSelect";
 import MarkPaidButton from "@/components/MarkPaidButton";
 import DrawFormModal from "@/components/DrawFormModal";
 import { getDrawFormContext } from "@/app/draws/actions";
+
+type BucketFilter = AgingBucket | "stale" | null;
 
 function openBalance(d: OpenDraw): number {
   if (d.status === "draft") return 0;
@@ -19,8 +28,39 @@ function ageOf(d: OpenDraw): number {
   return daysOpen(d.date_submitted ?? d.created_at);
 }
 
-export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
+function matchesFilter(d: OpenDraw, filter: BucketFilter): boolean {
+  if (!filter) return true;
+  const bucket = agingBucket(ageOf(d));
+  if (filter === "stale") return bucket === "61-90" || bucket === "90+";
+  return bucket === filter;
+}
+
+function parseAgingParam(value: string | undefined): BucketFilter {
+  if (value === "stale") return "stale";
+  if (value && (AGING_BUCKETS as string[]).includes(value)) return value as AgingBucket;
+  return null;
+}
+
+export default function OpenDrawsSection({
+  draws,
+  initialAging,
+}: {
+  draws: OpenDraw[];
+  initialAging?: string;
+}) {
+  const [bucketFilter, setBucketFilter] = useState<BucketFilter>(() => parseAgingParam(initialAging));
+
+  useEffect(() => {
+    const fromUrl = parseAgingParam(initialAging);
+    if (fromUrl) setBucketFilter(fromUrl);
+  }, [initialAging]);
+
   const totalOpen = draws.reduce((acc, d) => acc + openBalance(d), 0);
+  const displayed = useMemo(
+    () => draws.filter((d) => matchesFilter(d, bucketFilter)),
+    [draws, bucketFilter]
+  );
+  const displayedOpen = displayed.reduce((acc, d) => acc + openBalance(d), 0);
 
   const agingSummary = AGING_BUCKETS.map((bucket) => {
     const inBucket = draws.filter((d) => agingBucket(ageOf(d)) === bucket);
@@ -53,29 +93,60 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
     }
   }
 
+  function toggleBucket(bucket: AgingBucket) {
+    setBucketFilter((current) => (current === bucket ? null : bucket));
+  }
+
+  const bucketSelected = (bucket: AgingBucket) =>
+    bucketFilter === bucket || (bucketFilter === "stale" && (bucket === "61-90" || bucket === "90+"));
+
   return (
     <div id="open-draws" className="mb-8 scroll-mt-4">
       <div className="flex items-baseline justify-between mb-1">
         <h2 className="text-lg font-semibold text-slate-900">Open Draws</h2>
         <span className="text-sm text-slate-500">
-          {draws.length} open · {formatCurrency(totalOpen)} awaiting payment
+          {bucketFilter
+            ? `${displayed.length} of ${draws.length} open · ${formatCurrency(displayedOpen)} showing`
+            : `${draws.length} open · ${formatCurrency(totalOpen)} awaiting payment`}
         </span>
       </div>
       <p className="text-sm text-slate-500 mb-4">
         Draws with a balance still owed by the lender/owner — including any marked paid for less
         than requested — oldest first.
+        {bucketFilter && (
+          <>
+            {" "}
+            <button
+              type="button"
+              onClick={() => setBucketFilter(null)}
+              className="text-slate-700 underline hover:text-slate-900"
+            >
+              Clear age filter
+            </button>
+          </>
+        )}
       </p>
 
       {draws.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {agingSummary.map(({ bucket, count, amount }) => (
-            <div key={bucket} className="rounded-xl border border-slate-200 bg-white p-3">
+            <button
+              key={bucket}
+              type="button"
+              onClick={() => toggleBucket(bucket)}
+              aria-pressed={bucketSelected(bucket)}
+              className={`rounded-xl border p-3 text-left transition-colors ${
+                bucketSelected(bucket)
+                  ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900"
+                  : "border-slate-200 bg-white hover:bg-slate-50"
+              }`}
+            >
               <p className="text-xs font-medium text-slate-500">{AGING_BUCKET_LABEL[bucket]}</p>
               <p className="text-lg font-semibold text-slate-900 mt-0.5">{formatCurrency(amount)}</p>
               <p className="text-xs text-slate-400">
                 {count} {count === 1 ? "draw" : "draws"}
               </p>
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -96,7 +167,7 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {draws.map((d) => {
+            {displayed.map((d) => {
               const age = ageOf(d);
               const bucket = agingBucket(age);
               return (
@@ -137,15 +208,23 @@ export default function OpenDrawsSection({ draws }: { draws: OpenDraw[] }) {
                     <DrawStatusSelect drawId={d.id} projectId={d.project.id} status={d.status} />
                   </td>
                   <td className="px-4 py-2 text-right whitespace-nowrap">
-                    <MarkPaidButton drawId={d.id} projectId={d.project.id} drawNumber={d.draw_number} />
+                    <MarkPaidButton
+                      drawId={d.id}
+                      projectId={d.project.id}
+                      drawNumber={d.draw_number}
+                      amountRequested={d.amount_requested}
+                      amountPaid={d.amount_paid}
+                    />
                   </td>
                 </tr>
               );
             })}
-            {draws.length === 0 && (
+            {displayed.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-6 text-center text-slate-400">
-                  No open draws. Everything invoiced has been paid.
+                  {draws.length === 0
+                    ? "No open draws. Everything invoiced has been paid."
+                    : "No open draws in this age range."}
                 </td>
               </tr>
             )}

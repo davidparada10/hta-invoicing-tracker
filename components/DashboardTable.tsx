@@ -8,25 +8,50 @@ import ProjectStatusSelect from "@/components/ProjectStatusSelect";
 
 export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }) {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rollups;
-    return rollups.filter(
-      (r) =>
+    return rollups.filter((r) => {
+      if (statusFilter === "active" && r.project.status !== "active") return false;
+      if (!q) return true;
+      return (
         r.project.name.toLowerCase().includes(q) ||
         (r.project.address ?? "").toLowerCase().includes(q)
-    );
-  }, [rollups, search]);
+      );
+    });
+  }, [rollups, search, statusFilter]);
 
   return (
     <div>
-      <input
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search by project name or address..."
-        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-full sm:w-72 mb-4"
-      />
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by project name or address..."
+          className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm w-full sm:w-72"
+        />
+        <div className="inline-flex rounded-lg border border-slate-300 text-sm overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setStatusFilter("active")}
+            className={`px-3 py-1.5 ${
+              statusFilter === "active" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Active
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("all")}
+            className={`px-3 py-1.5 border-l border-slate-300 ${
+              statusFilter === "all" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            All
+          </button>
+        </div>
+      </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full text-sm">
@@ -56,7 +81,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     )}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-right font-medium text-blue-700">
+                <td className="px-4 py-2 text-right font-medium text-red-500">
                   {formatCurrency(r.totalOpenToOwner)}
                 </td>
                 <td className="px-4 py-2 text-right font-medium text-emerald-700">
@@ -79,7 +104,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
-                  No projects found.
+                  No {statusFilter === "active" && !search.trim() ? "active " : ""}projects found.
                 </td>
               </tr>
             )}

@@ -116,6 +116,12 @@ export default function DrawFormModal({
     [lineAmounts]
   );
 
+  const requestedAmount = Number(formValues.amount_requested) || 0;
+  const allocationMismatch =
+    budgetLines.length > 0 &&
+    allocationsTotal > 0 &&
+    Math.abs(allocationsTotal - requestedAmount) > 0.01;
+
   const computedRetention = useMemo(() => {
     if (retentionMode === "manual") return null;
     const rate = Number(retentionMode) / 100;
@@ -132,6 +138,15 @@ export default function DrawFormModal({
   }, [computedRetention]);
 
   async function handleSubmit(formData: FormData) {
+    if (allocationMismatch) {
+      const diff = allocationsTotal - requestedAmount;
+      const ok = confirm(
+        `Allocated ${formatCurrency(allocationsTotal)} doesn't match amount requested ${formatCurrency(
+          requestedAmount
+        )} (difference ${formatCurrency(diff)}). Save anyway?`
+      );
+      if (!ok) return;
+    }
     const allocationsPayload = budgetLines
       .map((line) => ({
         budget_line_id: line.id,
@@ -407,11 +422,20 @@ export default function DrawFormModal({
                     <option value="10">10%</option>
                   </select>
                 </label>
-                <span className="text-xs text-slate-500">
+                <span
+                  className={`text-xs ${allocationMismatch ? "font-medium text-amber-700" : "text-slate-500"}`}
+                >
                   {formatCurrency(allocationsTotal)} allocated
+                  {allocationMismatch ? ` · requested ${formatCurrency(requestedAmount)}` : ""}
                 </span>
               </div>
             </div>
+            {allocationMismatch && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 mb-2">
+                Schedule of values total doesn&rsquo;t match the G702 amount requested. Check line
+                billings before saving — lenders often reject a mismatch.
+              </p>
+            )}
             <p className="text-[11px] text-slate-400 mb-2">
               Lines marked &ldquo;No retention&rdquo; in the Budget tab are excluded from the calculation.
             </p>

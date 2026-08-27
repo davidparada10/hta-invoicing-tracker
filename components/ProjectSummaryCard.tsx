@@ -33,17 +33,36 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
       </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-slate-100">
+        <SummaryStat label="Requested" value={formatCurrency(totalRequested)} />
+        <SummaryStat
+          label="Currently Invoiced"
+          value={formatCurrency(totalOpenToOwner)}
+          valueClassName="text-red-500"
+        />
+        <SummaryStat
+          label="Paid"
+          value={formatCurrency(totalPaidToOwner)}
+          valueClassName="text-emerald-700"
+        />
         <SummaryStat label="Retainage Held" value={formatCurrency(retainageHeld)} />
       </div>
     </div>
   );
 }
 
-function SummaryStat({ label, value }: { label: string; value: string }) {
+function SummaryStat({
+  label,
+  value,
+  valueClassName = "text-slate-900",
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
   return (
     <div>
       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
-      <p className="text-lg font-semibold text-slate-900 mt-0.5">{value}</p>
+      <p className={`text-lg font-semibold mt-0.5 ${valueClassName}`}>{value}</p>
     </div>
   );
 }

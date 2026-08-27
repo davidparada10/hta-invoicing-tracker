@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { getBillingReport, getDashboardData, getOpenDraws } from "@/lib/data";
+import { daysOpen } from "@/lib/aging";
 import { formatCurrency } from "@/lib/format";
 import DashboardTable from "@/components/DashboardTable";
 import OpenDrawsSection from "@/components/OpenDrawsSection";
@@ -9,7 +10,11 @@ import AgingAlertBanner from "@/components/AgingAlertBanner";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: { aging?: string };
+}) {
   const currentYear = new Date().getFullYear();
   const [{ rollups, totals }, openDraws, billingYtd] = await Promise.all([
     getDashboardData(),
@@ -81,7 +86,16 @@ export default async function DashboardPage() {
               {formatCurrency(totals.totalPaidToOwner)}
             </p>
           </div>
-          <div className="rounded-lg bg-slate-100/60 p-4 min-h-[80px]" aria-hidden="true" />
+          <div className="rounded-lg bg-slate-100/60 p-4">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+              Balance to complete
+            </p>
+            <p className="text-lg font-medium text-slate-600 mt-1">
+              {formatCurrency(
+                totals.totalBudget - totals.totalPaidToOwner - totals.totalOpenToOwner
+              )}
+            </p>
+          </div>
           <div className="rounded-lg bg-slate-100/60 p-4">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
               Active projects
@@ -90,9 +104,39 @@ export default async function DashboardPage() {
               {rollups.filter((r) => r.project.status === "active").length}
             </p>
           </div>
+          <div className="rounded-lg bg-slate-100/60 p-4">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+              % billed of contract
+            </p>
+            <p className="text-lg font-medium text-slate-600 mt-1">
+              {totals.totalBudget > 0
+                ? `${(
+                    ((totals.totalPaidToOwner + totals.totalOpenToOwner) / totals.totalBudget) *
+                    100
+                  ).toFixed(0)}%`
+                : "—"}
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-100/60 p-4">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+              Avg days outstanding
+            </p>
+            <p className="text-lg font-medium text-slate-600 mt-1">
+              {openDraws.length > 0
+                ? `${Math.round(
+                    openDraws.reduce(
+                      (acc, d) => acc + daysOpen(d.date_submitted ?? d.created_at),
+                      0
+                    ) / openDraws.length
+                  )} days`
+                : "—"}
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-100/60 p-4 min-h-[80px]" aria-hidden="true" />
+          <div className="rounded-lg bg-slate-100/60 p-4 min-h-[80px]" aria-hidden="true" />
         </div>
 
-        <OpenDrawsSection draws={openDraws} />
+        <OpenDrawsSection draws={openDraws} initialAging={searchParams.aging} />
 
         <DashboardTable rollups={rollups} />
       </main>

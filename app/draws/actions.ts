@@ -243,22 +243,32 @@ export async function upsertDraw(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function markDrawPaid(id: string, projectId: string) {
+export async function markDrawPaid(
+  id: string,
+  projectId: string,
+  amountReceived?: number,
+  datePaid?: string
+) {
   const supabase = createServerSupabaseClient();
 
   const { data: draw, error: fetchError } = await supabase
     .from("inv_owner_draws")
-    .select("amount_requested")
+    .select("amount_requested, amount_paid")
     .eq("id", id)
     .single();
   if (fetchError) throw fetchError;
+
+  const alreadyPaid = Number(draw.amount_paid) || 0;
+  const outstanding = Math.max(0, (Number(draw.amount_requested) || 0) - alreadyPaid);
+  const received = amountReceived ?? outstanding;
+  if (!(received > 0)) throw new Error("Amount received must be greater than zero.");
 
   const { error } = await supabase
     .from("inv_owner_draws")
     .update({
       status: "paid",
-      amount_paid: draw.amount_requested,
-      date_paid: new Date().toISOString().slice(0, 10),
+      amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
+      date_paid: datePaid || new Date().toISOString().slice(0, 10),
     })
     .eq("id", id);
   if (error) throw error;

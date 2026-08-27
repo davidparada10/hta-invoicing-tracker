@@ -24,7 +24,7 @@ export default function AgingAlertBanner({ draws }: { draws: OpenDraw[] }) {
 
   return (
     <Link
-      href="#open-draws"
+      href="/?aging=stale#open-draws"
       className="block mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 hover:bg-red-100 transition-colors"
     >
       <p className="text-sm font-semibold text-red-800">

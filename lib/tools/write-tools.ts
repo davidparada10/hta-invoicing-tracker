@@ -48,38 +48,55 @@ export const createDrawTool = tool({
 
 export const markDrawPaidTool = tool({
   description:
-    "Mark an existing owner draw as paid. Sets amount paid equal to the amount requested and the paid date to today.",
+    "Record a payment on an existing owner draw. Defaults to paying the remaining outstanding balance today. Pass amountReceived for a short/partial pay.",
   inputSchema: z.object({
     projectName: z.string(),
     drawNumber: z.number().int(),
+    amountReceived: z
+      .number()
+      .optional()
+      .describe("Payment amount. Omit to pay the remaining outstanding balance in full."),
+    datePaid: z.string().optional().describe("YYYY-MM-DD. Defaults to today."),
   }),
-  execute: async ({ projectName, drawNumber }) => {
+  execute: async ({ projectName, drawNumber, amountReceived, datePaid }) => {
     const resolved = await resolveProject(projectName);
     if ("error" in resolved) return { error: resolved.error };
 
     const supabase = createServerSupabaseClient();
     const { data: draw, error: fetchError } = await supabase
       .from("inv_owner_draws")
-      .select("id, amount_requested")
+      .select("id, amount_requested, amount_paid")
       .eq("project_id", resolved.project.id)
       .eq("draw_number", drawNumber)
       .maybeSingle();
     if (fetchError) return { error: fetchError.message };
     if (!draw) return { error: `Draw #${drawNumber} not found for ${resolved.project.name}.` };
 
+    const alreadyPaid = Number(draw.amount_paid) || 0;
+    const outstanding = Math.max(0, (Number(draw.amount_requested) || 0) - alreadyPaid);
+    const received = amountReceived ?? outstanding;
+    if (!(received > 0)) {
+      return { error: `Draw #${drawNumber} has no outstanding balance.` };
+    }
+
     const { error } = await supabase
       .from("inv_owner_draws")
       .update({
         status: "paid",
-        amount_paid: draw.amount_requested,
-        date_paid: new Date().toISOString().slice(0, 10),
+        amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
+        date_paid: datePaid || new Date().toISOString().slice(0, 10),
       })
       .eq("id", draw.id);
     if (error) return { error: error.message };
 
     revalidatePath(`/projects/${resolved.project.id}`);
     revalidatePath("/");
-    return { success: true, project: resolved.project.name, drawNumber };
+    return {
+      success: true,
+      project: resolved.project.name,
+      drawNumber,
+      amountReceived: received,
+    };
   },
 });
 
