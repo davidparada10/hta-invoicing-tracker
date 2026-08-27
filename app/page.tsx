@@ -31,7 +31,7 @@ export default async function DashboardPage() {
 
         <AgingAlertBanner draws={openDraws} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
               Currently invoiced (awaiting payment)
@@ -40,14 +40,18 @@ export default async function DashboardPage() {
               {formatCurrency(totals.totalOpenToOwner)}
             </p>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <Link
+            href="/billing"
+            className="rounded-xl border border-slate-200 bg-white p-5 hover:bg-slate-50"
+          >
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-              Total paid to date
+              Billed YTD ({currentYear})
             </p>
-            <p className="text-2xl font-semibold text-emerald-700 mt-1">
-              {formatCurrency(totals.totalPaidToOwner)}
+            <p className="text-2xl font-semibold text-slate-900 mt-1">
+              {formatCurrency(billingYtd.ytdRequested)}
             </p>
-          </div>
+          </Link>
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white/50 p-5" />
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -61,20 +65,20 @@ export default async function DashboardPage() {
           </div>
           <div className="rounded-lg bg-slate-100/60 p-4">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+              Total paid to date
+            </p>
+            <p className="text-lg font-medium text-slate-600 mt-1">
+              {formatCurrency(totals.totalPaidToOwner)}
+            </p>
+          </div>
+          <div className="rounded-lg bg-slate-100/60 p-4">
+            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
               Total retainage held
             </p>
             <p className="text-lg font-medium text-slate-600 mt-1">
               {formatCurrency(totals.totalRetainage)}
             </p>
           </div>
-          <Link href="/billing" className="rounded-lg bg-slate-100/60 p-4 hover:bg-slate-200/60">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
-              Billed YTD ({currentYear})
-            </p>
-            <p className="text-lg font-medium text-slate-600 mt-1">
-              {formatCurrency(billingYtd.ytdRequested)}
-            </p>
-          </Link>
           <div className="rounded-lg bg-slate-100/60 p-4">
             <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
               Active projects
