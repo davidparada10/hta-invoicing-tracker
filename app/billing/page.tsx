@@ -1,6 +1,6 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
-import { getBillingReport } from "@/lib/data";
+import { getBillingReport, getProjectBillingBreakdown } from "@/lib/data";
 import { currentQuarter } from "@/lib/billing";
 import { formatCurrency } from "@/lib/format";
 
@@ -24,7 +24,10 @@ export default async function BillingPage({
   const isCurrentYear = year === thisYear;
   const activeQuarter = isCurrentYear ? currentQuarter(now) : null;
 
-  const report = await getBillingReport(year);
+  const [report, projectRows] = await Promise.all([
+    getBillingReport(year),
+    getProjectBillingBreakdown(year),
+  ]);
   const outstandingYtd = report.ytdRequested - report.ytdReceived;
 
   return (
@@ -113,6 +116,60 @@ export default async function BillingPage({
                   </tr>
                 );
               })}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-slate-200 font-semibold text-slate-900">
+                <td className="px-4 py-2">Total ({year})</td>
+                <td className="px-4 py-2 text-right">{formatCurrency(report.ytdRequested)}</td>
+                <td className="px-4 py-2 text-right text-emerald-700">
+                  {formatCurrency(report.ytdReceived)}
+                </td>
+                <td className="px-4 py-2 text-right text-red-600">
+                  {formatCurrency(outstandingYtd)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <h2 className="text-lg font-semibold text-slate-900 mt-8 mb-3">By Project ({year})</h2>
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-4 py-2">Project</th>
+                <th className="text-right px-4 py-2">Billed</th>
+                <th className="text-right px-4 py-2">Received</th>
+                <th className="text-right px-4 py-2">Outstanding</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {projectRows.map((p) => (
+                <tr key={p.projectId} className="hover:bg-slate-50">
+                  <td className="px-4 py-2">
+                    <Link
+                      href={`/projects/${p.projectId}`}
+                      className="font-medium text-slate-900 hover:underline"
+                    >
+                      {p.projectName}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2 text-right">{formatCurrency(p.requested)}</td>
+                  <td className="px-4 py-2 text-right text-emerald-700">
+                    {formatCurrency(p.received)}
+                  </td>
+                  <td className="px-4 py-2 text-right text-red-600">
+                    {formatCurrency(p.requested - p.received)}
+                  </td>
+                </tr>
+              ))}
+              {projectRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                    No billing activity for {year}.
+                  </td>
+                </tr>
+              )}
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-200 font-semibold text-slate-900">

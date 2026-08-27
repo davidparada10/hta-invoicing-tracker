@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
-import { BillingReport, buildBillingReport } from "@/lib/billing";
+import { BillingReport, ProjectBillingRow, buildBillingReport, buildProjectBillingBreakdown } from "@/lib/billing";
 
 // Supabase's PostgREST API silently caps a plain select() at 1000 rows with
 // no error — inv_project_budget_lines alone passed that as soon as ~10
@@ -115,6 +115,11 @@ export async function getAllBudgetLines(): Promise<BudgetLine[]> {
 export async function getBillingReport(year: number): Promise<BillingReport> {
   const draws = await getAllDraws();
   return buildBillingReport(draws, year);
+}
+
+export async function getProjectBillingBreakdown(year: number): Promise<ProjectBillingRow[]> {
+  const [draws, projects] = await Promise.all([getAllDraws(), getProjects()]);
+  return buildProjectBillingBreakdown(draws, projects, year);
 }
 
 // A draw's outstanding balance: what's been billed but not yet actually

@@ -3,12 +3,20 @@
 // reusable and independently testable.
 
 export interface DrawForBilling {
+  project_id: string;
   status: string;
   amount_requested: number | null;
   amount_paid: number | null;
   date_submitted: string | null;
   date_paid: string | null;
   created_at: string;
+}
+
+export interface ProjectBillingRow {
+  projectId: string;
+  projectName: string;
+  requested: number;
+  received: number;
 }
 
 export interface QuarterBucket {
@@ -70,4 +78,51 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
     ytdReceived: quarters.reduce((acc, q) => acc + q.received, 0),
     quarters,
   };
+}
+
+// Same billed/received logic as buildBillingReport, rolled up per project
+// instead of per quarter — sorted by amount billed so the biggest activity
+// for the year surfaces first.
+export function buildProjectBillingBreakdown(
+  draws: DrawForBilling[],
+  projects: { id: string; name: string }[],
+  year: number
+): ProjectBillingRow[] {
+  const nameById = new Map(projects.map((p) => [p.id, p.name]));
+  const rows = new Map<string, ProjectBillingRow>();
+
+  const rowFor = (projectId: string) => {
+    let row = rows.get(projectId);
+    if (!row) {
+      row = {
+        projectId,
+        projectName: nameById.get(projectId) ?? "Unknown project",
+        requested: 0,
+        received: 0,
+      };
+      rows.set(projectId, row);
+    }
+    return row;
+  };
+
+  for (const d of draws) {
+    if (d.status === "draft") continue;
+
+    const requestedDate = d.date_submitted ?? d.created_at;
+    const requested = yearAndQuarterOf(requestedDate);
+    if (requested.year === year) {
+      rowFor(d.project_id).requested += d.amount_requested ?? 0;
+    }
+
+    const amountPaid = d.amount_paid ?? 0;
+    if (amountPaid > 0) {
+      const paidDate = d.date_paid ?? requestedDate;
+      const received = yearAndQuarterOf(paidDate);
+      if (received.year === year) {
+        rowFor(d.project_id).received += amountPaid;
+      }
+    }
+  }
+
+  return Array.from(rows.values()).sort((a, b) => b.requested - a.requested);
 }
