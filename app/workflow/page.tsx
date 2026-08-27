@@ -52,9 +52,9 @@ function StepCard({ step }: { step: Step }) {
 
 function FlowRow({ steps }: { steps: Step[] }) {
   return (
-    <div className="flex items-stretch gap-1 overflow-x-auto pb-2">
+    <div className="flex flex-wrap items-stretch gap-y-2 gap-x-1">
       {steps.map((step, i) => (
-        <div key={i} className="flex items-center gap-1 shrink-0">
+        <div key={i} className="flex items-center gap-1">
           <StepCard step={step} />
           {i < steps.length - 1 && (
             <div className="flex flex-col items-center justify-center px-1 shrink-0 w-12">
