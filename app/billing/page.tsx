@@ -91,7 +91,71 @@ export default async function BillingPage({
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+        {/* Mobile: one card per quarter */}
+        <div className="sm:hidden space-y-3">
+          {report.quarters.map((q) => {
+            const isActive = q.quarter === activeQuarter;
+            return (
+              <div
+                key={q.quarter}
+                className={`rounded-xl border p-4 ${
+                  isActive ? "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40" : "border-border bg-card"
+                }`}
+              >
+                <p className="font-medium text-foreground">
+                  {QUARTER_LABEL[q.quarter]}
+                  {isActive && (
+                    <span className="ml-2 text-xs font-normal text-amber-700 dark:text-amber-300">
+                      (quarter to date)
+                    </span>
+                  )}
+                </p>
+                <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Billed</p>
+                    <p>{formatCurrency(q.requested)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Received</p>
+                    <p className="text-emerald-700 dark:text-emerald-400">{formatCurrency(q.received)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Outstanding</p>
+                    <p className="text-invoiced">{formatCurrency(q.requested - q.received)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Avg days to pay</p>
+                    <p>{formatDaysToPay(q.avgDaysToPay)}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div className="rounded-xl border border-border bg-muted p-4 font-semibold">
+            <p className="text-foreground">Total ({year})</p>
+            <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Billed</p>
+                <p>{formatCurrency(report.ytdRequested)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Received</p>
+                <p className="text-emerald-700 dark:text-emerald-400">{formatCurrency(report.ytdReceived)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
+                <p className="text-invoiced">{formatCurrency(outstandingYtd)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Avg days to pay</p>
+                <p>{formatDaysToPay(report.ytdAvgDaysToPay)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop/tablet: full table */}
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
             <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
               <tr>
@@ -152,7 +216,64 @@ export default async function BillingPage({
         </div>
 
         <h2 className="text-lg font-semibold text-foreground mt-8 mb-3">By Project ({year})</h2>
-        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+
+        {/* Mobile: one card per project */}
+        <div className="sm:hidden space-y-3">
+          {projectRows.map((p) => (
+            <div key={p.projectId} className="rounded-xl border border-border bg-card p-4">
+              <Link href={`/projects/${p.projectId}`} className="font-medium text-foreground hover:underline">
+                {p.projectName}
+              </Link>
+              <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Billed</p>
+                  <p>{formatCurrency(p.requested)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Received</p>
+                  <p className="text-emerald-700 dark:text-emerald-400">{formatCurrency(p.received)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Outstanding</p>
+                  <p className="text-invoiced">{formatCurrency(p.requested - p.received)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Avg days to pay</p>
+                  <p>{formatDaysToPay(p.avgDaysToPay)}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+          {projectRows.length === 0 && (
+            <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
+              No billing activity for {year}.
+            </div>
+          )}
+          <div className="rounded-xl border border-border bg-muted p-4 font-semibold">
+            <p className="text-foreground">Total ({year})</p>
+            <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Billed</p>
+                <p>{formatCurrency(report.ytdRequested)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Received</p>
+                <p className="text-emerald-700 dark:text-emerald-400">{formatCurrency(report.ytdReceived)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
+                <p className="text-invoiced">{formatCurrency(outstandingYtd)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Avg days to pay</p>
+                <p>{formatDaysToPay(report.ytdAvgDaysToPay)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop/tablet: full table */}
+        <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
           <table className="min-w-full text-sm">
             <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
               <tr>

@@ -180,7 +180,66 @@ export default function BudgetSection({
         <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-3">{importMessage}</p>
       )}
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      {/* Mobile: one card per line item */}
+      <div className="sm:hidden space-y-3">
+        {filtered.map((l) => {
+          const drawn = drawnByLine.get(l.id) ?? 0;
+          return (
+            <div key={l.id} className="rounded-xl border border-border bg-card p-4">
+              <p className="font-medium">
+                {l.description}
+                {l.retention_exempt && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                    No retention
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {l.item_number ?? "—"} · {l.category ?? "—"}
+              </p>
+
+              <div className="grid grid-cols-3 gap-2 mt-3 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Scheduled</p>
+                  <p>{formatCurrency(l.scheduled_value)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Drawn</p>
+                  <p className="text-blue-700 dark:text-blue-400">{formatCurrency(drawn)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Balance</p>
+                  <p>{formatCurrency(l.scheduled_value - drawn)}</p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-border">
+                <button
+                  onClick={() => openEdit(l)}
+                  className="text-muted-foreground hover:text-foreground text-xs font-medium"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(l)}
+                  disabled={isPending}
+                  className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
+            No line items yet. Add one manually or import from a G702/G703 workbook.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop/tablet: full table */}
+      <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>

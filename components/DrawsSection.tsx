@@ -84,7 +84,83 @@ export default function DrawsSection({
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      {/* Mobile: one card per draw */}
+      <div className="sm:hidden space-y-3">
+        {filtered.map((d) => (
+          <div key={d.id} className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => openEdit(d)}
+                className="font-medium text-foreground hover:underline"
+              >
+                Draw #{d.draw_number}
+              </button>
+              <DrawStatusSelect drawId={d.id} projectId={projectId} status={d.status} />
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {formatDate(d.period_start)} – {formatDate(d.period_end)}
+            </p>
+
+            <div className="grid grid-cols-3 gap-2 mt-3 text-sm">
+              <div>
+                <p className="text-xs text-muted-foreground">Requested</p>
+                <p>{formatCurrency(d.amount_requested)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Approved</p>
+                <p>{formatCurrency(d.amount_approved)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Retainage</p>
+                <p>{formatCurrency(d.retainage_held)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mt-2 text-xs text-muted-foreground">
+              <div>Submitted {formatDate(d.date_submitted)}</div>
+              <div>Approved {formatDate(d.date_approved)}</div>
+              <div>Paid {formatDate(d.date_paid)}</div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => openEdit(d)}
+                  className="text-muted-foreground hover:text-foreground text-xs font-medium"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(d)}
+                  disabled={isPending}
+                  className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 text-xs font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+              {(d.status === "submitted" || d.status === "approved") && (
+                <MarkPaidButton
+                  drawId={d.id}
+                  projectId={projectId}
+                  drawNumber={d.draw_number}
+                  amountRequested={d.amount_requested}
+                  amountPaid={d.amount_paid}
+                  className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 text-xs font-medium disabled:opacity-50"
+                />
+              )}
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
+            No draws found.
+          </div>
+        )}
+      </div>
+
+      {/* Desktop/tablet: full table */}
+      <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
