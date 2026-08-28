@@ -92,7 +92,10 @@ export default async function DashboardPage({
             </p>
             <p className="text-lg font-semibold text-foreground mt-1">
               {formatCurrency(
-                totals.totalBudget - totals.totalPaidToOwner - totals.totalOpenToOwner
+                totals.totalBudget -
+                  totals.totalPaidToOwner -
+                  totals.totalOpenToOwner -
+                  totals.totalRetainage
               )}
             </p>
           </div>
@@ -111,7 +114,8 @@ export default async function DashboardPage({
             <p className="text-lg font-semibold text-foreground mt-1">
               {totals.totalBudget > 0
                 ? `${(
-                    ((totals.totalPaidToOwner + totals.totalOpenToOwner) / totals.totalBudget) *
+                    ((totals.totalPaidToOwner + totals.totalOpenToOwner + totals.totalRetainage) /
+                      totals.totalBudget) *
                     100
                   ).toFixed(0)}%`
                 : "—"}

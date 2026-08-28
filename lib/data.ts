@@ -182,7 +182,12 @@ export async function getDashboardData(): Promise<{
     const totalOpenToOwner = sum(projectDraws.map(openBalance));
 
     const totalBudget = sum(projectBudgetLines.map((l) => l.scheduled_value));
-    const balanceToComplete = totalBudget - totalPaidToOwner - totalOpenToOwner;
+    // amount_requested/amount_paid are net of retention (the G702 "current
+    // payment due"), so totalPaidToOwner + totalOpenToOwner alone understates
+    // what's actually been billed against the contract by the retainage
+    // held — subtract it too so balance reflects gross work billed, not
+    // just net.
+    const balanceToComplete = totalBudget - totalPaidToOwner - totalOpenToOwner - totalDrawRetainage;
 
     return {
       project,
