@@ -130,7 +130,7 @@ export default function WorkflowPage() {
             { icon: "👤", title: "Upload .xlsx or .pdf", detail: "Owner Draws tab, Add/Edit Draw modal", category: "trigger", edgeLabel: "detects format" },
             { icon: "❓", title: "Lender-portal PDF?", detail: "isLenderPortalPdfText() text-signature check", category: "decision", edgeLabel: "yes/no" },
             { icon: "📄", title: "parseG702FromXlsx/Pdf or parseLenderDrawFromPdf", detail: "lib/g702-parser.ts (AIA) or lib/lender-portal-parser.ts (Conventus/SwiftDraws)", category: "server", edgeLabel: "fills" },
-            { icon: "⚠️", title: "SoV mismatch check", detail: "Warns if schedule-of-values total ≠ amount requested", category: "decision", edgeLabel: "confirm to override" },
+            { icon: "⚠️", title: "SoV mismatch check", detail: "Warns if schedule-of-values total ≠ amount requested + retainage held", category: "decision", edgeLabel: "confirm to override" },
             { icon: "📝", title: "Draw form", detail: "Controlled fields — user reviews", category: "ui", edgeLabel: "on Save" },
             { icon: "⚡", title: "upsertDraw", detail: "app/draws/actions.ts (Server Action)", category: "server", edgeLabel: "writes" },
             { icon: "🗄️", title: "inv_owner_draws", detail: "Supabase — insert or update by id", category: "data", edgeLabel: "revalidates" },

@@ -117,10 +117,14 @@ export default function DrawFormModal({
   );
 
   const requestedAmount = Number(formValues.amount_requested) || 0;
+  const retainageHeldAmount = Number(formValues.retainage_held) || 0;
+  // Amount requested on a G702 is net of retention, but the schedule of
+  // values "this draw" column is gross (before retention) — so the two only
+  // reconcile once retention is added back onto what's requested.
   const allocationMismatch =
     budgetLines.length > 0 &&
     allocationsTotal > 0 &&
-    Math.abs(allocationsTotal - requestedAmount) > 0.01;
+    Math.abs(allocationsTotal - (requestedAmount + retainageHeldAmount)) > 0.01;
 
   const computedRetention = useMemo(() => {
     if (retentionMode === "manual") return null;
@@ -139,10 +143,10 @@ export default function DrawFormModal({
 
   async function handleSubmit(formData: FormData) {
     if (allocationMismatch) {
-      const diff = allocationsTotal - requestedAmount;
+      const diff = allocationsTotal - (requestedAmount + retainageHeldAmount);
       const ok = confirm(
-        `Allocated ${formatCurrency(allocationsTotal)} doesn't match amount requested ${formatCurrency(
-          requestedAmount
+        `Allocated ${formatCurrency(allocationsTotal)} doesn't match amount requested plus retainage ${formatCurrency(
+          requestedAmount + retainageHeldAmount
         )} (difference ${formatCurrency(diff)}). Save anyway?`
       );
       if (!ok) return;
@@ -426,14 +430,16 @@ export default function DrawFormModal({
                   className={`text-xs ${allocationMismatch ? "font-medium text-amber-700 dark:text-amber-300" : "text-muted-foreground"}`}
                 >
                   {formatCurrency(allocationsTotal)} allocated
-                  {allocationMismatch ? ` · requested ${formatCurrency(requestedAmount)}` : ""}
+                  {allocationMismatch
+                    ? ` · requested + retainage ${formatCurrency(requestedAmount + retainageHeldAmount)}`
+                    : ""}
                 </span>
               </div>
             </div>
             {allocationMismatch && (
               <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-md px-2 py-1.5 mb-2">
-                Schedule of values total doesn&rsquo;t match the G702 amount requested. Check line
-                billings before saving — lenders often reject a mismatch.
+                Schedule of values total doesn&rsquo;t match the G702 amount requested plus retainage
+                held. Check line billings before saving — lenders often reject a mismatch.
               </p>
             )}
             <p className="text-[11px] text-muted-foreground mb-2">
