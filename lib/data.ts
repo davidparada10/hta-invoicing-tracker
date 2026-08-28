@@ -10,16 +10,17 @@ import { BillingReport, ProjectBillingRow, buildBillingReport, buildProjectBilli
 // rows, ordered by id for a stable cursor across pages.
 async function fetchAllRows<T>(
   supabase: ReturnType<typeof createServerSupabaseClient>,
-  table: string
+  table: string,
+  selectClause: string = "*",
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  configure?: (query: any) => any
 ): Promise<T[]> {
   const pageSize = 1000;
   const rows: T[] = [];
   for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabase
-      .from(table)
-      .select("*")
-      .order("id", { ascending: true })
-      .range(from, from + pageSize - 1);
+    let query = supabase.from(table).select(selectClause).order("id", { ascending: true });
+    if (configure) query = configure(query);
+    const { data, error } = await query.range(from, from + pageSize - 1);
     if (error) throw error;
     rows.push(...(data as T[]));
     if (data.length < pageSize) break;
@@ -78,12 +79,13 @@ export async function getBudgetLinesForProject(projectId: string): Promise<Budge
 
 export async function getAllocationsForProject(projectId: string): Promise<DrawLineAllocation[]> {
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("inv_draw_line_allocations")
-    .select("*, inv_owner_draws!inner(project_id)")
-    .eq("inv_owner_draws.project_id", projectId);
-  if (error) throw error;
-  return (data as (DrawLineAllocation & { inv_owner_draws: unknown })[]).map((row) => ({
+  const rows = await fetchAllRows<DrawLineAllocation & { inv_owner_draws: unknown }>(
+    supabase,
+    "inv_draw_line_allocations",
+    "*, inv_owner_draws!inner(project_id)",
+    (query) => query.eq("inv_owner_draws.project_id", projectId)
+  );
+  return rows.map((row) => ({
     id: row.id,
     draw_id: row.draw_id,
     budget_line_id: row.budget_line_id,
@@ -94,12 +96,9 @@ export async function getAllocationsForProject(projectId: string): Promise<DrawL
 
 export async function getAllocationsForDraw(drawId: string): Promise<DrawLineAllocation[]> {
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("inv_draw_line_allocations")
-    .select("*")
-    .eq("draw_id", drawId);
-  if (error) throw error;
-  return data as DrawLineAllocation[];
+  return fetchAllRows<DrawLineAllocation>(supabase, "inv_draw_line_allocations", "*", (query) =>
+    query.eq("draw_id", drawId)
+  );
 }
 
 export async function getAllDraws(): Promise<OwnerDraw[]> {
