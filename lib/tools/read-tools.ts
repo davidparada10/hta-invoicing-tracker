@@ -7,8 +7,11 @@ import {
   getBudgetLinesForProject,
   getAllDraws,
   getProjects,
+  getBillingReport,
+  getProjectBillingBreakdown,
   openBalance,
 } from "@/lib/data";
+import { AGING_BUCKETS, agingBucket, daysOpen } from "@/lib/aging";
 import { resolveProject } from "./shared";
 
 export const listProjectsTool = tool({
@@ -77,6 +80,91 @@ export const getRecentPaymentsTool = tool({
       }));
 
     return { date: targetDate, payments };
+  },
+});
+
+export const getAgingSummaryTool = tool({
+  description:
+    "Get the same 0-30/31-60/61-90/90+ day aging buckets shown on the dashboard's Open Draws section — count and outstanding amount per bucket, using the server's actual current date. Use this instead of computing 'days outstanding' yourself from getOpenDraws, since you don't have a live clock.",
+  inputSchema: z.object({}),
+  execute: async () => {
+    const draws = await getOpenDraws();
+    const withAge = draws.map((d) => ({
+      draw: d,
+      age: daysOpen(d.date_submitted ?? d.created_at),
+    }));
+
+    return {
+      buckets: AGING_BUCKETS.map((bucket) => {
+        const inBucket = withAge.filter((x) => agingBucket(x.age) === bucket);
+        return {
+          bucket,
+          count: inBucket.length,
+          amount: inBucket.reduce((acc, x) => acc + openBalance(x.draw), 0),
+        };
+      }),
+      draws: withAge.map((x) => ({
+        project: x.draw.project.name,
+        drawNumber: x.draw.draw_number,
+        daysOutstanding: x.age,
+        bucket: agingBucket(x.age),
+        outstandingBalance: openBalance(x.draw),
+      })),
+    };
+  },
+});
+
+export const getBillingSummaryTool = tool({
+  description:
+    "Get YTD/QTD billed-vs-received totals and average days to pay, portfolio-wide by quarter and broken down by project, for a given calendar year — matches the Billing Summary page. Defaults to the current year if omitted.",
+  inputSchema: z.object({
+    year: z.number().int().optional().describe("Calendar year, e.g. 2026. Defaults to the current year."),
+  }),
+  execute: async ({ year }) => {
+    const targetYear = year ?? new Date().getFullYear();
+    const [report, byProject] = await Promise.all([
+      getBillingReport(targetYear),
+      getProjectBillingBreakdown(targetYear),
+    ]);
+
+    return {
+      year: targetYear,
+      ytdRequested: report.ytdRequested,
+      ytdReceived: report.ytdReceived,
+      ytdAvgDaysToPay: report.ytdAvgDaysToPay,
+      quarters: report.quarters,
+      byProject: byProject.map((p) => ({
+        project: p.projectName,
+        requested: p.requested,
+        received: p.received,
+        avgDaysToPay: p.avgDaysToPay,
+      })),
+    };
+  },
+});
+
+export const getScheduleOfValuesTool = tool({
+  description:
+    "Get the full schedule-of-values line items for one project (item number, category, description, scheduled value, retention-exempt flag) — use for 'what's the SoV for X' or 'how much is budgeted for Y' questions.",
+  inputSchema: z.object({
+    projectName: z.string().describe("The project name, or a close match (e.g. 'Aneta')"),
+  }),
+  execute: async ({ projectName }) => {
+    const resolved = await resolveProject(projectName);
+    if ("error" in resolved) return { error: resolved.error };
+
+    const budgetLines = await getBudgetLinesForProject(resolved.project.id);
+    return {
+      project: resolved.project.name,
+      totalScheduledValue: budgetLines.reduce((acc, l) => acc + l.scheduled_value, 0),
+      lines: budgetLines.map((l) => ({
+        itemNumber: l.item_number,
+        category: l.category,
+        description: l.description,
+        scheduledValue: l.scheduled_value,
+        retentionExempt: l.retention_exempt,
+      })),
+    };
   },
 });
 

@@ -13,7 +13,7 @@ import remarkGfm from "remark-gfm";
 import type { HtaAgentUIMessage } from "@/lib/agents/hta-agent";
 import { formatCurrency, formatDate } from "@/lib/format";
 
-const WRITE_TOOLS = new Set(["createDraw", "markDrawPaid", "createBudgetLine"]);
+const WRITE_TOOLS = new Set(["createDraw", "updateDraw", "markDrawPaid", "createBudgetLine"]);
 
 export default function FloatingChat() {
   const [open, setOpen] = useState(false);
@@ -262,6 +262,13 @@ function describeProposal(toolName: string, input: unknown): string {
       return i.amountReceived != null
         ? `Record ${formatCurrency(i.amountReceived as number)} on Draw #${i.drawNumber} (${i.projectName}).`
         : `Mark Draw #${i.drawNumber} on ${i.projectName} as paid.`;
+    case "updateDraw": {
+      const changes = Object.entries(i)
+        .filter(([key]) => key !== "projectName" && key !== "drawNumber")
+        .map(([key, value]) => `${key} → ${value}`)
+        .join(", ");
+      return `Update Draw #${i.drawNumber} on ${i.projectName}: ${changes || "no changes"}.`;
+    }
     case "createBudgetLine":
       return `Add schedule line "${i.description}" (${formatCurrency(
         i.scheduledValue as number
@@ -380,6 +387,101 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
             Paid: {formatCurrency(totals.totalPaidToOwner as number)}
           </span>
           <span className="text-muted-foreground">Contract: {formatCurrency(totals.totalBudget as number)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (toolName === "getAgingSummary" && Array.isArray(output.buckets)) {
+    const buckets = output.buckets as Array<Record<string, unknown>>;
+    return (
+      <div className="overflow-x-auto -mx-1 mt-1">
+        <table className="text-xs w-full">
+          <thead className="text-muted-foreground">
+            <tr>
+              <th className="text-left px-1 py-1">Days</th>
+              <th className="text-right px-1 py-1">Draws</th>
+              <th className="text-right px-1 py-1">Outstanding</th>
+            </tr>
+          </thead>
+          <tbody>
+            {buckets.map((b, i) => (
+              <tr key={i} className="border-t border-border">
+                <td className="px-1 py-1">{String(b.bucket)}</td>
+                <td className="px-1 py-1 text-right">{String(b.count)}</td>
+                <td className="px-1 py-1 text-right text-invoiced">{formatCurrency(b.amount as number)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (toolName === "getBillingSummary" && Array.isArray(output.byProject)) {
+    const byProject = output.byProject as Array<Record<string, unknown>>;
+    return (
+      <div className="mt-1 space-y-1">
+        <p className="text-xs font-medium">{String(output.year)} YTD</p>
+        <div className="flex gap-3 text-xs">
+          <span className="text-invoiced">Billed: {formatCurrency(output.ytdRequested as number)}</span>
+          <span className="text-emerald-700 dark:text-emerald-400">
+            Received: {formatCurrency(output.ytdReceived as number)}
+          </span>
+          {output.ytdAvgDaysToPay != null && (
+            <span className="text-muted-foreground">Avg days to pay: {String(output.ytdAvgDaysToPay)}</span>
+          )}
+        </div>
+        <div className="overflow-x-auto -mx-1">
+          <table className="text-xs w-full">
+            <thead className="text-muted-foreground">
+              <tr>
+                <th className="text-left px-1 py-1">Project</th>
+                <th className="text-right px-1 py-1">Billed</th>
+                <th className="text-right px-1 py-1">Received</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byProject.map((p, i) => (
+                <tr key={i} className="border-t border-border">
+                  <td className="px-1 py-1">{String(p.project)}</td>
+                  <td className="px-1 py-1 text-right">{formatCurrency(p.requested as number)}</td>
+                  <td className="px-1 py-1 text-right text-emerald-700 dark:text-emerald-400">
+                    {formatCurrency(p.received as number)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  if (toolName === "getScheduleOfValues" && Array.isArray(output.lines)) {
+    const lines = output.lines as Array<Record<string, unknown>>;
+    return (
+      <div className="mt-1 space-y-1">
+        <p className="text-xs font-medium">
+          {String(output.project)} · {formatCurrency(output.totalScheduledValue as number)}
+        </p>
+        <div className="overflow-x-auto -mx-1 max-h-40 overflow-y-auto">
+          <table className="text-xs w-full">
+            <thead className="text-muted-foreground">
+              <tr>
+                <th className="text-left px-1 py-1">Item</th>
+                <th className="text-right px-1 py-1">Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l, i) => (
+                <tr key={i} className="border-t border-border">
+                  <td className="px-1 py-1">{String(l.description)}</td>
+                  <td className="px-1 py-1 text-right">{formatCurrency(l.scheduledValue as number)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );

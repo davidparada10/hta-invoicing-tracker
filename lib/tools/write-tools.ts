@@ -100,6 +100,65 @@ export const markDrawPaidTool = tool({
   },
 });
 
+export const updateDrawTool = tool({
+  description:
+    "Update fields on an existing owner draw by project + draw number — status (draft/submitted/approved; use markDrawPaid instead to record a payment and move a draw to paid), requested/approved amounts, retainage, dates, or notes. Only pass the fields that actually changed.",
+  inputSchema: z.object({
+    projectName: z.string(),
+    drawNumber: z.number().int(),
+    status: z.enum(["draft", "submitted", "approved"]).optional(),
+    amountRequested: z.number().optional(),
+    amountApproved: z.number().optional(),
+    retainageHeld: z.number().optional(),
+    periodStart: z.string().optional().describe("YYYY-MM-DD"),
+    periodEnd: z.string().optional().describe("YYYY-MM-DD"),
+    dateSubmitted: z.string().optional().describe("YYYY-MM-DD"),
+    dateApproved: z.string().optional().describe("YYYY-MM-DD"),
+    notes: z.string().optional(),
+  }),
+  execute: async (input) => {
+    const resolved = await resolveProject(input.projectName);
+    if ("error" in resolved) return { error: resolved.error };
+
+    const supabase = createServerSupabaseClient();
+    const { data: draw, error: fetchError } = await supabase
+      .from("inv_owner_draws")
+      .select("id")
+      .eq("project_id", resolved.project.id)
+      .eq("draw_number", input.drawNumber)
+      .maybeSingle();
+    if (fetchError) return { error: fetchError.message };
+    if (!draw) return { error: `Draw #${input.drawNumber} not found for ${resolved.project.name}.` };
+
+    const payload: Record<string, unknown> = {};
+    if (input.status !== undefined) payload.status = input.status;
+    if (input.amountRequested !== undefined) payload.amount_requested = input.amountRequested;
+    if (input.amountApproved !== undefined) payload.amount_approved = input.amountApproved;
+    if (input.retainageHeld !== undefined) payload.retainage_held = input.retainageHeld;
+    if (input.periodStart !== undefined) payload.period_start = input.periodStart;
+    if (input.periodEnd !== undefined) payload.period_end = input.periodEnd;
+    if (input.dateSubmitted !== undefined) payload.date_submitted = input.dateSubmitted;
+    if (input.dateApproved !== undefined) payload.date_approved = input.dateApproved;
+    if (input.notes !== undefined) payload.notes = input.notes;
+
+    if (Object.keys(payload).length === 0) {
+      return { error: "No fields provided to update." };
+    }
+
+    const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", draw.id);
+    if (error) return { error: error.message };
+
+    revalidatePath(`/projects/${resolved.project.id}`);
+    revalidatePath("/");
+    return {
+      success: true,
+      project: resolved.project.name,
+      drawNumber: input.drawNumber,
+      updatedFields: Object.keys(payload),
+    };
+  },
+});
+
 export const createBudgetLineTool = tool({
   description: "Add a new line item to a project's schedule of values.",
   inputSchema: z.object({
