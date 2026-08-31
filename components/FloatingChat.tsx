@@ -8,6 +8,8 @@ import {
   isToolUIPart,
   lastAssistantMessageIsCompleteWithApprovalResponses,
 } from "ai";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { HtaAgentUIMessage } from "@/lib/agents/hta-agent";
 import { formatCurrency, formatDate } from "@/lib/format";
 
@@ -142,6 +144,45 @@ export default function FloatingChat() {
   );
 }
 
+// Chat replies come back as markdown (tables, bold, lists) — render them
+// properly instead of dumping raw "| a | b |" / "**x**" text into the bubble.
+function ChatMarkdown({ text }: { text: string }) {
+  return (
+    <div className="leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          p: ({ children }) => <p className="my-1.5 whitespace-pre-wrap">{children}</p>,
+          strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+          ul: ({ children }) => <ul className="my-1.5 ml-4 list-disc space-y-0.5">{children}</ul>,
+          ol: ({ children }) => <ol className="my-1.5 ml-4 list-decimal space-y-0.5">{children}</ol>,
+          li: ({ children }) => <li>{children}</li>,
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+              {children}
+            </a>
+          ),
+          code: ({ children }) => (
+            <code className="rounded bg-background/60 px-1 py-0.5 text-[0.85em]">{children}</code>
+          ),
+          table: ({ children }) => (
+            <div className="my-1.5 -mx-1 overflow-x-auto">
+              <table className="w-full border-collapse text-xs">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => <thead className="text-muted-foreground">{children}</thead>,
+          th: ({ children }) => (
+            <th className="border-b border-border px-1.5 py-1 text-left font-medium">{children}</th>
+          ),
+          td: ({ children }) => <td className="border-b border-border/60 px-1.5 py-1 align-top">{children}</td>,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 function ChatPart({
   part,
   addToolApprovalResponse,
@@ -150,7 +191,7 @@ function ChatPart({
   addToolApprovalResponse: (args: { id: string; approved: boolean }) => void;
 }) {
   if (part.type === "text") {
-    return <p className="whitespace-pre-wrap leading-relaxed">{part.text}</p>;
+    return <ChatMarkdown text={part.text} />;
   }
 
   if (!isToolUIPart(part)) return null;
