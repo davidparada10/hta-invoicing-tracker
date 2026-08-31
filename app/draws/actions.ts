@@ -294,7 +294,7 @@ export async function updateDrawStatus(id: string, projectId: string, status: Dr
 
   const { data: draw, error: fetchError } = await supabase
     .from("inv_owner_draws")
-    .select("amount_requested, amount_paid, date_paid, date_approved")
+    .select("amount_requested, amount_approved, amount_paid, date_paid, date_approved")
     .eq("id", id)
     .single();
   if (fetchError) throw fetchError;
@@ -305,8 +305,9 @@ export async function updateDrawStatus(id: string, projectId: string, status: Dr
     if (!(Number(draw.amount_paid) > 0)) payload.amount_paid = draw.amount_requested;
     if (!draw.date_paid) payload.date_paid = today;
   }
-  if (status === "approved" && !draw.date_approved) {
-    payload.date_approved = today;
+  if (status === "approved") {
+    if (!draw.date_approved) payload.date_approved = today;
+    if (!(Number(draw.amount_approved) > 0)) payload.amount_approved = draw.amount_requested;
   }
 
   const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);

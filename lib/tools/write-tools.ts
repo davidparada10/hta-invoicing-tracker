@@ -123,7 +123,7 @@ export const updateDrawTool = tool({
     const supabase = createServerSupabaseClient();
     const { data: draw, error: fetchError } = await supabase
       .from("inv_owner_draws")
-      .select("id")
+      .select("id, amount_requested, amount_approved, date_approved")
       .eq("project_id", resolved.project.id)
       .eq("draw_number", input.drawNumber)
       .maybeSingle();
@@ -140,6 +140,18 @@ export const updateDrawTool = tool({
     if (input.dateSubmitted !== undefined) payload.date_submitted = input.dateSubmitted;
     if (input.dateApproved !== undefined) payload.date_approved = input.dateApproved;
     if (input.notes !== undefined) payload.notes = input.notes;
+
+    // Moving to "approved" implies the requested amount was approved, same as the
+    // manual status dropdown — unless an approved amount/date was already set or
+    // is being set explicitly in this same call.
+    if (input.status === "approved") {
+      if (payload.amount_approved === undefined && !(Number(draw.amount_approved) > 0)) {
+        payload.amount_approved = draw.amount_requested;
+      }
+      if (payload.date_approved === undefined && !draw.date_approved) {
+        payload.date_approved = new Date().toISOString().slice(0, 10);
+      }
+    }
 
     if (Object.keys(payload).length === 0) {
       return { error: "No fields provided to update." };
