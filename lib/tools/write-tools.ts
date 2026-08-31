@@ -10,9 +10,9 @@ export const createDrawTool = tool({
   inputSchema: z.object({
     projectName: z.string(),
     drawNumber: z.number().int(),
-    amountRequested: z.number(),
-    amountApproved: z.number().optional(),
-    retainageHeld: z.number().optional(),
+    amountRequested: z.number().nonnegative(),
+    amountApproved: z.number().nonnegative().optional(),
+    retainageHeld: z.number().nonnegative().optional(),
     periodStart: z.string().optional().describe("YYYY-MM-DD"),
     periodEnd: z.string().optional().describe("YYYY-MM-DD"),
     dateSubmitted: z.string().optional().describe("YYYY-MM-DD"),
@@ -54,6 +54,7 @@ export const markDrawPaidTool = tool({
     drawNumber: z.number().int(),
     amountReceived: z
       .number()
+      .positive()
       .optional()
       .describe("Payment amount. Omit to pay the remaining outstanding balance in full."),
     datePaid: z.string().optional().describe("YYYY-MM-DD. Defaults to today."),
@@ -107,9 +108,9 @@ export const updateDrawTool = tool({
     projectName: z.string(),
     drawNumber: z.number().int(),
     status: z.enum(["draft", "submitted", "approved"]).optional(),
-    amountRequested: z.number().optional(),
-    amountApproved: z.number().optional(),
-    retainageHeld: z.number().optional(),
+    amountRequested: z.number().nonnegative().optional(),
+    amountApproved: z.number().nonnegative().optional(),
+    retainageHeld: z.number().nonnegative().optional(),
     periodStart: z.string().optional().describe("YYYY-MM-DD"),
     periodEnd: z.string().optional().describe("YYYY-MM-DD"),
     dateSubmitted: z.string().optional().describe("YYYY-MM-DD"),
@@ -176,7 +177,7 @@ export const createBudgetLineTool = tool({
   inputSchema: z.object({
     projectName: z.string(),
     description: z.string(),
-    scheduledValue: z.number(),
+    scheduledValue: z.number().nonnegative(),
     itemNumber: z.string().optional(),
     category: z.string().optional(),
   }),

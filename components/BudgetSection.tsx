@@ -339,6 +339,7 @@ export default function BudgetSection({
               name="scheduled_value"
               type="number"
               step="0.01"
+              min="0"
               defaultValue={editing?.scheduled_value ?? 0}
               className="input"
             />

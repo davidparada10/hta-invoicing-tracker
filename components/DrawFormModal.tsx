@@ -365,6 +365,7 @@ export default function DrawFormModal({
               name="amount_requested"
               type="number"
               step="0.01"
+              min="0"
               value={formValues.amount_requested}
               onChange={(e) => updateField("amount_requested", e.target.value)}
               className="input"
@@ -375,6 +376,7 @@ export default function DrawFormModal({
               name="amount_approved"
               type="number"
               step="0.01"
+              min="0"
               value={formValues.amount_approved}
               onChange={(e) => updateField("amount_approved", e.target.value)}
               className="input"
@@ -388,6 +390,7 @@ export default function DrawFormModal({
               name="retainage_held"
               type="number"
               step="0.01"
+              min="0"
               value={formValues.retainage_held}
               onChange={(e) => updateField("retainage_held", e.target.value)}
               readOnly={retentionMode !== "manual"}
@@ -404,6 +407,7 @@ export default function DrawFormModal({
               name="amount_paid"
               type="number"
               step="0.01"
+              min="0"
               value={formValues.amount_paid}
               onChange={(e) => updateField("amount_paid", e.target.value)}
               className="input"
