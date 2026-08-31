@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "time-log": "node scripts/time-log.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.42",
