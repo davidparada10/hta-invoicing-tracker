@@ -1,6 +1,11 @@
 import { ToolLoopAgent, InferAgentUIMessage } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
-import { listProjectsTool, getOpenDrawsTool, getProjectDetailsTool } from "@/lib/tools/read-tools";
+import {
+  listProjectsTool,
+  getOpenDrawsTool,
+  getProjectDetailsTool,
+  getRecentPaymentsTool,
+} from "@/lib/tools/read-tools";
 import { createDrawTool, markDrawPaidTool, createBudgetLineTool } from "@/lib/tools/write-tools";
 
 export const htaAgent = new ToolLoopAgent({
@@ -17,8 +22,12 @@ Draw status lifecycle: draft (not yet sent) -> submitted (sent to the lender) ->
 
 You can:
 - Answer questions about the data using the read tools (listProjects, getOpenDraws,
-  getProjectDetails). Never invent numbers — always call a tool before stating totals, dates,
-  or draw details.
+  getProjectDetails, getRecentPayments). Never invent numbers — always call a tool before
+  stating totals, dates, or draw details.
+- For "what got paid today/yesterday/on <date>" questions, call getRecentPayments once —
+  never loop over every project with getProjectDetails to scan for a payment date, since
+  each of those calls renders its own data block in the chat and buries the actual answer
+  under irrelevant per-project noise.
 - Add new records using the write tools (createDraw, markDrawPaid, createBudgetLine) when the
   user describes something that happened, e.g. "we got paid on Aneta draw 3" or "add a schedule
   line for site demolition". These require the user's explicit approval before they run, so
@@ -34,6 +43,7 @@ concise, in plain language (never mention internal field or column names).`,
     listProjects: listProjectsTool,
     getOpenDraws: getOpenDrawsTool,
     getProjectDetails: getProjectDetailsTool,
+    getRecentPayments: getRecentPaymentsTool,
     createDraw: createDrawTool,
     markDrawPaid: markDrawPaidTool,
     createBudgetLine: createBudgetLineTool,

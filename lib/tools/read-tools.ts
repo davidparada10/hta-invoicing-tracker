@@ -5,6 +5,8 @@ import {
   getOpenDraws,
   getDrawsForProject,
   getBudgetLinesForProject,
+  getAllDraws,
+  getProjects,
   openBalance,
 } from "@/lib/data";
 import { resolveProject } from "./shared";
@@ -46,6 +48,35 @@ export const getOpenDrawsTool = tool({
       outstandingBalance: openBalance(d),
       dateSubmitted: d.date_submitted,
     }));
+  },
+});
+
+export const getRecentPaymentsTool = tool({
+  description:
+    "List every draw with a payment recorded on a specific date, across all projects, in one call — use this for 'what got paid today/yesterday/on <date>' instead of checking each project individually. Defaults to today's date (server clock) if no date is given.",
+  inputSchema: z.object({
+    date: z
+      .string()
+      .optional()
+      .describe(
+        "Date to check, as YYYY-MM-DD. Omit this to use today's actual date — don't guess a date yourself."
+      ),
+  }),
+  execute: async ({ date }) => {
+    const targetDate = date ?? new Date().toISOString().slice(0, 10);
+    const [draws, projects] = await Promise.all([getAllDraws(), getProjects()]);
+    const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
+
+    const payments = draws
+      .filter((d) => d.date_paid === targetDate)
+      .map((d) => ({
+        project: projectNameById.get(d.project_id) ?? "Unknown project",
+        drawNumber: d.draw_number,
+        amountPaid: d.amount_paid,
+        retainageHeld: d.retainage_held,
+      }));
+
+    return { date: targetDate, payments };
   },
 });
 

@@ -302,6 +302,43 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
     );
   }
 
+  if (toolName === "getRecentPayments") {
+    const payments = (output.payments as Array<Record<string, unknown>>) ?? [];
+    if (payments.length === 0) {
+      return (
+        <p className="text-xs text-muted-foreground mt-1">
+          No payments recorded on {String(output.date)}.
+        </p>
+      );
+    }
+    return (
+      <div className="overflow-x-auto -mx-1 mt-1">
+        <table className="text-xs w-full">
+          <thead className="text-muted-foreground">
+            <tr>
+              <th className="text-left px-1 py-1">Project</th>
+              <th className="text-left px-1 py-1">Draw</th>
+              <th className="text-right px-1 py-1">Paid</th>
+              <th className="text-right px-1 py-1">Retainage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payments.map((p, i) => (
+              <tr key={i} className="border-t border-border">
+                <td className="px-1 py-1">{String(p.project)}</td>
+                <td className="px-1 py-1">#{String(p.drawNumber)}</td>
+                <td className="px-1 py-1 text-right text-emerald-700 dark:text-emerald-400">
+                  {formatCurrency(p.amountPaid as number)}
+                </td>
+                <td className="px-1 py-1 text-right">{formatCurrency(p.retainageHeld as number)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   if (toolName === "getOpenDraws" && Array.isArray(output)) {
     const draws = output as Array<Record<string, unknown>>;
     if (draws.length === 0) return <p className="text-xs text-muted-foreground mt-1">No open draws.</p>;
