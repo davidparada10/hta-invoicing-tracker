@@ -88,6 +88,7 @@ export default function DrawFormModal({
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsedFileName, setParsedFileName] = useState<string | null>(null);
   const [parsedAllocationsCount, setParsedAllocationsCount] = useState<number | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [lineAmounts, setLineAmounts] = useState<Record<string, string>>({});
   const [retentionMode, setRetentionMode] = useState<"manual" | "0" | "5" | "10">("manual");
 
@@ -158,8 +159,12 @@ export default function DrawFormModal({
       }))
       .filter((a) => a.amount !== 0);
     formData.set("allocations", JSON.stringify(allocationsPayload));
-    await upsertDraw(formData);
-    onClose();
+    try {
+      await upsertDraw(formData);
+      onClose();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not save draw.");
+    }
   }
 
   function updateField<K extends keyof DrawFormValues>(key: K, value: DrawFormValues[K]) {
@@ -184,10 +189,7 @@ export default function DrawFormModal({
     setLineAmounts((v) => ({ ...v, [budgetLineId]: value }));
   }
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  async function processFile(file: File) {
     setParsing(true);
     setParseError(null);
     setParsedFileName(null);
@@ -227,8 +229,33 @@ export default function DrawFormModal({
       setParseError(err instanceof Error ? err.message : "Could not read that file.");
     } finally {
       setParsing(false);
-      e.target.value = "";
     }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processFile(file);
+    e.target.value = "";
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    if (!parsing) setIsDraggingFile(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDraggingFile(false);
+  }
+
+  async function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    if (parsing) return;
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    await processFile(file);
   }
 
   return (
@@ -242,7 +269,14 @@ export default function DrawFormModal({
         <input type="hidden" name="project_id" value={projectId} />
         {editing && <input type="hidden" name="id" value={editing.id} />}
 
-        <div className="rounded-lg border border-dashed border-border p-3 bg-muted">
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`rounded-lg border border-dashed p-3 transition-colors ${
+            isDraggingFile ? "border-primary bg-primary/10" : "border-border bg-muted"
+          }`}
+        >
           <label className="block text-xs font-medium text-muted-foreground mb-1">
             {editing
               ? "Re-upload a G702 (.xlsx or .pdf) to refresh this draw's numbers"
@@ -261,6 +295,7 @@ export default function DrawFormModal({
             disabled={parsing}
             className="text-sm w-full"
           />
+          <p className="text-xs text-muted-foreground mt-1">or drag and drop a file anywhere in this box</p>
           {parsing && <p className="text-xs text-muted-foreground mt-1">Reading file…</p>}
           {parseError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{parseError}</p>}
           {parsedFileName && !parsing && !parseError && (

@@ -199,6 +199,17 @@ async function saveAllocations(
   if (insertError) throw insertError;
 }
 
+// Postgres unique_violation on the (project_id, draw_number) constraint —
+// surface it as a clear message instead of a raw DB error, since two people
+// (or a person and a concurrent Cursor session) can otherwise both pick the
+// same next draw number.
+function duplicateDrawNumberError<T extends { code?: string }>(error: T, drawNumber: number): T | Error {
+  if (error.code === "23505") {
+    return new Error(`Draw #${drawNumber} already exists on this project. Choose a different draw number.`);
+  }
+  return error;
+}
+
 export async function upsertDraw(formData: FormData) {
   const supabase = createServerSupabaseClient();
   const id = toNullableString(formData.get("id"));
@@ -224,14 +235,14 @@ export async function upsertDraw(formData: FormData) {
   let drawId = id;
   if (id) {
     const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
-    if (error) throw error;
+    if (error) throw duplicateDrawNumberError(error, payload.draw_number);
   } else {
     const { data, error } = await supabase
       .from("inv_owner_draws")
       .insert(payload)
       .select("id")
       .single();
-    if (error) throw error;
+    if (error) throw duplicateDrawNumberError(error, payload.draw_number);
     drawId = data.id;
   }
 
