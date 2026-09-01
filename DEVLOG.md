@@ -13,8 +13,9 @@ a commit-by-commit transcript.
 ---
 
 ## 2026-09-01
+- Mobile pass at 375px: fixed the floating chat bubble permanently covering bottom-right action links (e.g. "Mark Paid") with no way to scroll clear of it; fixed the Draw form's 3-column date row clipping to "mm/dd" on phones; fixed the Draw form's Schedule of Values table being clipped with no horizontal scroll, making the rightmost columns unreachable.
 - Flagged over-drawn Schedule of Values line items in red, in both the SoV tab and the live Draw form's allocation table (Balance/Balance to Finish going negative had no visual warning before).
-- Reviewed dark mode and the Add/Edit Project modals for contrast/layout issues — none found.
+- Reviewed dark mode and the Add/Edit Project, Add Line, and Edit Project modals (mobile) for contrast/layout issues — none found.
 
 ## 2026-08-31, 6:41–7:00 PM (~19m)
 - UI/UX pass: filled two `aria-hidden` empty placeholder boxes on the dashboard (Total Retainage Held, Open Draws) that had sat blank since early on.
