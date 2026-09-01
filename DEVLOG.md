@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-01 (later)
+- **Security fix**: the login page's `?next=` redirect target was read straight from the URL and passed unvalidated to `router.push()`. A crafted link to the real app domain (`/login?next=https://evil.example`) redirected a user to an attacker's site immediately after they entered their real passcode — reproduced end-to-end locally. Now rejects anything that isn't a same-origin relative path.
+
 ## 2026-09-01
 - Mobile pass at 375px: fixed the floating chat bubble permanently covering bottom-right action links (e.g. "Mark Paid") with no way to scroll clear of it; fixed the Draw form's 3-column date row clipping to "mm/dd" on phones; fixed the Draw form's Schedule of Values table being clipped with no horizontal scroll, making the rightmost columns unreachable.
 - Flagged over-drawn Schedule of Values line items in red, in both the SoV tab and the live Draw form's allocation table (Balance/Balance to Finish going negative had no visual warning before).
