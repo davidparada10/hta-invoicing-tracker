@@ -12,6 +12,10 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-08-31, 6:41–7:00 PM (~19m)
+- UI/UX pass: filled two `aria-hidden` empty placeholder boxes on the dashboard (Total Retainage Held, Open Draws) that had sat blank since early on.
+- Fixed Billing Summary's "Outstanding" figures showing red even when negative — a negative value there just means more was received than billed in that specific bucket (cash-basis quarter split), not money owed; now only red when actually positive.
+
 ## 2026-08-31, 6:14–6:41 PM (~42m)
 - **Critical security fix**: found that every table's RLS policy allowed full anon read/write, and the server used the anon key (`NEXT_PUBLIC_`-prefixed, shipped to every browser) — meaning anyone could pull the anon key from the JS bundle and read/write the entire database directly via Supabase's REST API, completely bypassing the passcode. Verified exploitable with a plain `curl` before the fix, and blocked afterward. Switched the server to the service-role key and locked down RLS to default-deny for anon/authenticated.
 - Removed the now-fully-unused client-side Supabase client.
