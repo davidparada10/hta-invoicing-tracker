@@ -25,7 +25,7 @@ export default async function DashboardPage({
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h1 className="text-2xl font-semibold text-foreground">Overview</h1>
           <AddProjectModal />

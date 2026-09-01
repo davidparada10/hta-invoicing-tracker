@@ -99,7 +99,7 @@ export default function WorkflowPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
           HTA Construction &amp; Development
         </p>

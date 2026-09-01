@@ -16,7 +16,7 @@ export default function HelpPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8">
         <h1 className="text-2xl font-semibold text-foreground mb-1">How the G702/G703 upload works</h1>
         <p className="text-sm text-muted-foreground max-w-2xl mb-8">
           Every G702/G703 draw workbook can fill two different things depending on which
