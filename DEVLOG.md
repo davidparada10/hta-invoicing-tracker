@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-01
+- Flagged over-drawn Schedule of Values line items in red (Balance to Finish going negative had no visual warning before).
+
 ## 2026-08-31, 6:41–7:00 PM (~19m)
 - UI/UX pass: filled two `aria-hidden` empty placeholder boxes on the dashboard (Total Retainage Held, Open Draws) that had sat blank since early on.
 - Fixed Billing Summary's "Outstanding" figures showing red even when negative — a negative value there just means more was received than billed in that specific bucket (cash-basis quarter split), not money owed; now only red when actually positive.
