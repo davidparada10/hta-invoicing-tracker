@@ -1,15 +1,21 @@
 import { createClient } from "@supabase/supabase-js";
 
-// Server-side Supabase client. Uses the anon/publishable key — table RLS is
-// intentionally open since access to the app itself is gated by the
-// shared-passcode middleware (see lib/auth), not per-user Supabase auth.
+// Server-side Supabase client. Uses the service-role (secret) key, which
+// bypasses RLS and is never exposed to the browser. The app's shared-passcode
+// middleware (see lib/auth) only gates the Next.js pages/routes themselves —
+// it does nothing to protect Supabase's own REST API, which is a separately
+// internet-reachable service. Using the anon/publishable key here previously
+// meant every table's RLS policy had to allow full anon CRUD for the server
+// to work at all, which meant anyone who extracted that key from the client
+// JS bundle (NEXT_PUBLIC_ vars ship to the browser) could read/write every
+// table directly, with no passcode involved.
 export function createServerSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY env vars"
+      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars"
     );
   }
 
