@@ -7,6 +7,7 @@ import Modal from "@/components/Modal";
 import { parseG702Upload, upsertDraw } from "@/app/draws/actions";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
+const MAX_G702_UPLOAD_BYTES = 20 * 1024 * 1024; // keep in sync with app/draws/actions.ts
 
 interface DrawFormValues {
   draw_number: string;
@@ -190,11 +191,18 @@ export default function DrawFormModal({
   }
 
   async function processFile(file: File) {
-    setParsing(true);
     setParseError(null);
     setParsedFileName(null);
     setParsedAllocationsCount(null);
 
+    if (file.size > MAX_G702_UPLOAD_BYTES) {
+      setParseError(
+        `File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Max is 20MB.`
+      );
+      return;
+    }
+
+    setParsing(true);
     try {
       const fd = new FormData();
       fd.set("g702_file", file);

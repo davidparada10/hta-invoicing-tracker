@@ -77,10 +77,17 @@ async function matchAllocationsToBudgetLines(
     .filter((a): a is { budget_line_id: string; amount: number } => a !== null);
 }
 
+const MAX_G702_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB — real G702/G703 files are a few MB at most
+
 export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upload> {
   const file = formData.get("g702_file");
   if (!(file instanceof File)) {
     throw new Error("No file provided.");
+  }
+  if (file.size > MAX_G702_UPLOAD_BYTES) {
+    throw new Error(
+      `File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Max is 20MB.`
+    );
   }
   const projectIdRaw = formData.get("project_id");
   const projectId = typeof projectIdRaw === "string" ? projectIdRaw : "";
