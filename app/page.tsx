@@ -136,8 +136,20 @@ export default async function DashboardPage({
                 : "—"}
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-card p-4 min-h-[80px]" aria-hidden="true" />
-          <div className="rounded-lg border border-border bg-card p-4 min-h-[80px]" aria-hidden="true" />
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Total retainage held
+            </p>
+            <p className="text-lg font-semibold text-foreground mt-1">
+              {formatCurrency(totals.totalRetainage)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Open draws
+            </p>
+            <p className="text-lg font-semibold text-foreground mt-1">{openDraws.length}</p>
+          </div>
         </div>
 
         <OpenDrawsSection draws={openDraws} initialAging={searchParams.aging} />
