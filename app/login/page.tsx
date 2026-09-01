@@ -4,6 +4,16 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ThemeToggle from "@/components/ThemeToggle";
 
+// Only ever set by our own middleware to a same-origin pathname, but the
+// value is read back out of the URL on the client, so a crafted link
+// (?next=https://evil.example) must not be trusted as-is — reject anything
+// that isn't a real same-origin relative path, including the "//evil.com"
+// protocol-relative bypass.
+function safeNextPath(next: string | null): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/";
+  return next;
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -26,8 +36,7 @@ function LoginForm() {
         setError(data.error ?? "Incorrect passcode");
         return;
       }
-      const next = searchParams.get("next") || "/";
-      router.push(next);
+      router.push(safeNextPath(searchParams.get("next")));
       router.refresh();
     } finally {
       setLoading(false);
