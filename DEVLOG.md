@@ -13,7 +13,8 @@ a commit-by-commit transcript.
 ---
 
 ## 2026-09-01
-- Flagged over-drawn Schedule of Values line items in red (Balance to Finish going negative had no visual warning before).
+- Flagged over-drawn Schedule of Values line items in red, in both the SoV tab and the live Draw form's allocation table (Balance/Balance to Finish going negative had no visual warning before).
+- Reviewed dark mode and the Add/Edit Project modals for contrast/layout issues — none found.
 
 ## 2026-08-31, 6:41–7:00 PM (~19m)
 - UI/UX pass: filled two `aria-hidden` empty placeholder boxes on the dashboard (Total Retainage Held, Open Draws) that had sat blank since early on.
