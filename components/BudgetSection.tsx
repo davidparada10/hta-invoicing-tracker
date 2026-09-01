@@ -209,7 +209,9 @@ export default function BudgetSection({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Balance</p>
-                  <p>{formatCurrency(l.scheduled_value - drawn)}</p>
+                  <p className={l.scheduled_value - drawn < 0 ? "text-invoiced" : ""}>
+                    {formatCurrency(l.scheduled_value - drawn)}
+                  </p>
                 </div>
               </div>
 
@@ -271,7 +273,11 @@ export default function BudgetSection({
                 </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(l.scheduled_value)}</td>
                 <td className="px-4 py-2 text-right text-blue-700 dark:text-blue-400">{formatCurrency(drawn)}</td>
-                <td className="px-4 py-2 text-right text-muted-foreground">
+                <td
+                  className={`px-4 py-2 text-right ${
+                    l.scheduled_value - drawn < 0 ? "text-invoiced" : "text-muted-foreground"
+                  }`}
+                >
                   {formatCurrency(l.scheduled_value - drawn)}
                 </td>
                 <td className="px-4 py-2 text-right whitespace-nowrap">
