@@ -12,8 +12,19 @@ a commit-by-commit transcript.
 
 ---
 
-## 2026-08-31, 11:26 AM–12:11 PM (~1h)
+## 2026-08-31, 6:14–6:41 PM (~42m)
+- **Critical security fix**: found that every table's RLS policy allowed full anon read/write, and the server used the anon key (`NEXT_PUBLIC_`-prefixed, shipped to every browser) — meaning anyone could pull the anon key from the JS bundle and read/write the entire database directly via Supabase's REST API, completely bypassing the passcode. Verified exploitable with a plain `curl` before the fix, and blocked afterward. Switched the server to the service-role key and locked down RLS to default-deny for anon/authenticated.
+- Removed the now-fully-unused client-side Supabase client.
+- Fixed Workflow/Help docs left stale by the fix above and an older "Mark Paid" behavior change.
+
+## 2026-08-31, 3:07–3:20 PM (~27m)
+- Upgraded `xlsx` (parses every uploaded G702/G703 file) off a version with two unpatched high-severity CVEs — npm's registry doesn't carry the fix, had to install from SheetJS's own CDN.
+- Raised the chat API's timeout from 30s to 120s — too tight for a multi-tool-call agent turn.
+
+## 2026-08-31, 11:26 AM–12:25 PM (~1h)
 - Brought the Workflow doc's AI Assistant flow current with the 5 new tools added earlier the same day.
+- Added a git-derived time-log script, this DEVLOG, and CLAUDE.md session conventions.
+- Closed a real data-integrity gap: no layer (DB, chat tools, or manual forms) rejected a negative dollar amount on a draw or budget line. Added DB `CHECK` constraints plus matching validation everywhere else.
 
 ## 2026-08-31, 9:02–10:04 AM (~1h17m)
 - Fixed drag-and-drop for G702 upload, and a duplicate-draw-number bug (added a DB unique constraint + friendly error instead of a raw crash).
