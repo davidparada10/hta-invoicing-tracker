@@ -33,7 +33,7 @@ export default function HelpPage() {
           <svg
             viewBox="0 0 1040 748"
             role="img"
-            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form which moves through draft, submitted, approved and paid status with a one-click Mark Paid shortcut and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk schedule-of-values import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
+            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form which moves through draft, submitted, approved and paid status via a Mark Paid modal (amount received and date paid, defaulting to the full outstanding balance, with partial payments supported) and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk schedule-of-values import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
             className="mx-auto min-w-[720px]"
           >
             <defs>
@@ -117,7 +117,7 @@ export default function HelpPage() {
 
             <path d="M 243 392 C 243 428, 436 428, 436 392" fill="none" stroke={DRAW_COLOR} strokeWidth={1.4} strokeDasharray="4 3" markerEnd="url(#arrowDraw)" />
             <text x="340" y="443" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fontWeight="600" fill={DRAW_COLOR}>
-              &quot;Mark Paid&quot; — one click, no form
+              &quot;Mark Paid&quot; — amount + date, partial pay ok
             </text>
 
             <path d="M 202 366 C 60 320, 60 300, 108 275" fill="none" stroke={MUTED_INK} strokeWidth={1.3} strokeDasharray="3 3" markerEnd="url(#arrowNeutral)" />

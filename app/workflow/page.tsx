@@ -208,7 +208,7 @@ export default function WorkflowPage() {
         <Flow
           number="7"
           title="Passcode Auth Gate"
-          subtitle="Every request except /login and static assets"
+          subtitle="Every request except /login and static assets — backed by RLS at the DB layer, not just the app layer"
           steps={[
             { icon: "🌐", title: "Any request", detail: "middleware.ts intercepts", category: "trigger", edgeLabel: "checks" },
             { icon: "🔑", title: "Session cookie?", detail: "hta_inv_session — HMAC-signed, 30 day TTL", category: "decision", edgeLabel: "invalid" },
@@ -247,14 +247,23 @@ export default function WorkflowPage() {
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
             <Detail term="Hosting">Vercel — auto-deploys on push to GitHub `main`</Detail>
             <Detail term="Database">Supabase Postgres, project &ldquo;hta-multifamily-invoicing&rdquo;</Detail>
-            <Detail term="Auth">Single shared passcode (no per-user accounts)</Detail>
+            <Detail term="Auth">
+              Single shared passcode (no per-user accounts). This only gates the Next.js
+              pages/routes — Supabase&rsquo;s REST API is a separately internet-reachable
+              service, so every table also has Row Level Security enabled with no policy
+              for <code className="font-mono text-xs">anon</code>/
+              <code className="font-mono text-xs">authenticated</code> (default-deny). The
+              server uses the service-role key, which bypasses RLS by design and is never
+              exposed to the browser.
+            </Detail>
             <Detail term="AI">
               Direct Anthropic API (@ai-sdk/anthropic) — not the Vercel AI Gateway, so no
               team billing card is required. Needs its own API key.
             </Detail>
             <Detail term="Required env vars">
               <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_URL</code>,{" "}
-              <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>,{" "}
+              <code className="font-mono text-xs">SUPABASE_SERVICE_ROLE_KEY</code> (secret —
+              never prefix this one <code className="font-mono text-xs">NEXT_PUBLIC_</code>),{" "}
               <code className="font-mono text-xs">SITE_PASSCODE</code>,{" "}
               <code className="font-mono text-xs">ANTHROPIC_API_KEY</code>,{" "}
               <code className="font-mono text-xs">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>{" "}
