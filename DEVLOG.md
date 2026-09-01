@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-01 (evening)
+- Capped G702/G703 uploads at 20MB, client- and server-side. Previously the server buffered the whole file into memory before any validation ran — no limit stood between an arbitrarily large upload and the xlsx/PDF parser.
+
 ## 2026-09-01 (later)
 - **Security fix**: the login page's `?next=` redirect target was read straight from the URL and passed unvalidated to `router.push()`. A crafted link to the real app domain (`/login?next=https://evil.example`) redirected a user to an attacker's site immediately after they entered their real passcode — reproduced end-to-end locally. Now rejects anything that isn't a same-origin relative path.
 
