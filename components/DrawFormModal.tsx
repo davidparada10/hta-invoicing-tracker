@@ -415,7 +415,7 @@ export default function DrawFormModal({
           </Field>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Date submitted">
             <input
               name="date_submitted"
@@ -484,7 +484,7 @@ export default function DrawFormModal({
             <p className="text-[11px] text-muted-foreground mb-2">
               Lines marked &ldquo;No retention&rdquo; in the Schedule of Values tab are excluded from the calculation.
             </p>
-            <div className="max-h-64 overflow-y-auto rounded-md border border-border">
+            <div className="max-h-64 overflow-auto rounded-md border border-border">
               <table className="min-w-full text-xs">
                 <thead className="bg-muted text-muted-foreground uppercase tracking-wide sticky top-0">
                   <tr>
