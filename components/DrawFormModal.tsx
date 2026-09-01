@@ -522,7 +522,11 @@ export default function DrawFormModal({
                             className="w-full rounded border border-border bg-card px-1.5 py-0.5 text-right text-xs text-foreground"
                           />
                         </td>
-                        <td className="px-2 py-1.5 text-right text-muted-foreground whitespace-nowrap">
+                        <td
+                          className={`px-2 py-1.5 text-right whitespace-nowrap ${
+                            balance < 0 ? "text-invoiced" : "text-muted-foreground"
+                          }`}
+                        >
                           {formatCurrency(balance)}
                         </td>
                       </tr>
