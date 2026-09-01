@@ -77,7 +77,11 @@ export default async function BillingPage({
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Outstanding {isCurrentYear ? "YTD" : year}
             </p>
-            <p className="text-2xl font-semibold text-invoiced mt-1">
+            <p
+              className={`text-2xl font-semibold mt-1 ${
+                outstandingYtd > 0 ? "text-invoiced" : "text-foreground"
+              }`}
+            >
               {formatCurrency(outstandingYtd)}
             </p>
           </div>
@@ -121,7 +125,9 @@ export default async function BillingPage({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Outstanding</p>
-                    <p className="text-invoiced">{formatCurrency(q.requested - q.received)}</p>
+                    <p className={q.requested - q.received > 0 ? "text-invoiced" : ""}>
+                      {formatCurrency(q.requested - q.received)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Avg days to pay</p>
@@ -144,7 +150,9 @@ export default async function BillingPage({
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
-                <p className="text-invoiced">{formatCurrency(outstandingYtd)}</p>
+                <p className={outstandingYtd > 0 ? "text-invoiced" : ""}>
+                  {formatCurrency(outstandingYtd)}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Avg days to pay</p>
@@ -187,7 +195,11 @@ export default async function BillingPage({
                     <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
                       {formatCurrency(q.received)}
                     </td>
-                    <td className="px-4 py-2 text-right text-invoiced">
+                    <td
+                      className={`px-4 py-2 text-right ${
+                        q.requested - q.received > 0 ? "text-invoiced" : ""
+                      }`}
+                    >
                       {formatCurrency(q.requested - q.received)}
                     </td>
                     <td className="px-4 py-2 text-right">
@@ -204,7 +216,11 @@ export default async function BillingPage({
                 <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
                   {formatCurrency(report.ytdReceived)}
                 </td>
-                <td className="px-4 py-2 text-right text-invoiced">
+                <td
+                  className={`px-4 py-2 text-right ${
+                    outstandingYtd > 0 ? "text-invoiced" : ""
+                  }`}
+                >
                   {formatCurrency(outstandingYtd)}
                 </td>
                 <td className="px-4 py-2 text-right">
@@ -235,7 +251,9 @@ export default async function BillingPage({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Outstanding</p>
-                  <p className="text-invoiced">{formatCurrency(p.requested - p.received)}</p>
+                  <p className={p.requested - p.received > 0 ? "text-invoiced" : ""}>
+                    {formatCurrency(p.requested - p.received)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Avg days to pay</p>
@@ -262,7 +280,9 @@ export default async function BillingPage({
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
-                <p className="text-invoiced">{formatCurrency(outstandingYtd)}</p>
+                <p className={outstandingYtd > 0 ? "text-invoiced" : ""}>
+                  {formatCurrency(outstandingYtd)}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Avg days to pay</p>
@@ -299,7 +319,11 @@ export default async function BillingPage({
                   <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
                     {formatCurrency(p.received)}
                   </td>
-                  <td className="px-4 py-2 text-right text-invoiced">
+                  <td
+                    className={`px-4 py-2 text-right ${
+                      p.requested - p.received > 0 ? "text-invoiced" : ""
+                    }`}
+                  >
                     {formatCurrency(p.requested - p.received)}
                   </td>
                   <td className="px-4 py-2 text-right">
@@ -322,7 +346,11 @@ export default async function BillingPage({
                 <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
                   {formatCurrency(report.ytdReceived)}
                 </td>
-                <td className="px-4 py-2 text-right text-invoiced">
+                <td
+                  className={`px-4 py-2 text-right ${
+                    outstandingYtd > 0 ? "text-invoiced" : ""
+                  }`}
+                >
                   {formatCurrency(outstandingYtd)}
                 </td>
                 <td className="px-4 py-2 text-right">
