@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-03 (later)
+- Found and fixed a real gap while spot-checking Corinth/Delmas: the cycle-satisfied check matched on when a draw *record was created*, not the period it bills for — a late August draft (created Sept 2) would have silently satisfied September's cadence too. Now matches on period_end/date_submitted instead. Also switched "Next Draw" from a generic "Due last Thursday" to the resolved calendar date ("Due Sep 24"), computed once server-side per project instead of recomputed client-side.
+
 ## 2026-09-03
 - "Next Draw" column now turns red/bold starting 5 days before the due date (not just once overdue) — same "no draw created yet this cycle" check, so it clears the moment a draft exists and the next cycle's date takes over automatically since due dates are computed live, never stored.
 
