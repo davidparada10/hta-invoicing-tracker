@@ -1,5 +1,6 @@
 export type ProjectStatus = "active" | "closed";
 export type DrawStatus = "draft" | "submitted" | "approved" | "paid";
+export type DrawDueType = "day_of_month" | "last_weekday";
 
 export interface Project {
   id: string;
@@ -9,6 +10,12 @@ export interface Project {
   lender: string | null;
   status: ProjectStatus;
   created_at: string;
+  // Recurring draw cadence. draw_due_type null means no fixed schedule is
+  // tracked for this project. For "day_of_month", draw_due_day is 1-31
+  // (clamped to the month's last day). For "last_weekday", draw_due_day is
+  // JS Date.getDay() convention: 0=Sunday..6=Saturday (e.g. 4=Thursday).
+  draw_due_type: DrawDueType | null;
+  draw_due_day: number | null;
 }
 
 export interface OwnerDraw {
@@ -63,4 +70,5 @@ export interface ProjectRollup {
   totalDraft: number;
   totalBudget: number;
   balanceToComplete: number;
+  isDrawOverdue: boolean;
 }

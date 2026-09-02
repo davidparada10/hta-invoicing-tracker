@@ -7,6 +7,7 @@ import DashboardTable from "@/components/DashboardTable";
 import OpenDrawsSection from "@/components/OpenDrawsSection";
 import AddProjectModal from "@/components/AddProjectModal";
 import AgingAlertBanner from "@/components/AgingAlertBanner";
+import DrawsDueAlertBanner from "@/components/DrawsDueAlertBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export default async function DashboardPage({
           Draws across all active projects.
         </p>
 
+        <DrawsDueAlertBanner rollups={rollups} />
         <AgingAlertBanner draws={openDraws} />
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">

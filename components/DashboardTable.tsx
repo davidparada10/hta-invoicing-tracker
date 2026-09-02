@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ProjectRollup } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
+import { drawDueLabel } from "@/lib/drawSchedule";
 import ProjectStatusSelect from "@/components/ProjectStatusSelect";
 
 export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }) {
@@ -105,6 +106,19 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                   {r.totalDraft > 0 ? formatCurrency(r.totalDraft) : "—"}
                 </p>
               </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Next Draw</p>
+                <p
+                  className={
+                    r.isDrawOverdue
+                      ? "font-medium text-amber-700 dark:text-amber-300"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {drawDueLabel(r.project) ?? "—"}
+                  {r.isDrawOverdue && " · Overdue"}
+                </p>
+              </div>
             </div>
           </div>
         ))}
@@ -126,6 +140,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               <th className="text-right px-4 py-2">Contract Value</th>
               <th className="text-right px-4 py-2">Balance to Complete</th>
               <th className="text-right px-4 py-2">Draft</th>
+              <th className="text-left px-4 py-2">Next Draw</th>
               <th className="text-left px-4 py-2">Status</th>
             </tr>
           </thead>
@@ -167,6 +182,16 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 >
                   {r.totalDraft > 0 ? formatCurrency(r.totalDraft) : "—"}
                 </td>
+                <td
+                  className={`px-4 py-2 whitespace-nowrap ${
+                    r.isDrawOverdue
+                      ? "font-medium text-amber-700 dark:text-amber-300"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {drawDueLabel(r.project) ?? "—"}
+                  {r.isDrawOverdue && " · Overdue"}
+                </td>
                 <td className="px-4 py-2">
                   <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
                 </td>
@@ -174,7 +199,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
                   No {statusFilter === "active" && !search.trim() ? "active " : ""}projects found.
                 </td>
               </tr>

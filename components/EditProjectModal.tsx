@@ -7,9 +7,19 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { updateProject } from "@/app/projects/actions";
 
 const STATUSES: ProjectStatus[] = ["active", "closed"];
+const WEEKDAYS = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+];
 
 export default function EditProjectModal({ project }: { project: Project }) {
   const [open, setOpen] = useState(false);
+  const [dueType, setDueType] = useState(project.draw_due_type ?? "");
 
   async function handleSubmit(formData: FormData) {
     await updateProject(formData);
@@ -50,6 +60,55 @@ export default function EditProjectModal({ project }: { project: Project }) {
                 ))}
               </select>
             </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Draw cadence">
+              <select
+                name="draw_due_type"
+                value={dueType}
+                onChange={(e) => setDueType(e.target.value)}
+                className="input"
+              >
+                <option value="">No fixed cadence</option>
+                <option value="day_of_month">Day of month</option>
+                <option value="last_weekday">Last weekday of month</option>
+              </select>
+            </Field>
+            {dueType === "day_of_month" && (
+              <Field label="Day">
+                <input
+                  type="number"
+                  name="draw_due_day"
+                  min={1}
+                  max={31}
+                  required
+                  defaultValue={project.draw_due_type === "day_of_month" ? project.draw_due_day ?? "" : ""}
+                  className="input"
+                />
+              </Field>
+            )}
+            {dueType === "last_weekday" && (
+              <Field label="Weekday">
+                <select
+                  name="draw_due_day"
+                  required
+                  defaultValue={
+                    project.draw_due_type === "last_weekday" ? project.draw_due_day ?? "" : ""
+                  }
+                  className="input"
+                >
+                  <option value="" disabled>
+                    Select a weekday
+                  </option>
+                  {WEEKDAYS.map((w) => (
+                    <option key={w.value} value={w.value}>
+                      {w.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">

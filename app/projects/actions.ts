@@ -9,6 +9,13 @@ function toNullableString(value: FormDataEntryValue | null): string | null {
   return s.length ? s : null;
 }
 
+function toNullableInt(value: FormDataEntryValue | null): number | null {
+  const s = (value ?? "").toString().trim();
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function createProject(formData: FormData): Promise<{ id: string }> {
   const supabase = createServerSupabaseClient();
 
@@ -37,11 +44,15 @@ export async function updateProject(formData: FormData) {
   const supabase = createServerSupabaseClient();
   const id = formData.get("id") as string;
 
+  const drawDueType = toNullableString(formData.get("draw_due_type"));
+
   const payload = {
     name: (formData.get("name") as string) ?? "",
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
     status: formData.get("status") as string,
+    draw_due_type: drawDueType,
+    draw_due_day: drawDueType ? toNullableInt(formData.get("draw_due_day")) : null,
   };
 
   const { error } = await supabase.from("inv_projects").update(payload).eq("id", id);

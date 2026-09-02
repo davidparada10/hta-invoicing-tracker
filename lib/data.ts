@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
 import { BillingReport, ProjectBillingRow, buildBillingReport, buildProjectBillingBreakdown } from "@/lib/billing";
+import { isDrawOverdue } from "@/lib/drawSchedule";
 
 // Supabase's PostgREST API silently caps a plain select() at 1000 rows with
 // no error — inv_project_budget_lines alone passed that as soon as ~10
@@ -207,6 +208,7 @@ export async function getDashboardData(): Promise<{
       totalDraft,
       totalBudget,
       balanceToComplete,
+      isDrawOverdue: isDrawOverdue(project, projectDraws),
     };
   });
 
