@@ -2,23 +2,20 @@
 //
 // A project's cadence is either a fixed day-of-month or the last occurrence
 // of a weekday in the month. "Overdue" means the cycle's due date has
-// passed and no draw (any status) has been created since the start of the
-// current calendar month — the bar is just "does a draft/draw exist yet,"
-// not that it's been submitted.
+// passed and no draw (any status) covers the current calendar month yet —
+// the bar is just "does a draft/draw exist for this period," not that it's
+// been submitted.
+//
+// A draw's period_end (falling back to date_submitted, then created_at for
+// the rare row with neither) decides which cycle it belongs to — NOT when
+// the record was created. A draw for August finally drafted two days into
+// September must not silently satisfy September's cadence just because its
+// created_at happens to land there.
 
 import { Project, OwnerDraw } from "@/lib/types";
 
 type ScheduleFields = Pick<Project, "draw_due_type" | "draw_due_day">;
-
-const WEEKDAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+type CycleFields = Pick<OwnerDraw, "period_end" | "date_submitted" | "created_at">;
 
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -50,21 +47,31 @@ export function getDrawDueDate(
   return lastWeekdayOfMonth(year, month, project.draw_due_day);
 }
 
-/** Human label for a project's cadence, e.g. "Due the 25th" / "Due last Thursday". */
-export function drawDueLabel(project: ScheduleFields): string | null {
-  if (!project.draw_due_type || project.draw_due_day == null) return null;
-  if (project.draw_due_type === "day_of_month") {
-    return `Due the ${ordinal(project.draw_due_day)}`;
-  }
-  return `Due last ${WEEKDAY_NAMES[project.draw_due_day]}`;
+/**
+ * Human label for this cycle's actual due date, e.g. "Due Sep 25" — a
+ * "last weekday" cadence resolves to the real calendar date rather than a
+ * generic "Due last Thursday" the reader would have to work out themselves.
+ */
+export function drawDueLabel(
+  project: ScheduleFields,
+  referenceDate: Date = new Date()
+): string | null {
+  const dueDate = getDrawDueDate(project, referenceDate);
+  if (!dueDate) return null;
+  return `Due ${dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
-function hasDrawSinceCycleStart(
-  projectDraws: Pick<OwnerDraw, "created_at">[],
-  referenceDate: Date
-): boolean {
-  const cycleStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
-  return projectDraws.some((d) => new Date(d.created_at).getTime() >= cycleStart.getTime());
+function drawCycleDate(d: CycleFields): Date {
+  return new Date(d.period_end ?? d.date_submitted ?? d.created_at);
+}
+
+function hasDrawForCycle(projectDraws: CycleFields[], referenceDate: Date): boolean {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
+  return projectDraws.some((d) => {
+    const date = drawCycleDate(d);
+    return date.getFullYear() === year && date.getMonth() === month;
+  });
 }
 
 /** Days until this cycle's due date (negative once past it), or null with no cadence. */
@@ -82,36 +89,30 @@ export function daysUntilDrawDue(
 
 /**
  * True once this cycle's due date has passed with no draw (any status)
- * created since the start of the current calendar month.
+ * covering the current calendar month yet.
  */
 export function isDrawOverdue(
   project: ScheduleFields,
-  projectDraws: Pick<OwnerDraw, "created_at">[],
+  projectDraws: CycleFields[],
   referenceDate: Date = new Date()
 ): boolean {
   const daysUntil = daysUntilDrawDue(project, referenceDate);
   if (daysUntil === null || daysUntil > 0) return false;
-  return !hasDrawSinceCycleStart(projectDraws, referenceDate);
+  return !hasDrawForCycle(projectDraws, referenceDate);
 }
 
 /**
  * True from `warnDaysBefore` days ahead of the due date through overdue,
- * as long as no draw has been created yet this cycle — the "act now"
- * window shown as a stronger visual warning than the plain due-date label.
+ * as long as no draw covers this cycle yet — the "act now" window shown as
+ * a stronger visual warning than the plain due-date label.
  */
 export function isDrawUrgent(
   project: ScheduleFields,
-  projectDraws: Pick<OwnerDraw, "created_at">[],
+  projectDraws: CycleFields[],
   referenceDate: Date = new Date(),
   warnDaysBefore: number = 5
 ): boolean {
   const daysUntil = daysUntilDrawDue(project, referenceDate);
   if (daysUntil === null || daysUntil > warnDaysBefore) return false;
-  return !hasDrawSinceCycleStart(projectDraws, referenceDate);
-}
-
-function ordinal(n: number): string {
-  const suffixes = ["th", "st", "nd", "rd"];
-  const v = n % 100;
-  return `${n}${suffixes[(v - 20) % 10] ?? suffixes[v] ?? suffixes[0]}`;
+  return !hasDrawForCycle(projectDraws, referenceDate);
 }

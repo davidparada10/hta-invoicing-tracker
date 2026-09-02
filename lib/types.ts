@@ -72,4 +72,5 @@ export interface ProjectRollup {
   balanceToComplete: number;
   isDrawOverdue: boolean;
   isDrawUrgent: boolean;
+  nextDrawLabel: string | null;
 }

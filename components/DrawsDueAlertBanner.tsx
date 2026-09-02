@@ -1,5 +1,4 @@
 import { ProjectRollup } from "@/lib/types";
-import { drawDueLabel } from "@/lib/drawSchedule";
 
 // Amber, not red — this is a forward-looking reminder ("go create a draft"),
 // not a financial risk like AgingAlertBanner's stale-payment warning.
@@ -15,7 +14,7 @@ export default function DrawsDueAlertBanner({ rollups }: { rollups: ProjectRollu
       </p>
       <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
         {overdue
-          .map((r) => `${r.project.name} (${drawDueLabel(r.project) ?? "no cadence set"})`)
+          .map((r) => `${r.project.name} (${r.nextDrawLabel ?? "no cadence set"})`)
           .join(" · ")}
       </p>
     </div>

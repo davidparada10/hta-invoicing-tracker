@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
 import { BillingReport, ProjectBillingRow, buildBillingReport, buildProjectBillingBreakdown } from "@/lib/billing";
-import { isDrawOverdue, isDrawUrgent } from "@/lib/drawSchedule";
+import { drawDueLabel, isDrawOverdue, isDrawUrgent } from "@/lib/drawSchedule";
 
 // Supabase's PostgREST API silently caps a plain select() at 1000 rows with
 // no error — inv_project_budget_lines alone passed that as soon as ~10
@@ -174,6 +174,7 @@ export async function getDashboardData(): Promise<{
     getAllBudgetLines(),
   ]);
 
+  const now = new Date();
   const rollups: ProjectRollup[] = projects.map((project) => {
     const projectDraws = draws.filter((d) => d.project_id === project.id);
     const projectBudgetLines = budgetLines.filter((l) => l.project_id === project.id);
@@ -208,8 +209,9 @@ export async function getDashboardData(): Promise<{
       totalDraft,
       totalBudget,
       balanceToComplete,
-      isDrawOverdue: isDrawOverdue(project, projectDraws),
-      isDrawUrgent: isDrawUrgent(project, projectDraws),
+      isDrawOverdue: isDrawOverdue(project, projectDraws, now),
+      isDrawUrgent: isDrawUrgent(project, projectDraws, now),
+      nextDrawLabel: drawDueLabel(project, now),
     };
   });
 

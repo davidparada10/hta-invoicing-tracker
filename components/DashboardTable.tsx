@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ProjectRollup } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
-import { drawDueLabel } from "@/lib/drawSchedule";
 import ProjectStatusSelect from "@/components/ProjectStatusSelect";
 
 export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }) {
@@ -115,7 +114,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                       : "text-muted-foreground"
                   }
                 >
-                  {drawDueLabel(r.project) ?? "—"}
+                  {r.nextDrawLabel ?? "—"}
                   {r.isDrawOverdue && " · Overdue"}
                 </p>
               </div>
@@ -187,7 +186,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     r.isDrawUrgent ? "font-bold text-red-600 dark:text-red-400" : "text-muted-foreground"
                   }`}
                 >
-                  {drawDueLabel(r.project) ?? "—"}
+                  {r.nextDrawLabel ?? "—"}
                   {r.isDrawOverdue && " · Overdue"}
                 </td>
                 <td className="px-4 py-2">
