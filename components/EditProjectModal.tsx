@@ -20,10 +20,16 @@ const WEEKDAYS = [
 export default function EditProjectModal({ project }: { project: Project }) {
   const [open, setOpen] = useState(false);
   const [dueType, setDueType] = useState(project.draw_due_type ?? "");
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
-    await updateProject(formData);
-    setOpen(false);
+    setError(null);
+    try {
+      await updateProject(formData);
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save project. Please try again.");
+    }
   }
 
   return (
@@ -110,6 +116,8 @@ export default function EditProjectModal({ project }: { project: Project }) {
               </Field>
             )}
           </div>
+
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <button

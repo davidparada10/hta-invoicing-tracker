@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { ProjectStatus } from "@/lib/types";
+import { DrawDueType, ProjectStatus } from "@/lib/types";
+import { isValidDrawDueDay } from "@/lib/drawSchedule";
 
 function toNullableString(value: FormDataEntryValue | null): string | null {
   const s = (value ?? "").toString().trim();
@@ -16,6 +17,28 @@ function toNullableInt(value: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// Shared by createProject/updateProject. The Edit/Add Project forms already
+// constrain draw_due_day via <select>/min/max, but that's client-side only —
+// validate again here rather than trusting it, since a bad value doesn't
+// error downstream, it silently resolves to a nonsense due date.
+function resolveDrawDueFields(formData: FormData): {
+  draw_due_type: DrawDueType | null;
+  draw_due_day: number | null;
+} {
+  const drawDueType = toNullableString(formData.get("draw_due_type")) as DrawDueType | null;
+  if (!drawDueType) return { draw_due_type: null, draw_due_day: null };
+
+  const day = toNullableInt(formData.get("draw_due_day"));
+  if (day === null || !isValidDrawDueDay(drawDueType, day)) {
+    throw new Error(
+      drawDueType === "day_of_month"
+        ? "Day of month must be between 1 and 31."
+        : "Weekday must be a valid day (Sunday-Saturday)."
+    );
+  }
+  return { draw_due_type: drawDueType, draw_due_day: day };
+}
+
 export async function createProject(formData: FormData): Promise<{ id: string }> {
   const supabase = createServerSupabaseClient();
 
@@ -27,6 +50,7 @@ export async function createProject(formData: FormData): Promise<{ id: string }>
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
     status: (formData.get("status") as string) || "active",
+    ...resolveDrawDueFields(formData),
   };
 
   const { data, error } = await supabase
@@ -44,15 +68,12 @@ export async function updateProject(formData: FormData) {
   const supabase = createServerSupabaseClient();
   const id = formData.get("id") as string;
 
-  const drawDueType = toNullableString(formData.get("draw_due_type"));
-
   const payload = {
     name: (formData.get("name") as string) ?? "",
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
     status: formData.get("status") as string,
-    draw_due_type: drawDueType,
-    draw_due_day: drawDueType ? toNullableInt(formData.get("draw_due_day")) : null,
+    ...resolveDrawDueFields(formData),
   };
 
   const { error } = await supabase.from("inv_projects").update(payload).eq("id", id);

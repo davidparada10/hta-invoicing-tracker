@@ -9,12 +9,22 @@ import { createProject } from "@/app/projects/actions";
 import { importBudgetFromXlsx } from "@/app/budget/actions";
 
 const STATUSES: ProjectStatus[] = ["active", "closed"];
+const WEEKDAYS = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+];
 
 export default function AddProjectModal() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
+  const [dueType, setDueType] = useState("");
   const router = useRouter();
 
   async function handleSubmit(formData: FormData) {
@@ -60,7 +70,7 @@ export default function AddProjectModal() {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => { setDueType(""); setOpen(true); }}
         className="rounded-lg bg-primary text-background text-sm font-medium px-3 py-1.5 hover:opacity-90"
       >
         + Add Project
@@ -89,6 +99,47 @@ export default function AddProjectModal() {
                 ))}
               </select>
             </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Draw cadence">
+              <select
+                name="draw_due_type"
+                value={dueType}
+                onChange={(e) => setDueType(e.target.value)}
+                className="input"
+              >
+                <option value="">No fixed cadence</option>
+                <option value="day_of_month">Day of month</option>
+                <option value="last_weekday">Last weekday of month</option>
+              </select>
+            </Field>
+            {dueType === "day_of_month" && (
+              <Field label="Day">
+                <input
+                  type="number"
+                  name="draw_due_day"
+                  min={1}
+                  max={31}
+                  required
+                  className="input"
+                />
+              </Field>
+            )}
+            {dueType === "last_weekday" && (
+              <Field label="Weekday">
+                <select name="draw_due_day" required defaultValue="" className="input">
+                  <option value="" disabled>
+                    Select a weekday
+                  </option>
+                  {WEEKDAYS.map((w) => (
+                    <option key={w.value} value={w.value}>
+                      {w.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
           </div>
 
           <div className="rounded-lg border border-dashed border-border p-3 bg-muted">

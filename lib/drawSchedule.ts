@@ -12,10 +12,23 @@
 // September must not silently satisfy September's cadence just because its
 // created_at happens to land there.
 
-import { Project, OwnerDraw } from "@/lib/types";
+import { DrawDueType, Project, OwnerDraw } from "@/lib/types";
 
 type ScheduleFields = Pick<Project, "draw_due_type" | "draw_due_day">;
 type CycleFields = Pick<OwnerDraw, "period_end" | "date_submitted" | "created_at">;
+
+/**
+ * Server-side guard for draw_due_day — the Edit/Add Project forms already
+ * constrain this via <select>/min/max, but that's a client-side courtesy
+ * only. Without this, a bad value (e.g. a stray API call, or an out-of-range
+ * weekday) doesn't error — it silently resolves to a nonsense date, since
+ * the month-arithmetic below has no bounds checking of its own.
+ */
+export function isValidDrawDueDay(type: DrawDueType, day: number): boolean {
+  if (!Number.isInteger(day)) return false;
+  if (type === "day_of_month") return day >= 1 && day <= 31;
+  return day >= 0 && day <= 6;
+}
 
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -32,6 +45,22 @@ function lastWeekdayOfMonth(year: number, month: number, weekday: number): Date 
   return last;
 }
 
+// A fixed day-of-month can land on a weekend, when nobody's submitting
+// anything to the lender — pull it back to the preceding Friday. Doesn't
+// apply to "last weekday" cadences, which are defined as a weekday already.
+function rollBackToWeekday(d: Date): Date {
+  const day = d.getDay();
+  if (day === 6) return addDays(d, -1); // Saturday -> Friday
+  if (day === 0) return addDays(d, -2); // Sunday -> Friday
+  return d;
+}
+
+function addDays(d: Date, n: number): Date {
+  const result = new Date(d);
+  result.setDate(result.getDate() + n);
+  return result;
+}
+
 /** This cycle's (current calendar month) draw due date, or null with no fixed cadence. */
 export function getDrawDueDate(
   project: ScheduleFields,
@@ -42,7 +71,7 @@ export function getDrawDueDate(
   const month = referenceDate.getMonth();
   if (project.draw_due_type === "day_of_month") {
     const day = Math.min(project.draw_due_day, lastDayOfMonth(year, month));
-    return new Date(year, month, day);
+    return rollBackToWeekday(new Date(year, month, day));
   }
   return lastWeekdayOfMonth(year, month, project.draw_due_day);
 }
