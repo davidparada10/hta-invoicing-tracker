@@ -110,8 +110,8 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <p className="text-xs text-muted-foreground">Next Draw</p>
                 <p
                   className={
-                    r.isDrawOverdue
-                      ? "font-medium text-amber-700 dark:text-amber-300"
+                    r.isDrawUrgent
+                      ? "font-bold text-red-600 dark:text-red-400"
                       : "text-muted-foreground"
                   }
                 >
@@ -184,9 +184,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 </td>
                 <td
                   className={`px-4 py-2 whitespace-nowrap ${
-                    r.isDrawOverdue
-                      ? "font-medium text-amber-700 dark:text-amber-300"
-                      : "text-muted-foreground"
+                    r.isDrawUrgent ? "font-bold text-red-600 dark:text-red-400" : "text-muted-foreground"
                   }`}
                 >
                   {drawDueLabel(r.project) ?? "—"}

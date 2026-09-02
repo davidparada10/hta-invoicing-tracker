@@ -59,6 +59,27 @@ export function drawDueLabel(project: ScheduleFields): string | null {
   return `Due last ${WEEKDAY_NAMES[project.draw_due_day]}`;
 }
 
+function hasDrawSinceCycleStart(
+  projectDraws: Pick<OwnerDraw, "created_at">[],
+  referenceDate: Date
+): boolean {
+  const cycleStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  return projectDraws.some((d) => new Date(d.created_at).getTime() >= cycleStart.getTime());
+}
+
+/** Days until this cycle's due date (negative once past it), or null with no cadence. */
+export function daysUntilDrawDue(
+  project: ScheduleFields,
+  referenceDate: Date = new Date()
+): number | null {
+  const dueDate = getDrawDueDate(project, referenceDate);
+  if (!dueDate) return null;
+  const msPerDay = 1000 * 60 * 60 * 24;
+  return Math.round(
+    (startOfDay(dueDate).getTime() - startOfDay(referenceDate).getTime()) / msPerDay
+  );
+}
+
 /**
  * True once this cycle's due date has passed with no draw (any status)
  * created since the start of the current calendar month.
@@ -68,15 +89,25 @@ export function isDrawOverdue(
   projectDraws: Pick<OwnerDraw, "created_at">[],
   referenceDate: Date = new Date()
 ): boolean {
-  const dueDate = getDrawDueDate(project, referenceDate);
-  if (!dueDate) return false;
-  if (startOfDay(referenceDate).getTime() < startOfDay(dueDate).getTime()) return false;
+  const daysUntil = daysUntilDrawDue(project, referenceDate);
+  if (daysUntil === null || daysUntil > 0) return false;
+  return !hasDrawSinceCycleStart(projectDraws, referenceDate);
+}
 
-  const cycleStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
-  const hasDrawThisCycle = projectDraws.some(
-    (d) => new Date(d.created_at).getTime() >= cycleStart.getTime()
-  );
-  return !hasDrawThisCycle;
+/**
+ * True from `warnDaysBefore` days ahead of the due date through overdue,
+ * as long as no draw has been created yet this cycle — the "act now"
+ * window shown as a stronger visual warning than the plain due-date label.
+ */
+export function isDrawUrgent(
+  project: ScheduleFields,
+  projectDraws: Pick<OwnerDraw, "created_at">[],
+  referenceDate: Date = new Date(),
+  warnDaysBefore: number = 5
+): boolean {
+  const daysUntil = daysUntilDrawDue(project, referenceDate);
+  if (daysUntil === null || daysUntil > warnDaysBefore) return false;
+  return !hasDrawSinceCycleStart(projectDraws, referenceDate);
 }
 
 function ordinal(n: number): string {
