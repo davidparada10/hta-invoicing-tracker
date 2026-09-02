@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-04 (later)
+- Weekend day-of-month due dates now roll back to the prior Friday (e.g. Oct 25, 2026 → Fri Oct 23). Added cadence fields to Add Project (previously Edit-only) and server-side range validation on draw_due_day — caught and fixed a real regression along the way: EditProjectModal had no error handling, so the new validation crashed to Next's full error page instead of showing inline.
+
 ## 2026-09-04
 - Found Workflow was missing an entire flow for the draw-cadence feature (data architecture and AI-tools sections had been updated, but not the flow diagram itself, or "Where Things Live"). Added Flow 7 and the missing file references. Help page also didn't mention the new 20MB upload cap — added.
 
