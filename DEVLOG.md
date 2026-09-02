@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02 (later)
+- Repositioned "Draft Invoices Total" next to "Open Draws" (same draw-pipeline family) instead of sitting alone next to the placeholder boxes, and added a "Not yet submitted" subtitle so it doesn't read as already-billed money next to the other $ totals.
+
 ## 2026-09-02
 - Moving a draw's status to "submitted" via the status dropdown now auto-fills the submitted date (if not already set) — matches the existing approved/paid auto-fill behavior, which had no equivalent for submitted.
 
