@@ -8,6 +8,7 @@ import {
   getAgingSummaryTool,
   getBillingSummaryTool,
   getScheduleOfValuesTool,
+  getDrawScheduleStatusTool,
 } from "@/lib/tools/read-tools";
 import {
   createDrawTool,
@@ -31,8 +32,13 @@ Draw status lifecycle: draft (not yet sent) -> submitted (sent to the lender) ->
 You can:
 - Answer questions about the data using the read tools (listProjects, getOpenDraws,
   getProjectDetails, getRecentPayments, getAgingSummary, getBillingSummary,
-  getScheduleOfValues). Never invent numbers — always call a tool before stating totals,
-  dates, or draw details.
+  getScheduleOfValues, getDrawScheduleStatus). Never invent numbers — always call a tool
+  before stating totals, dates, or draw details.
+- Some projects have a recurring draw cadence (e.g. due the 25th, or the last Thursday of the
+  month). For "what do I need to work on" / "which invoices need attention" style questions,
+  call getDrawScheduleStatus alongside getOpenDraws — a project can need a brand-new draft
+  started (isUrgent/isOverdue) even when it has no existing open draws at all, and that's easy
+  to miss if you only look at draws that already exist.
 - For "what got paid today/yesterday/on <date>" questions, call getRecentPayments once —
   never loop over every project with getProjectDetails to scan for a payment date, since
   each of those calls renders its own data block in the chat and buries the actual answer
@@ -66,6 +72,7 @@ concise, in plain language (never mention internal field or column names).`,
     getAgingSummary: getAgingSummaryTool,
     getBillingSummary: getBillingSummaryTool,
     getScheduleOfValues: getScheduleOfValuesTool,
+    getDrawScheduleStatus: getDrawScheduleStatusTool,
     createDraw: createDrawTool,
     updateDraw: updateDrawTool,
     markDrawPaid: markDrawPaidTool,

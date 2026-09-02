@@ -168,6 +168,23 @@ export const getScheduleOfValuesTool = tool({
   },
 });
 
+export const getDrawScheduleStatusTool = tool({
+  description:
+    "Check each active project's recurring draw cadence (e.g. due the 25th, or the last Thursday of the month) and whether a NEW draft still needs to be created for the current cycle. Distinct from getOpenDraws, which only covers draws that already exist — this answers 'which projects haven't had a draw started yet this month.' isUrgent turns true starting 5 days before the due date; isOverdue once the date has passed with nothing created. Only includes projects that have a cadence configured.",
+  inputSchema: z.object({}),
+  execute: async () => {
+    const { rollups } = await getDashboardData();
+    return rollups
+      .filter((r) => r.nextDrawLabel !== null)
+      .map((r) => ({
+        project: r.project.name,
+        nextDrawDue: r.nextDrawLabel,
+        isUrgent: r.isDrawUrgent,
+        isOverdue: r.isDrawOverdue,
+      }));
+  },
+});
+
 export const getProjectDetailsTool = tool({
   description:
     "Get full details for one project by name: every draw (status/dates/amounts), schedule-of-values line items, and paid/open/contract-value totals.",

@@ -209,9 +209,11 @@ export async function getDashboardData(): Promise<{
       totalDraft,
       totalBudget,
       balanceToComplete,
-      isDrawOverdue: isDrawOverdue(project, projectDraws, now),
-      isDrawUrgent: isDrawUrgent(project, projectDraws, now),
-      nextDrawLabel: drawDueLabel(project, now),
+      // A closed project shouldn't keep nagging about a cadence set while it
+      // was still active — no more draws are expected from it.
+      isDrawOverdue: project.status === "active" && isDrawOverdue(project, projectDraws, now),
+      isDrawUrgent: project.status === "active" && isDrawUrgent(project, projectDraws, now),
+      nextDrawLabel: project.status === "active" ? drawDueLabel(project, now) : null,
     };
   });
 
