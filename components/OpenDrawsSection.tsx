@@ -56,15 +56,25 @@ export default function OpenDrawsSection({
     if (fromUrl) setBucketFilter(fromUrl);
   }, [initialAging]);
 
-  const totalOpen = draws.reduce((acc, d) => acc + openBalance(d), 0);
-  const displayed = useMemo(
-    () => draws.filter((d) => matchesFilter(d, bucketFilter)),
-    [draws, bucketFilter]
+  // Drafts ride along in `draws` so they're reachable here for a quick status
+  // change, but they're not real open invoices yet — keep them out of the
+  // counts/totals/aging summary, which describe money actually owed.
+  const billed = useMemo(() => draws.filter((d) => d.status !== "draft"), [draws]);
+  const drafts = useMemo(() => draws.filter((d) => d.status === "draft"), [draws]);
+
+  const totalOpen = billed.reduce((acc, d) => acc + openBalance(d), 0);
+  const displayedBilled = useMemo(
+    () => billed.filter((d) => matchesFilter(d, bucketFilter)),
+    [billed, bucketFilter]
   );
-  const displayedOpen = displayed.reduce((acc, d) => acc + openBalance(d), 0);
+  const displayed = useMemo(
+    () => [...displayedBilled, ...(bucketFilter ? [] : drafts)],
+    [displayedBilled, drafts, bucketFilter]
+  );
+  const displayedOpen = displayedBilled.reduce((acc, d) => acc + openBalance(d), 0);
 
   const agingSummary = AGING_BUCKETS.map((bucket) => {
-    const inBucket = draws.filter((d) => agingBucket(ageOf(d)) === bucket);
+    const inBucket = billed.filter((d) => agingBucket(ageOf(d)) === bucket);
     return {
       bucket,
       count: inBucket.length,
@@ -107,8 +117,10 @@ export default function OpenDrawsSection({
         <h2 className="text-lg font-semibold text-foreground">Open Draws</h2>
         <span className="text-sm text-muted-foreground">
           {bucketFilter
-            ? `${displayed.length} of ${draws.length} open · ${formatCurrency(displayedOpen)} showing`
-            : `${draws.length} open · ${formatCurrency(totalOpen)} awaiting payment`}
+            ? `${displayedBilled.length} of ${billed.length} open · ${formatCurrency(displayedOpen)} showing`
+            : `${billed.length} open · ${formatCurrency(totalOpen)} awaiting payment${
+                drafts.length > 0 ? ` · ${drafts.length} draft${drafts.length === 1 ? "" : "s"}` : ""
+              }`}
         </span>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
@@ -212,7 +224,7 @@ export default function OpenDrawsSection({
         })}
         {displayed.length === 0 && (
           <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
-            {draws.length === 0
+            {billed.length === 0
               ? "No open draws. Everything invoiced has been paid."
               : "No open draws in this age range."}
           </div>

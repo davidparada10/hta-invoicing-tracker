@@ -135,7 +135,11 @@ export async function getOpenDraws(): Promise<OpenDraw[]> {
   const projectsById = new Map(projects.map((p) => [p.id, p]));
 
   const openDraws = draws
-    .filter((d) => openBalance(d) > 0.005)
+    // Drafts have no real outstanding balance yet (nothing's been billed),
+    // but are included so they're reachable for a quick status change
+    // without opening the project — excluded from the $ totals/aging
+    // summary in OpenDrawsSection, which filter them back out.
+    .filter((d) => d.status === "draft" || openBalance(d) > 0.005)
     .map((d) => {
       const project = projectsById.get(d.project_id);
       return {
@@ -160,6 +164,7 @@ export async function getDashboardData(): Promise<{
     totalOpenToOwner: number;
     totalBudget: number;
     totalRetainage: number;
+    totalDraft: number;
   };
 }> {
   const [projects, draws, budgetLines] = await Promise.all([
@@ -180,6 +185,9 @@ export async function getDashboardData(): Promise<{
       projectDraws.filter((d) => d.status !== "draft").map((d) => d.amount_paid)
     );
     const totalOpenToOwner = sum(projectDraws.map(openBalance));
+    const totalDraft = sum(
+      projectDraws.filter((d) => d.status === "draft").map((d) => d.amount_requested)
+    );
 
     const totalBudget = sum(projectBudgetLines.map((l) => l.scheduled_value));
     // amount_requested/amount_paid are net of retention (the G702 "current
@@ -196,6 +204,7 @@ export async function getDashboardData(): Promise<{
       totalDrawRetainage,
       totalPaidToOwner,
       totalOpenToOwner,
+      totalDraft,
       totalBudget,
       balanceToComplete,
     };
@@ -205,8 +214,12 @@ export async function getDashboardData(): Promise<{
   const totalOpenToOwner = sum(rollups.map((r) => r.totalOpenToOwner));
   const totalBudget = sum(rollups.map((r) => r.totalBudget));
   const totalRetainage = sum(rollups.map((r) => r.totalDrawRetainage));
+  const totalDraft = sum(rollups.map((r) => r.totalDraft));
 
-  return { rollups, totals: { totalPaidToOwner, totalOpenToOwner, totalBudget, totalRetainage } };
+  return {
+    rollups,
+    totals: { totalPaidToOwner, totalOpenToOwner, totalBudget, totalRetainage, totalDraft },
+  };
 }
 
 function sum(values: number[]): number {

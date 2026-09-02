@@ -60,6 +60,7 @@ export interface ProjectRollup {
   totalDrawRetainage: number;
   totalPaidToOwner: number;
   totalOpenToOwner: number;
+  totalDraft: number;
   totalBudget: number;
   balanceToComplete: number;
 }

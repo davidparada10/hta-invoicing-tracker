@@ -148,7 +148,35 @@ export default async function DashboardPage({
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Open draws
             </p>
-            <p className="text-lg font-semibold text-foreground mt-1">{openDraws.length}</p>
+            <p className="text-lg font-semibold text-foreground mt-1">
+              {openDraws.filter((d) => d.status !== "draft").length}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Draft invoices total
+            </p>
+            <p className="text-lg font-semibold text-foreground mt-1">
+              {formatCurrency(totals.totalDraft)}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Coming soon
+            </p>
+            <p className="text-lg font-semibold text-muted-foreground mt-1">—</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Coming soon
+            </p>
+            <p className="text-lg font-semibold text-muted-foreground mt-1">—</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Coming soon
+            </p>
+            <p className="text-lg font-semibold text-muted-foreground mt-1">—</p>
           </div>
         </div>
 
