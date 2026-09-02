@@ -211,9 +211,9 @@ export default function WorkflowPage() {
           title="Recurring Draw-Cadence Reminders"
           subtitle="Dashboard + AI assistant — flags a project that hasn't had a draw started yet this cycle"
           steps={[
-            { icon: "👤", title: "Set cadence", detail: "Edit Project — day-of-month, or last weekday of the month", category: "trigger", edgeLabel: "saves" },
+            { icon: "👤", title: "Set cadence", detail: "Add/Edit Project — day-of-month, or last weekday of the month", category: "trigger", edgeLabel: "validates" },
             { icon: "🗄️", title: "inv_projects", detail: "draw_due_type / draw_due_day — null means no cadence tracked", category: "data", edgeLabel: "read every load" },
-            { icon: "⚡", title: "lib/drawSchedule.ts", detail: "Resolves this cycle's real due date; pure, no stored date", category: "server", edgeLabel: "checks" },
+            { icon: "⚡", title: "lib/drawSchedule.ts", detail: "Resolves this cycle's real due date; a weekend day-of-month rolls back to the prior Friday; pure, no stored date", category: "server", edgeLabel: "checks" },
             { icon: "❓", title: "Draw covers this cycle?", detail: "Matched by the draw's period_end/date_submitted, not when the record was created", category: "decision", edgeLabel: "no, due soon" },
             { icon: "🔔", title: "Alert banner + Next Draw column", detail: "Amber from 5 days out, through overdue; clears active-only", category: "output", edgeLabel: "also feeds" },
             { icon: "🤖", title: "getDrawScheduleStatus", detail: "Same status folded into the AI assistant's 'what needs work' answers", category: "ai" },
