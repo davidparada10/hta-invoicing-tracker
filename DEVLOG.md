@@ -12,6 +12,10 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-03 (night)
+- Added getDrawScheduleStatus so the chat assistant can finally see the draw-cadence data — before this, "which invoices do I need to work on" could only describe draws that already exist, blind to a project needing a brand-new draft per its schedule. Verified live: the assistant now folds cadence status into that answer.
+- Fixed a second gap in the cadence feature: isDrawOverdue/isDrawUrgent/nextDrawLabel never checked project status, so a closed project could nag red/bold forever if it still had a cadence set from when it was active. Gated all three on active status.
+
 ## 2026-09-03 (even later)
 - Fixed a timezone bug in the period-matching code from earlier today: bare "YYYY-MM-DD" dates (period_end/date_submitted) parsed as UTC midnight shift to the previous day — and for the 1st of a month, the previous month — in any timezone behind UTC. Would have broken the just-added cycle check exactly at month boundaries. Confirmed and fixed.
 
