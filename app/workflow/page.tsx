@@ -198,7 +198,7 @@ export default function WorkflowPage() {
             { icon: "👤", title: "Ask or describe", detail: "\"What's paid on Aneta?\" or \"Add a draw...\"", category: "trigger", edgeLabel: "POST" },
             { icon: "⚡", title: "/api/chat", detail: "createAgentUIStreamResponse", category: "server", edgeLabel: "runs" },
             { icon: "🤖", title: "htaAgent (ToolLoopAgent)", detail: "lib/agents/hta-agent.ts · Claude via direct Anthropic API", category: "ai", edgeLabel: "picks a tool" },
-            { icon: "🔍", title: "Read tool", detail: "listProjects / getOpenDraws / getProjectDetails / getRecentPayments / getAgingSummary / getBillingSummary / getScheduleOfValues — auto-runs", category: "server", edgeLabel: "or" },
+            { icon: "🔍", title: "Read tool", detail: "listProjects / getOpenDraws / getProjectDetails / getRecentPayments / getAgingSummary / getBillingSummary / getScheduleOfValues / getDrawScheduleStatus — auto-runs", category: "server", edgeLabel: "or" },
             { icon: "✋", title: "Write tool proposed", detail: "createDraw / updateDraw / markDrawPaid (partial pay) / createBudgetLine", category: "decision", edgeLabel: "Confirm" },
             { icon: "🗄️", title: "Supabase write", detail: "Same tables as the manual forms use", category: "data", edgeLabel: "streams back" },
             { icon: "✅", title: "Chat reply", detail: "Plain-language summary of what happened", category: "output" },
