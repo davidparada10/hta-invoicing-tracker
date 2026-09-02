@@ -107,10 +107,11 @@ export default function WorkflowPage() {
           Multi-Family Invoice Tracker — System Workflow
         </h1>
         <p className="text-sm text-muted-foreground max-w-3xl mb-8">
-          Seven flows: G702 draw upload · G703 schedule-of-values import · draw lifecycle &amp;
+          Eight flows: G702 draw upload · G703 schedule-of-values import · draw lifecycle &amp;
           Mark Paid (partial pay supported) · aging alerts &amp; collections filters · billing
-          summary reporting · AI assistant (read + confirm-to-write) · passcode auth gate.
-          Written for anyone who needs to pick up maintenance on this app.
+          summary reporting · AI assistant (read + confirm-to-write) · recurring draw-cadence
+          reminders · passcode auth gate. Written for anyone who needs to pick up maintenance on
+          this app.
         </p>
 
         <div className="flex flex-wrap gap-x-5 gap-y-2 mb-10 text-xs text-muted-foreground">
@@ -207,6 +208,20 @@ export default function WorkflowPage() {
 
         <Flow
           number="7"
+          title="Recurring Draw-Cadence Reminders"
+          subtitle="Dashboard + AI assistant — flags a project that hasn't had a draw started yet this cycle"
+          steps={[
+            { icon: "👤", title: "Set cadence", detail: "Edit Project — day-of-month, or last weekday of the month", category: "trigger", edgeLabel: "saves" },
+            { icon: "🗄️", title: "inv_projects", detail: "draw_due_type / draw_due_day — null means no cadence tracked", category: "data", edgeLabel: "read every load" },
+            { icon: "⚡", title: "lib/drawSchedule.ts", detail: "Resolves this cycle's real due date; pure, no stored date", category: "server", edgeLabel: "checks" },
+            { icon: "❓", title: "Draw covers this cycle?", detail: "Matched by the draw's period_end/date_submitted, not when the record was created", category: "decision", edgeLabel: "no, due soon" },
+            { icon: "🔔", title: "Alert banner + Next Draw column", detail: "Amber from 5 days out, through overdue; clears active-only", category: "output", edgeLabel: "also feeds" },
+            { icon: "🤖", title: "getDrawScheduleStatus", detail: "Same status folded into the AI assistant's 'what needs work' answers", category: "ai" },
+          ]}
+        />
+
+        <Flow
+          number="8"
           title="Passcode Auth Gate"
           subtitle="Every request except /login and static assets — backed by RLS at the DB layer, not just the app layer"
           steps={[
@@ -288,11 +303,13 @@ export default function WorkflowPage() {
             <Detail term="lib/lender-portal-parser.ts">Alternate PDF format (Conventus/SwiftDraws-style lender portal exports), auto-detected by text signature — draw-only, does not import a schedule of values</Detail>
             <Detail term="lib/aging.ts">Days-open / aging-bucket math for the dashboard alert banner and Open Draws filters</Detail>
             <Detail term="lib/billing.ts">YTD/QTD billed-vs-received calc for the Billing Summary page</Detail>
+            <Detail term="lib/drawSchedule.ts">Recurring draw-cadence math — this cycle's due date, isDrawOverdue/isDrawUrgent, matched by the draw's billed period rather than when it was created</Detail>
             <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools</Detail>
             <Detail term="lib/auth/session.ts">Passcode session signing/verification</Detail>
             <Detail term="components/*Section.tsx">The CRUD table + modal for one entity (draws, schedule of values)</Detail>
             <Detail term="components/AddressAutocomplete.tsx">Google Places autocomplete for the project Address field, with a plain-text fallback</Detail>
             <Detail term="components/AgingAlertBanner.tsx, ProjectStatusSelect.tsx">Dashboard 60+ day alert; inline active/closed status dropdown</Detail>
+            <Detail term="components/DrawsDueAlertBanner.tsx">Dashboard alert for projects overdue on their recurring draw cadence</Detail>
           </dl>
         </div>
       </main>

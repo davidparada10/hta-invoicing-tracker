@@ -26,7 +26,9 @@ export default function HelpPage() {
           replaces a project&rsquo;s entire schedule of values (
           <strong className="text-foreground">.xlsx only</strong> — its dense table isn&rsquo;t
           reliable to read from a PDF). Neither upload saves automatically — you review and
-          confirm every value before it&rsquo;s stored.
+          confirm every value before it&rsquo;s stored. Either file type is capped at{" "}
+          <strong className="text-foreground">20MB</strong>; real G702/G703 workbooks are a few
+          MB at most.
         </p>
 
         <div className="rounded-xl border border-border bg-card p-5 mb-8 overflow-x-auto">
