@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-04
+- Found Workflow was missing an entire flow for the draw-cadence feature (data architecture and AI-tools sections had been updated, but not the flow diagram itself, or "Where Things Live"). Added Flow 7 and the missing file references. Help page also didn't mention the new 20MB upload cap — added.
+
 ## 2026-09-03 (night)
 - Added getDrawScheduleStatus so the chat assistant can finally see the draw-cadence data — before this, "which invoices do I need to work on" could only describe draws that already exist, blind to a project needing a brand-new draft per its schedule. Verified live: the assistant now folds cadence status into that answer.
 - Fixed a second gap in the cadence feature: isDrawOverdue/isDrawUrgent/nextDrawLabel never checked project status, so a closed project could nag red/bold forever if it still had a cadence set from when it was active. Gated all three on active status.
