@@ -12,6 +12,10 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02 (evening)
+- Rate-limited /api/login: 10 failed passcode attempts from an IP within 15 minutes locks it out for 15 minutes, even against a subsequently-correct passcode. Counter lives in a new inv_login_attempts table (RLS locked down like everything else) since Vercel Functions are stateless — an in-memory counter wouldn't survive between invocations. Verified against the real endpoint: lockout triggers on the 10th failure, blocks a correct passcode while active, and clears on success.
+- Also versioned the pre-push build check with Husky (was a local-only .git/hooks script) after 5 consecutive deployments broke on an ESLint-only error that `tsc --noEmit` alone never catches.
+
 ## 2026-09-04 (later)
 - Weekend day-of-month due dates now roll back to the prior Friday (e.g. Oct 25, 2026 → Fri Oct 23). Added cadence fields to Add Project (previously Edit-only) and server-side range validation on draw_due_day — caught and fixed a real regression along the way: EditProjectModal had no error handling, so the new validation crashed to Next's full error page instead of showing inline.
 
