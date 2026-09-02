@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-03
+- "Next Draw" column now turns red/bold starting 5 days before the due date (not just once overdue) — same "no draw created yet this cycle" check, so it clears the moment a draft exists and the next cycle's date takes over automatically since due dates are computed live, never stored.
+
 ## 2026-09-02 (late night)
 - New feature: recurring draw cadence per project. Added `draw_due_type`/`draw_due_day` to inv_projects (day-of-month or last-weekday-of-month, editable in Edit Project), a `lib/drawSchedule.ts` helper that flags a project "overdue" once its cycle's due date passes with no draw created yet, a dashboard alert banner listing overdue projects, and a "Next Draw" column in the by-project table. Seeded per the actual schedule: Aneta/Pacific/Centinela/Hi Point/St. Rest on the 25th, Broadway/Gilmore/Victoria on the 15th, Delmas/Corinth on the last Thursday; Valley left unscheduled (wrapping up soon). Email reminders noted as a likely follow-up once this lands.
 
