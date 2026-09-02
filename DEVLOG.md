@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02 (evening)
+- Draft Invoices Total now highlights amber ("Needs to be submitted") whenever there's real draft $ sitting around — same warning color used elsewhere for "needs attention," so it reads as a priority action item instead of a neutral stat. Reverts to the plain card style when there are no drafts.
+
 ## 2026-09-02 (later)
 - Repositioned "Draft Invoices Total" next to "Open Draws" (same draw-pipeline family) instead of sitting alone next to the placeholder boxes, and added a "Not yet submitted" subtitle so it doesn't read as already-billed money next to the other $ totals.
 
