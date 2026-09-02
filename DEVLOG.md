@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02 (midday)
+- Found 3 spots with no error handling around Server Actions that throw on any Supabase error, while auditing the app post-upgrade: DrawsSection's and BudgetSection's delete handlers fired the delete inside `startTransition` with no `await`/`catch` (a failed delete silently left the row in place with zero feedback), and BudgetSection's add/edit form had no `try/catch` at all (any save error would crash to Next's full-page error boundary — the same bug already fixed once in EditProjectModal on 09-04, just not applied to its sibling modal). Brought all three in line with the established try/catch + inline-error pattern used elsewhere (MarkPaidButton, DrawFormModal, EditProjectModal). Verified live: add/edit/delete on a budget line still works end-to-end.
+
 ## 2026-09-02 (later morning)
 - Upgraded Next.js 14.2.35 → 16.3.4 (React 18 → 19.2.8) to get off 5 unpatched high-severity CVEs in the 14.x line — no code changes to app behavior, purely a platform upgrade. Ran the official codemod (async params/searchParams, middleware.ts → proxy.ts rename, ESLint flat-config migration), then fixed what it got wrong: reverted an incorrectly-added `instant` route export (requires `cacheComponents`, which we're not adopting), renamed `experimental.serverComponentsExternalPackages` to top-level `serverExternalPackages` by hand, and pinned `eslint@9.39.5` after the codemod's auto-selected `eslint@10` crashed against the bundled `eslint-plugin-react`.
 - Biggest real risk was Turbopack (now the default bundler) breaking the pdf-parse/dommatrix native-module workaround that's caused two prior production crashes — verified live by uploading a PDF through the Add Draw modal and confirming `parseG702Upload` still runs clean. Also spot-checked the chat assistant (AI SDK + Anthropic tool calls), login rate-limiting, billing/help/workflow pages, and mobile — all clean, no console errors.
