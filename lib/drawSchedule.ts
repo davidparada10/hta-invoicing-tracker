@@ -61,8 +61,16 @@ export function drawDueLabel(
   return `Due ${dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
 }
 
+// period_end/date_submitted are bare "YYYY-MM-DD" with no timezone — parsed
+// as-is that's UTC midnight, which shifts to the previous day (and
+// potentially the previous month) in any timezone behind UTC. created_at is
+// already a full timestamp with its own offset, so leave it alone.
+function parseDateOnly(value: string): Date {
+  return new Date(value.length <= 10 ? `${value}T00:00:00` : value);
+}
+
 function drawCycleDate(d: CycleFields): Date {
-  return new Date(d.period_end ?? d.date_submitted ?? d.created_at);
+  return parseDateOnly(d.period_end ?? d.date_submitted ?? d.created_at);
 }
 
 function hasDrawForCycle(projectDraws: CycleFields[], referenceDate: Date): boolean {
