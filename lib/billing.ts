@@ -3,6 +3,7 @@
 // reusable and independently testable.
 
 import { daysOpen } from "@/lib/aging";
+import { parseLocalDate } from "@/lib/format";
 
 export interface DrawForBilling {
   project_id: string;
@@ -38,7 +39,7 @@ export interface BillingReport {
 }
 
 function yearAndQuarterOf(dateISO: string): { year: number; quarter: 1 | 2 | 3 | 4 } {
-  const d = new Date(dateISO);
+  const d = parseLocalDate(dateISO);
   return { year: d.getFullYear(), quarter: (Math.floor(d.getMonth() / 3) + 1) as 1 | 2 | 3 | 4 };
 }
 
@@ -56,7 +57,7 @@ function averageDays(sum: number, count: number): number | null {
 // excluded so a missing date doesn't read as "paid in 0 days".
 function daysToPay(d: DrawForBilling): number | null {
   if (!d.date_paid) return null;
-  return daysOpen(d.date_submitted ?? d.created_at, new Date(d.date_paid));
+  return daysOpen(d.date_submitted ?? d.created_at, parseLocalDate(d.date_paid));
 }
 
 // "Requested" is bucketed by when a draw was submitted (billed); "received"

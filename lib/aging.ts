@@ -3,11 +3,12 @@
 // "use client" without bundling server code.
 
 import { badgeCard, badgeTone } from "@/lib/badgeTone";
+import { parseLocalDate } from "@/lib/format";
 
 export type AgingBucket = "current" | "31-60" | "61-90" | "90+";
 
 export function daysOpen(referenceDateISO: string, now: Date = new Date()): number {
-  const ref = new Date(referenceDateISO);
+  const ref = parseLocalDate(referenceDateISO);
   const diffMs = now.getTime() - ref.getTime();
   return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 }

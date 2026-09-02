@@ -76,6 +76,10 @@ export default function AddressAutocomplete({
   const elementRef = useRef<(HTMLElement & { value?: string }) | null>(null);
   const { resolvedTheme } = useTheme();
   const [value, setValue] = useState(defaultValue ?? "");
+  // Whether the Google widget failed to load or was never attempted (no API
+  // key). Starts true so the field is usable immediately, then flips false
+  // only once the real autocomplete widget is actually attached.
+  const [showPlainInput, setShowPlainInput] = useState(true);
 
   useEffect(() => {
     const element = elementRef.current;
@@ -121,6 +125,7 @@ export default function AddressAutocomplete({
         }
 
         container.appendChild(element);
+        setShowPlainInput(false);
 
         element.addEventListener("gmp-select", async (event: Event) => {
           const prediction = (event as unknown as {
@@ -158,8 +163,17 @@ export default function AddressAutocomplete({
 
   return (
     <div>
-      <div ref={containerRef} className={className} />
-      <input type="hidden" name="address" value={value} />
+      <div ref={containerRef} className={className} hidden={showPlainInput} />
+      {showPlainInput ? (
+        <input
+          name="address"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className={className}
+        />
+      ) : (
+        <input type="hidden" name="address" value={value} />
+      )}
       <noscript>
         <input name="address" defaultValue={defaultValue} className={className} />
       </noscript>

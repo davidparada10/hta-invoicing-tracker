@@ -16,9 +16,18 @@ export function formatCurrencyCompact(value: number | null | undefined): string 
   }).format(value ?? 0);
 }
 
+// Bare "YYYY-MM-DD" strings (no timezone) parse as UTC midnight, which
+// shifts to the previous day — and near a month boundary, the previous
+// month — in any timezone behind UTC. Appending a local time forces
+// local-midnight parsing instead. Full timestamps (already carrying their
+// own offset, e.g. created_at) are passed through unchanged.
+export function parseLocalDate(value: string): Date {
+  return new Date(value.length <= 10 ? `${value}T00:00:00` : value);
+}
+
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
-  return new Date(value + "T00:00:00").toLocaleDateString("en-US", {
+  return parseLocalDate(value).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
