@@ -26,8 +26,13 @@ export default function DrawStatusSelect({
       e.target.value = status;
       return;
     }
-    startTransition(() => {
-      updateDrawStatus(drawId, projectId, next);
+    startTransition(async () => {
+      try {
+        await updateDrawStatus(drawId, projectId, next);
+      } catch (err) {
+        e.target.value = status;
+        alert(err instanceof Error ? err.message : "Could not update draw status.");
+      }
     });
   }
 

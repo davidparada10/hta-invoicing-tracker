@@ -19,8 +19,13 @@ export default function ProjectStatusSelect({
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const next = e.target.value as ProjectStatus;
     if (next === status) return;
-    startTransition(() => {
-      updateProjectStatus(projectId, next);
+    startTransition(async () => {
+      try {
+        await updateProjectStatus(projectId, next);
+      } catch (err) {
+        e.target.value = status;
+        alert(err instanceof Error ? err.message : "Could not update project status.");
+      }
     });
   }
 
