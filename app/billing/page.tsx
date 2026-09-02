@@ -13,11 +13,12 @@ const QUARTER_LABEL: Record<1 | 2 | 3 | 4, string> = {
   4: "Q4 (Oct–Dec)",
 };
 
-export default async function BillingPage({
-  searchParams,
-}: {
-  searchParams: { year?: string };
-}) {
+export default async function BillingPage(
+  props: {
+    searchParams: Promise<{ year?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const now = new Date();
   const thisYear = now.getFullYear();
   const year = Number(searchParams.year) || thisYear;

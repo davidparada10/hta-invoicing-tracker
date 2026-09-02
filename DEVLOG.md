@@ -12,6 +12,11 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02 (later morning)
+- Upgraded Next.js 14.2.35 → 16.3.4 (React 18 → 19.2.8) to get off 5 unpatched high-severity CVEs in the 14.x line — no code changes to app behavior, purely a platform upgrade. Ran the official codemod (async params/searchParams, middleware.ts → proxy.ts rename, ESLint flat-config migration), then fixed what it got wrong: reverted an incorrectly-added `instant` route export (requires `cacheComponents`, which we're not adopting), renamed `experimental.serverComponentsExternalPackages` to top-level `serverExternalPackages` by hand, and pinned `eslint@9.39.5` after the codemod's auto-selected `eslint@10` crashed against the bundled `eslint-plugin-react`.
+- Biggest real risk was Turbopack (now the default bundler) breaking the pdf-parse/dommatrix native-module workaround that's caused two prior production crashes — verified live by uploading a PDF through the Add Draw modal and confirming `parseG702Upload` still runs clean. Also spot-checked the chat assistant (AI SDK + Anthropic tool calls), login rate-limiting, billing/help/workflow pages, and mobile — all clean, no console errors.
+- New `react-hooks/set-state-in-effect` lint rule (from the updated `eslint-plugin-react-hooks`) flagged 4 pre-existing, legitimate effects (hydration-safe mount flags, URL-to-state sync, modal form reset) — downgraded to a warning rather than refactoring mid-upgrade; noted in `eslint.config.mjs` for future revisiting.
+
 ## 2026-09-02 (evening)
 - Rate-limited /api/login: 10 failed passcode attempts from an IP within 15 minutes locks it out for 15 minutes, even against a subsequently-correct passcode. Counter lives in a new inv_login_attempts table (RLS locked down like everything else) since Vercel Functions are stateless — an in-memory counter wouldn't survive between invocations. Verified against the real endpoint: lockout triggers on the 10th failure, blocks a correct passcode while active, and clears on success.
 - Also versioned the pre-push build check with Husky (was a local-only .git/hooks script) after 5 consecutive deployments broke on an ESLint-only error that `tsc --noEmit` alone never catches.

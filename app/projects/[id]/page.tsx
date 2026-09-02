@@ -19,13 +19,14 @@ import ProjectSummaryCard from "@/components/ProjectSummaryCard";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectDetailPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { tab?: string };
-}) {
+export default async function ProjectDetailPage(
+  props: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ tab?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const project = await getProject(params.id);
   if (!project) notFound();
 

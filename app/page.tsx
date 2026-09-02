@@ -11,11 +11,12 @@ import DrawsDueAlertBanner from "@/components/DrawsDueAlertBanner";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: { aging?: string };
-}) {
+export default async function DashboardPage(
+  props: {
+    searchParams: Promise<{ aging?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const currentYear = new Date().getFullYear();
   const [{ rollups, totals }, openDraws, billingYtd] = await Promise.all([
     getDashboardData(),
