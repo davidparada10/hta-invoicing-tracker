@@ -301,13 +301,18 @@ export async function updateDrawStatus(id: string, projectId: string, status: Dr
 
   const { data: draw, error: fetchError } = await supabase
     .from("inv_owner_draws")
-    .select("amount_requested, amount_approved, amount_paid, date_paid, date_approved")
+    .select(
+      "amount_requested, amount_approved, amount_paid, date_submitted, date_paid, date_approved"
+    )
     .eq("id", id)
     .single();
   if (fetchError) throw fetchError;
 
   const payload: Record<string, unknown> = { status };
 
+  if (status === "submitted") {
+    if (!draw.date_submitted) payload.date_submitted = today;
+  }
   if (status === "paid") {
     if (!(Number(draw.amount_paid) > 0)) payload.amount_paid = draw.amount_requested;
     if (!draw.date_paid) payload.date_paid = today;
