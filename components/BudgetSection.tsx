@@ -19,6 +19,7 @@ export default function BudgetSection({
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BudgetLine | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -56,24 +57,35 @@ export default function BudgetSection({
 
   function openAdd() {
     setEditing(null);
+    setFormError(null);
     setModalOpen(true);
   }
 
   function openEdit(line: BudgetLine) {
     setEditing(line);
+    setFormError(null);
     setModalOpen(true);
   }
 
   function handleDelete(line: BudgetLine) {
     if (!confirm(`Delete line "${line.description}"?`)) return;
-    startTransition(() => {
-      deleteBudgetLine(line.id, projectId);
+    startTransition(async () => {
+      try {
+        await deleteBudgetLine(line.id, projectId);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not delete line item.");
+      }
     });
   }
 
   async function handleSubmit(formData: FormData) {
-    await upsertBudgetLine(formData);
-    setModalOpen(false);
+    setFormError(null);
+    try {
+      await upsertBudgetLine(formData);
+      setModalOpen(false);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Could not save line item. Please try again.");
+    }
   }
 
   async function handleImportClick() {
@@ -360,6 +372,8 @@ export default function BudgetSection({
             />
             No retention held on this line (e.g. bonds, insurance, GC fee)
           </label>
+
+          {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
 
           <div className="flex justify-end gap-2 pt-2">
             <button

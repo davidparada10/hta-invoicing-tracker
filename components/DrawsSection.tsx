@@ -50,8 +50,12 @@ export default function DrawsSection({
 
   function handleDelete(draw: OwnerDraw) {
     if (!confirm(`Delete draw #${draw.draw_number}?`)) return;
-    startTransition(() => {
-      deleteDraw(draw.id, projectId);
+    startTransition(async () => {
+      try {
+        await deleteDraw(draw.id, projectId);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not delete draw.");
+      }
     });
   }
 
