@@ -62,6 +62,14 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <span className="font-medium text-foreground hover:underline">
                   {r.project.name}
                 </span>
+                {r.totalDraft > 0 && (
+                  <span
+                    title={`${formatCurrency(r.totalDraft)} in draft draws, not yet submitted`}
+                    className="ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60"
+                  >
+                    Draft
+                  </span>
+                )}
                 {r.project.address && (
                   <div className="text-xs text-muted-foreground truncate">{r.project.address}</div>
                 )}
@@ -127,6 +135,14 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     <span className="font-medium text-foreground hover:underline">
                       {r.project.name}
                     </span>
+                    {r.totalDraft > 0 && (
+                      <span
+                        title={`${formatCurrency(r.totalDraft)} in draft draws, not yet submitted`}
+                        className="ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60"
+                      >
+                        Draft
+                      </span>
+                    )}
                     {r.project.address && (
                       <div className="text-xs text-muted-foreground">{r.project.address}</div>
                     )}
