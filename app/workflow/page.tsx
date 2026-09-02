@@ -303,7 +303,7 @@ export default function WorkflowPage() {
             <Detail term="lib/lender-portal-parser.ts">Alternate PDF format (Conventus/SwiftDraws-style lender portal exports), auto-detected by text signature — draw-only, does not import a schedule of values</Detail>
             <Detail term="lib/aging.ts">Days-open / aging-bucket math for the dashboard alert banner and Open Draws filters</Detail>
             <Detail term="lib/billing.ts">YTD/QTD billed-vs-received calc for the Billing Summary page</Detail>
-            <Detail term="lib/drawSchedule.ts">Recurring draw-cadence math — this cycle's due date, isDrawOverdue/isDrawUrgent, matched by the draw's billed period rather than when it was created</Detail>
+            <Detail term="lib/drawSchedule.ts">Recurring draw-cadence math — this cycle&rsquo;s due date, isDrawOverdue/isDrawUrgent, matched by the draw&rsquo;s billed period rather than when it was created</Detail>
             <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools</Detail>
             <Detail term="lib/auth/session.ts">Passcode session signing/verification</Detail>
             <Detail term="components/*Section.tsx">The CRUD table + modal for one entity (draws, schedule of values)</Detail>
