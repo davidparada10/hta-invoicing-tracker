@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-03 (even later)
+- Fixed a timezone bug in the period-matching code from earlier today: bare "YYYY-MM-DD" dates (period_end/date_submitted) parsed as UTC midnight shift to the previous day — and for the 1st of a month, the previous month — in any timezone behind UTC. Would have broken the just-added cycle check exactly at month boundaries. Confirmed and fixed.
+
 ## 2026-09-03 (later)
 - Found and fixed a real gap while spot-checking Corinth/Delmas: the cycle-satisfied check matched on when a draw *record was created*, not the period it bills for — a late August draft (created Sept 2) would have silently satisfied September's cadence too. Now matches on period_end/date_submitted instead. Also switched "Next Draw" from a generic "Due last Thursday" to the resolved calendar date ("Due Sep 24"), computed once server-side per project instead of recomputed client-side.
 
