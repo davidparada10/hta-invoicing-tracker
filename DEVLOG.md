@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02 (night)
+- Added a small amber "Draft" badge next to a project's name in the dashboard's by-project table when it has an unsent draft — previously the only way to know was checking Open Draws or opening the project itself.
+
 ## 2026-09-02 (evening)
 - Draft Invoices Total now highlights amber ("Needs to be submitted") whenever there's real draft $ sitting around — same warning color used elsewhere for "needs attention," so it reads as a priority action item instead of a neutral stat. Reverts to the plain card style when there are no drafts.
 
