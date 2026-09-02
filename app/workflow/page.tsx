@@ -228,8 +228,9 @@ export default function WorkflowPage() {
             { icon: "🌐", title: "Any request", detail: "middleware.ts intercepts", category: "trigger", edgeLabel: "checks" },
             { icon: "🔑", title: "Session cookie?", detail: "hta_inv_session — HMAC-signed, 30 day TTL", category: "decision", edgeLabel: "invalid" },
             { icon: "🔒", title: "Redirect to /login", detail: "Passcode form", category: "output", edgeLabel: "submits" },
+            { icon: "🚦", title: "Rate limit check", detail: "inv_login_attempts by IP — 10 failures/15min locks that IP out for 15min, even against a correct passcode", category: "decision", edgeLabel: "not locked" },
             { icon: "⚡", title: "/api/login", detail: "verifyPasscode() against SITE_PASSCODE", category: "server", edgeLabel: "sets cookie" },
-            { icon: "✅", title: "Session created", detail: "createSessionToken() — HMAC(expiry, SITE_PASSCODE)", category: "output" },
+            { icon: "✅", title: "Session created", detail: "createSessionToken() — HMAC(expiry, SITE_PASSCODE); a success clears the IP's attempt counter", category: "output" },
           ]}
         />
 
@@ -254,6 +255,11 @@ export default function WorkflowPage() {
             icon="🔗"
             name="inv_draw_line_allocations"
             fields="draw_id + budget_line_id → amount billed this period against that budget line"
+          />
+          <DataTable
+            icon="🚦"
+            name="inv_login_attempts"
+            fields="ip (PK) · failed_count · window_start · locked_until — throttles brute-forcing SITE_PASSCODE"
           />
         </div>
 
@@ -306,6 +312,7 @@ export default function WorkflowPage() {
             <Detail term="lib/drawSchedule.ts">Recurring draw-cadence math — this cycle&rsquo;s due date, isDrawOverdue/isDrawUrgent, matched by the draw&rsquo;s billed period rather than when it was created</Detail>
             <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools</Detail>
             <Detail term="lib/auth/session.ts">Passcode session signing/verification</Detail>
+            <Detail term="lib/auth/rateLimit.ts">Per-IP login throttling against inv_login_attempts</Detail>
             <Detail term="components/*Section.tsx">The CRUD table + modal for one entity (draws, schedule of values)</Detail>
             <Detail term="components/AddressAutocomplete.tsx">Google Places autocomplete for the project Address field, with a plain-text fallback</Detail>
             <Detail term="components/AgingAlertBanner.tsx, ProjectStatusSelect.tsx">Dashboard 60+ day alert; inline active/closed status dropdown</Detail>
