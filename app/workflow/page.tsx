@@ -223,7 +223,7 @@ export default function WorkflowPage() {
           <DataTable
             icon="🏗️"
             name="inv_projects"
-            fields="name · project_number (unique) · address · lender · status"
+            fields="name · project_number (unique) · address · lender · status · draw_due_type/draw_due_day (recurring draw cadence)"
           />
           <DataTable
             icon="💵"
