@@ -136,14 +136,34 @@ export default async function DashboardPage({
                 : "—"}
             </p>
           </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div
+            className={`rounded-lg border p-4 ${
+              totals.totalDraft > 0
+                ? "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40"
+                : "border-border bg-card"
+            }`}
+          >
+            <p
+              className={`text-xs font-medium uppercase tracking-wide ${
+                totals.totalDraft > 0
+                  ? "text-amber-700 dark:text-amber-300"
+                  : "text-muted-foreground"
+              }`}
+            >
               Draft invoices total
             </p>
             <p className="text-lg font-semibold text-foreground mt-1">
               {formatCurrency(totals.totalDraft)}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5">Not yet submitted</p>
+            <p
+              className={`text-xs mt-0.5 ${
+                totals.totalDraft > 0
+                  ? "text-amber-700 dark:text-amber-300"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {totals.totalDraft > 0 ? "Needs to be submitted" : "Not yet submitted"}
+            </p>
           </div>
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
