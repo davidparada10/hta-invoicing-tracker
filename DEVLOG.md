@@ -12,6 +12,10 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02 (early afternoon)
+- Follow-up sweep found the same silent-failure pattern in two more places: DrawStatusSelect and ProjectStatusSelect changed a draw's/project's status inside `startTransition` with no `await`/`catch`, so a failed update left the dropdown showing the new value with no rollback and no error message. Both now revert the select and alert on failure. Also wrapped app/api/chat and app/api/login in try/catch so an unexpected error (bad request body, a rate-limit-store hiccup) returns a structured JSON error instead of an unstructured 500.
+- While testing the fix, a `fetch` override meant to simulate a failed request didn't actually intercept the Server Action call — it went through for real and briefly flipped 1723 Corinth's status to "closed" before being caught and restored. Confirmed directly against the database it's back to `active`; no other side effects (project status doesn't cascade to anything).
+
 ## 2026-09-02 (midday)
 - Found 3 spots with no error handling around Server Actions that throw on any Supabase error, while auditing the app post-upgrade: DrawsSection's and BudgetSection's delete handlers fired the delete inside `startTransition` with no `await`/`catch` (a failed delete silently left the row in place with zero feedback), and BudgetSection's add/edit form had no `try/catch` at all (any save error would crash to Next's full-page error boundary — the same bug already fixed once in EditProjectModal on 09-04, just not applied to its sibling modal). Brought all three in line with the established try/catch + inline-error pattern used elsewhere (MarkPaidButton, DrawFormModal, EditProjectModal). Verified live: add/edit/delete on a budget line still works end-to-end.
 
