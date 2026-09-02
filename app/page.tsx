@@ -138,11 +138,12 @@ export default async function DashboardPage({
           </div>
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Total retainage held
+              Draft invoices total
             </p>
             <p className="text-lg font-semibold text-foreground mt-1">
-              {formatCurrency(totals.totalRetainage)}
+              {formatCurrency(totals.totalDraft)}
             </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Not yet submitted</p>
           </div>
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -154,10 +155,10 @@ export default async function DashboardPage({
           </div>
           <div className="rounded-lg border border-border bg-card p-4">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Draft invoices total
+              Total retainage held
             </p>
             <p className="text-lg font-semibold text-foreground mt-1">
-              {formatCurrency(totals.totalDraft)}
+              {formatCurrency(totals.totalRetainage)}
             </p>
           </div>
           <div className="rounded-lg border border-border bg-card p-4">
