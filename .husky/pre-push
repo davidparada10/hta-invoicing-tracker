@@ -1,0 +1,10 @@
+echo "Running 'npm run build' before push..."
+npm run build
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Build failed — push aborted. Fix the error above before pushing."
+  exit 1
+fi
+
+echo "✅ Build passed."
