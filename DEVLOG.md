@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02
+- Moving a draw's status to "submitted" via the status dropdown now auto-fills the submitted date (if not already set) — matches the existing approved/paid auto-fill behavior, which had no equivalent for submitted.
+
 ## 2026-09-01 (night)
 - Added a "Draft invoices total" dashboard stat, plus 3 unfilled boxes reserved for stats to come.
 - Draft draws now show up in the dashboard's Open Draws table (previously invisible there entirely) so status can be changed with one click, without opening the project — kept out of the dollar totals and aging summary since they're not real invoices yet.
