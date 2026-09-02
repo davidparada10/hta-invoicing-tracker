@@ -188,22 +188,35 @@ async function saveAllocations(
   drawId: string,
   allocations: AllocationInput[]
 ) {
-  const { error: deleteError } = await supabase
+  // Insert the new set before deleting the old one (not the other way around)
+  // so a failed insert leaves the draw's prior allocations intact instead of
+  // wiped — the old rows are captured by ID up front and removed only after
+  // the new set is safely written.
+  const { data: existing, error: selectError } = await supabase
     .from("inv_draw_line_allocations")
-    .delete()
+    .select("id")
     .eq("draw_id", drawId);
-  if (deleteError) throw deleteError;
+  if (selectError) throw selectError;
+  const staleIds = (existing ?? []).map((r) => r.id);
 
-  if (allocations.length === 0) return;
+  if (allocations.length > 0) {
+    const { error: insertError } = await supabase.from("inv_draw_line_allocations").insert(
+      allocations.map((a) => ({
+        draw_id: drawId,
+        budget_line_id: a.budget_line_id,
+        amount: a.amount,
+      }))
+    );
+    if (insertError) throw insertError;
+  }
 
-  const { error: insertError } = await supabase.from("inv_draw_line_allocations").insert(
-    allocations.map((a) => ({
-      draw_id: drawId,
-      budget_line_id: a.budget_line_id,
-      amount: a.amount,
-    }))
-  );
-  if (insertError) throw insertError;
+  if (staleIds.length > 0) {
+    const { error: deleteError } = await supabase
+      .from("inv_draw_line_allocations")
+      .delete()
+      .in("id", staleIds);
+    if (deleteError) throw deleteError;
+  }
 }
 
 // Postgres unique_violation on the (project_id, draw_number) constraint —
@@ -238,6 +251,14 @@ export async function upsertDraw(formData: FormData) {
     status: formData.get("status") as string,
     notes: toNullableString(formData.get("notes")),
   };
+
+  if (
+    payload.period_start &&
+    payload.period_end &&
+    new Date(payload.period_end) < new Date(payload.period_start)
+  ) {
+    throw new Error("Period end date can't be before the period start date.");
+  }
 
   let drawId = id;
   if (id) {

@@ -20,6 +20,7 @@ export default function BudgetSection({
   const [editing, setEditing] = useState<BudgetLine | null>(null);
   const [isPending, startTransition] = useTransition();
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -79,12 +80,16 @@ export default function BudgetSection({
   }
 
   async function handleSubmit(formData: FormData) {
+    if (isSaving) return;
     setFormError(null);
+    setIsSaving(true);
     try {
       await upsertBudgetLine(formData);
       setModalOpen(false);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Could not save line item. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -99,7 +104,7 @@ export default function BudgetSection({
     if (
       budgetLines.length > 0 &&
       !confirm(
-        `This project already has ${budgetLines.length} line item(s). Importing will replace all of them with the line items from this file. Continue?`
+        `This project already has ${budgetLines.length} line item(s). Importing will update matching line items and remove any not present in this file. Continue?`
       )
     ) {
       e.target.value = "";
@@ -114,7 +119,24 @@ export default function BudgetSection({
       const fd = new FormData();
       fd.set("budget_file", file);
       fd.set("project_id", projectId);
-      const result = await importBudgetFromXlsx(fd);
+      let result;
+      try {
+        result = await importBudgetFromXlsx(fd);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "";
+        if (message.startsWith("MAGNITUDE_MISMATCH:")) {
+          const explanation = message.split(":").slice(3).join(":");
+          if (!confirm(`${explanation}\n\nImport anyway?`)) {
+            setImporting(false);
+            e.target.value = "";
+            return;
+          }
+          fd.set("force", "true");
+          result = await importBudgetFromXlsx(fd);
+        } else {
+          throw err;
+        }
+      }
       setImportMessage(
         `Imported ${result.count} line items totaling ${formatCurrency(result.total)}.`
       );
@@ -379,15 +401,17 @@ export default function BudgetSection({
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="text-sm px-3 py-1.5 rounded-lg border border-border"
+              disabled={isSaving}
+              className="text-sm px-3 py-1.5 rounded-lg border border-border disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium"
+              disabled={isSaving}
+              className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium disabled:opacity-50"
             >
-              Save
+              {isSaving ? "Saving…" : "Save"}
             </button>
           </div>
         </form>

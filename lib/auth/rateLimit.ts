@@ -9,6 +9,7 @@
 // necessarily aged past WINDOW_MINUTES too, so the next failed attempt
 // always starts a fresh window instead of resuming a stale count.
 
+import { ipAddress } from "@vercel/functions";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const MAX_FAILED_ATTEMPTS = 10;
@@ -16,9 +17,7 @@ const WINDOW_MINUTES = 15;
 const LOCKOUT_MINUTES = 15;
 
 export function getClientIp(request: Request): string {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) return forwardedFor.split(",")[0].trim();
-  return request.headers.get("x-real-ip") ?? "unknown";
+  return ipAddress(request) ?? "unknown";
 }
 
 export async function checkLoginRateLimit(
@@ -39,9 +38,23 @@ export async function checkLoginRateLimit(
   return { limited: true, retryAfterSeconds: Math.ceil(msRemaining / 1000) };
 }
 
+// Rows older than a day can no longer affect any rate-limit decision (window
+// and lockout are both 15 minutes) — opportunistically sweep them on a small
+// fraction of failed logins so the table doesn't grow unbounded over years of
+// legitimate fat-fingered passcodes, without needing a separate cron job.
+async function pruneStaleLoginAttempts(
+  supabase: ReturnType<typeof createServerSupabaseClient>
+): Promise<void> {
+  if (Math.random() > 0.05) return;
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  await supabase.from("inv_login_attempts").delete().lt("window_start", cutoff);
+}
+
 export async function recordFailedLogin(ip: string): Promise<void> {
   const supabase = createServerSupabaseClient();
   const now = new Date();
+
+  await pruneStaleLoginAttempts(supabase);
 
   const { data } = await supabase
     .from("inv_login_attempts")

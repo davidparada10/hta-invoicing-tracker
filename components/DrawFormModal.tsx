@@ -92,6 +92,7 @@ export default function DrawFormModal({
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [lineAmounts, setLineAmounts] = useState<Record<string, string>>({});
   const [retentionMode, setRetentionMode] = useState<"manual" | "0" | "5" | "10">("manual");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -144,6 +145,7 @@ export default function DrawFormModal({
   }, [computedRetention]);
 
   async function handleSubmit(formData: FormData) {
+    if (isSaving) return;
     if (allocationMismatch) {
       const diff = allocationsTotal - (requestedAmount + retainageHeldAmount);
       const ok = confirm(
@@ -160,11 +162,14 @@ export default function DrawFormModal({
       }))
       .filter((a) => a.amount !== 0);
     formData.set("allocations", JSON.stringify(allocationsPayload));
+    setIsSaving(true);
     try {
       await upsertDraw(formData);
       onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Could not save draw.");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -560,15 +565,17 @@ export default function DrawFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-sm px-3 py-1.5 rounded-lg border border-border"
+            disabled={isSaving}
+            className="text-sm px-3 py-1.5 rounded-lg border border-border disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             type="submit"
-            className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium"
+            disabled={isSaving}
+            className="text-sm px-3 py-1.5 rounded-lg bg-primary text-background font-medium disabled:opacity-50"
           >
-            Save
+            {isSaving ? "Saving…" : "Save"}
           </button>
         </div>
       </form>

@@ -1,4 +1,4 @@
-import { ToolLoopAgent, InferAgentUIMessage } from "ai";
+import { ToolLoopAgent, InferAgentUIMessage, stepCountIs } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import {
   listProjectsTool,
@@ -19,6 +19,10 @@ import {
 
 export const htaAgent = new ToolLoopAgent({
   model: anthropic("claude-sonnet-5"),
+  // Pinned explicitly (matches the SDK's own default) rather than left
+  // implicit, so a runaway tool-calling loop is capped by a value this repo
+  // controls, not one that could silently change on an `ai` package upgrade.
+  stopWhen: stepCountIs(20),
   instructions: `You are the assistant built into HTA Construction's Multi-Family Invoice Tracker.
 
 This app tracks owner draws (invoices HTA submits to the lender/owner) across multifamily

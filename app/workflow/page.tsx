@@ -142,13 +142,13 @@ export default function WorkflowPage() {
         <Flow
           number="2"
           title="G703 Schedule of Values Import"
-          subtitle="Schedule of Values tab, on-demand — destructive: replaces every existing line item"
+          subtitle="Schedule of Values tab, on-demand — matches by item #, so history on unchanged lines survives"
           steps={[
             { icon: "👤", title: "Upload .xlsx", detail: "Schedule of Values tab — Import button", category: "trigger", edgeLabel: "confirms" },
             { icon: "❓", title: "Lines exist?", detail: "Browser confirm() if project has any", category: "decision", edgeLabel: "yes/no" },
             { icon: "📄", title: "parseBudgetFromXlsx", detail: "lib/g702-parser.ts — walks G703 rows", category: "server", edgeLabel: "returns rows" },
-            { icon: "⚡", title: "importBudgetFromXlsx", detail: "app/budget/actions.ts (Server Action)", category: "server", edgeLabel: "delete + insert" },
-            { icon: "🗄️", title: "inv_project_budget_lines", detail: "Supabase — full replace, one project", category: "data", edgeLabel: "revalidates" },
+            { icon: "⚡", title: "importBudgetFromXlsx", detail: "app/budget/actions.ts — matches incoming rows to existing ones by item_number", category: "server", edgeLabel: "update/insert/delete" },
+            { icon: "🗄️", title: "inv_project_budget_lines", detail: "Supabase — item numbers still present are updated in place (keeping their ID, so draw allocations tied to them survive); only items dropped from the file are deleted", category: "data", edgeLabel: "revalidates" },
             { icon: "✅", title: "Schedule of Values refreshed", detail: "Contract value + line table", category: "output" },
           ]}
         />
@@ -197,6 +197,7 @@ export default function WorkflowPage() {
           subtitle="/chat — reads run automatically; writes pause for user confirmation"
           steps={[
             { icon: "👤", title: "Ask or describe", detail: "\"What's paid on Aneta?\" or \"Add a draw...\"", category: "trigger", edgeLabel: "POST" },
+            { icon: "🚦", title: "Rate limit check", detail: "inv_chat_rate_limit by IP — 30 requests/5min, bounds Anthropic API cost since there's no per-user auth", category: "decision", edgeLabel: "not limited" },
             { icon: "⚡", title: "/api/chat", detail: "createAgentUIStreamResponse", category: "server", edgeLabel: "runs" },
             { icon: "🤖", title: "htaAgent (ToolLoopAgent)", detail: "lib/agents/hta-agent.ts · Claude via direct Anthropic API", category: "ai", edgeLabel: "picks a tool" },
             { icon: "🔍", title: "Read tool", detail: "listProjects / getOpenDraws / getProjectDetails / getRecentPayments / getAgingSummary / getBillingSummary / getScheduleOfValues / getDrawScheduleStatus — auto-runs", category: "server", edgeLabel: "or" },
@@ -261,6 +262,11 @@ export default function WorkflowPage() {
             name="inv_login_attempts"
             fields="ip (PK) · failed_count · window_start · locked_until — throttles brute-forcing SITE_PASSCODE"
           />
+          <DataTable
+            icon="🚦"
+            name="inv_chat_rate_limit"
+            fields="ip (PK) · request_count · window_start — bounds Anthropic API cost on /api/chat"
+          />
         </div>
 
         <h2 className="text-sm font-semibold text-foreground mb-3">Deployment &amp; Environment</h2>
@@ -313,6 +319,7 @@ export default function WorkflowPage() {
             <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools</Detail>
             <Detail term="lib/auth/session.ts">Passcode session signing/verification</Detail>
             <Detail term="lib/auth/rateLimit.ts">Per-IP login throttling against inv_login_attempts</Detail>
+            <Detail term="lib/auth/chatRateLimit.ts">Per-IP request throttling on /api/chat against inv_chat_rate_limit</Detail>
             <Detail term="components/*Section.tsx">The CRUD table + modal for one entity (draws, schedule of values)</Detail>
             <Detail term="components/AddressAutocomplete.tsx">Google Places autocomplete for the project Address field, with a plain-text fallback</Detail>
             <Detail term="components/AgingAlertBanner.tsx, ProjectStatusSelect.tsx">Dashboard 60+ day alert; inline active/closed status dropdown</Detail>
