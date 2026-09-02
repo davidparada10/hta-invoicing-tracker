@@ -62,14 +62,6 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <span className="font-medium text-foreground hover:underline">
                   {r.project.name}
                 </span>
-                {r.totalDraft > 0 && (
-                  <span
-                    title={`${formatCurrency(r.totalDraft)} in draft draws, not yet submitted`}
-                    className="ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60"
-                  >
-                    Draft
-                  </span>
-                )}
                 {r.project.address && (
                   <div className="text-xs text-muted-foreground truncate">{r.project.address}</div>
                 )}
@@ -101,6 +93,18 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                   +{formatCurrency(r.totalDrawRetainage)} retainage
                 </p>
               </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Draft</p>
+                <p
+                  className={
+                    r.totalDraft > 0
+                      ? "font-medium text-amber-700 dark:text-amber-300"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {r.totalDraft > 0 ? formatCurrency(r.totalDraft) : "—"}
+                </p>
+              </div>
             </div>
           </div>
         ))}
@@ -121,6 +125,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               <th className="text-right px-4 py-2">Paid to Date</th>
               <th className="text-right px-4 py-2">Contract Value</th>
               <th className="text-right px-4 py-2">Balance to Complete</th>
+              <th className="text-right px-4 py-2">Draft</th>
               <th className="text-left px-4 py-2">Status</th>
             </tr>
           </thead>
@@ -135,14 +140,6 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     <span className="font-medium text-foreground hover:underline">
                       {r.project.name}
                     </span>
-                    {r.totalDraft > 0 && (
-                      <span
-                        title={`${formatCurrency(r.totalDraft)} in draft draws, not yet submitted`}
-                        className="ml-2 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60"
-                      >
-                        Draft
-                      </span>
-                    )}
                     {r.project.address && (
                       <div className="text-xs text-muted-foreground">{r.project.address}</div>
                     )}
@@ -163,6 +160,13 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     +{formatCurrency(r.totalDrawRetainage)} retainage
                   </div>
                 </td>
+                <td
+                  className={`px-4 py-2 text-right font-medium ${
+                    r.totalDraft > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"
+                  }`}
+                >
+                  {r.totalDraft > 0 ? formatCurrency(r.totalDraft) : "—"}
+                </td>
                 <td className="px-4 py-2">
                   <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
                 </td>
@@ -170,7 +174,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                   No {statusFilter === "active" && !search.trim() ? "active " : ""}projects found.
                 </td>
               </tr>
