@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-02 (late night)
+- New feature: recurring draw cadence per project. Added `draw_due_type`/`draw_due_day` to inv_projects (day-of-month or last-weekday-of-month, editable in Edit Project), a `lib/drawSchedule.ts` helper that flags a project "overdue" once its cycle's due date passes with no draw created yet, a dashboard alert banner listing overdue projects, and a "Next Draw" column in the by-project table. Seeded per the actual schedule: Aneta/Pacific/Centinela/Hi Point/St. Rest on the 25th, Broadway/Gilmore/Victoria on the 15th, Delmas/Corinth on the last Thursday; Valley left unscheduled (wrapping up soon). Email reminders noted as a likely follow-up once this lands.
+
 ## 2026-09-02 (night)
 - Replaced the inline "Draft" badge in the by-project table with a dedicated Draft column showing the dollar amount directly (amber when nonzero) instead of hiding it behind a hover tooltip.
 
