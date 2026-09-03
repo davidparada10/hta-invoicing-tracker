@@ -159,7 +159,7 @@ export default function WorkflowPage() {
           subtitle="draft → submitted → approved → paid — Mark Paid supports partial payments"
           steps={[
             { icon: "📝", title: "Draw created", detail: "status: draft or submitted", category: "ui", edgeLabel: "edit status" },
-            { icon: "🔄", title: "submitted / approved", detail: "Edit Draw modal, manual status change", category: "decision", edgeLabel: "or" },
+            { icon: "🔄", title: "submitted / approved", detail: "Quick status dropdown or Edit Draw modal — either path stamps date_submitted/date_approved to today on the actual transition into that status (not just \"if empty\"), since a still-draft draw can already carry a parser-guessed date that isn't a real submission/approval date. A date typed directly into the Edit Draw form is respected instead.", category: "decision", edgeLabel: "or" },
             { icon: "👤", title: "Mark Paid click", detail: "Opens a modal — amount received + date paid, defaults to full outstanding balance today", category: "trigger", edgeLabel: "calls" },
             { icon: "⚡", title: "markDrawPaid", detail: "amount_paid += received (accumulates); status always → paid", category: "server", edgeLabel: "writes" },
             { icon: "🗄️", title: "inv_owner_draws", detail: "status paid, but a short payment still counts as open", category: "data", edgeLabel: "checked by" },

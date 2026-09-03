@@ -262,6 +262,41 @@ export async function upsertDraw(formData: FormData) {
 
   let drawId = id;
   if (id) {
+    const { data: existing, error: fetchError } = await supabase
+      .from("inv_owner_draws")
+      .select("status, date_submitted, date_approved, date_paid")
+      .eq("id", id)
+      .single();
+    if (fetchError) throw fetchError;
+
+    // Stamp today on the actual transition into a status, same rule as the
+    // quick status dropdown (updateDrawStatus) — but only when the date
+    // field wasn't itself deliberately edited in this save, so a real
+    // backdated submission date typed here is still respected.
+    const today = new Date().toISOString().slice(0, 10);
+    if (
+      payload.status === "submitted" &&
+      existing.status !== "submitted" &&
+      payload.date_submitted === existing.date_submitted
+    ) {
+      payload.date_submitted = today;
+    }
+    if (
+      payload.status === "approved" &&
+      existing.status !== "approved" &&
+      existing.status !== "paid" &&
+      payload.date_approved === existing.date_approved
+    ) {
+      payload.date_approved = today;
+    }
+    if (
+      payload.status === "paid" &&
+      existing.status !== "paid" &&
+      payload.date_paid === existing.date_paid
+    ) {
+      payload.date_paid = today;
+    }
+
     const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
     if (error) throw duplicateDrawNumberError(error, payload.draw_number);
   } else {
@@ -323,7 +358,7 @@ export async function updateDrawStatus(id: string, projectId: string, status: Dr
   const { data: draw, error: fetchError } = await supabase
     .from("inv_owner_draws")
     .select(
-      "amount_requested, amount_approved, amount_paid, date_submitted, date_paid, date_approved"
+      "status, amount_requested, amount_approved, amount_paid, date_submitted, date_paid, date_approved"
     )
     .eq("id", id)
     .single();
@@ -331,15 +366,19 @@ export async function updateDrawStatus(id: string, projectId: string, status: Dr
 
   const payload: Record<string, unknown> = { status };
 
-  if (status === "submitted") {
-    if (!draw.date_submitted) payload.date_submitted = today;
+  // Stamp a date on the actual transition into a status, not just "if the
+  // field happens to be empty" — a still-draft draw can already carry a
+  // date_submitted the G702/xlsx parser guessed from the billing period,
+  // which isn't a real submission date and shouldn't block the real one.
+  if (status === "submitted" && draw.status !== "submitted") {
+    payload.date_submitted = today;
   }
   if (status === "paid") {
     if (!(Number(draw.amount_paid) > 0)) payload.amount_paid = draw.amount_requested;
-    if (!draw.date_paid) payload.date_paid = today;
+    if (draw.status !== "paid") payload.date_paid = today;
   }
-  if (status === "approved") {
-    if (!draw.date_approved) payload.date_approved = today;
+  if (status === "approved" && draw.status !== "approved" && draw.status !== "paid") {
+    payload.date_approved = today;
     if (!(Number(draw.amount_approved) > 0)) payload.amount_approved = draw.amount_requested;
   }
 
