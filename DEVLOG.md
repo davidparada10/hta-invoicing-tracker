@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-03
+- Fixed a real "AGE" bug on Open Draws, caught via 6122 Victoria draw #7: it was created as a draft with date_submitted already set to 2026-08-25 (the G702/xlsx parser guesses this from the billing period at import), then later flipped to submitted — but both status-change paths (the quick dropdown and the Edit Draw modal) only auto-stamped date_submitted/date_approved when that field was empty, so the parser's guessed date silently survived instead of the real submission date, showing 9 days old instead of a few hours. Both paths now key off the actual status transition instead of field-emptiness; the Edit Draw modal additionally respects a date the user deliberately typed over the pre-filled one. Verified all three cases (dropdown, modal with untouched date, modal with an edited date) against a disposable test project, then corrected Victoria draw #7's date_submitted to today.
+
 ## 2026-09-02 (evening, second pass)
 - Found the same date-parsing bug (already fixed twice this session in lib/drawSchedule.ts and lib/format.ts) lurking in two more files: lib/aging.ts's daysOpen() and lib/billing.ts's yearAndQuarterOf()/daysToPay() all parsed bare "YYYY-MM-DD" dates with plain new Date(), shifting to the wrong day (and near a boundary, the wrong quarter) in any timezone behind UTC. Extracted the fix into a shared parseLocalDate() in lib/format.ts instead of patching a fourth copy inline. Verified live: Billing Summary's quarter totals actually shifted after deploying, confirming previously-misbucketed draws now land correctly.
 - AddressAutocomplete had no real fallback if the Google Maps widget ever failed to load (key revoked, quota hit, an outage) — the only other input lived inside `<noscript>`, inert with JS enabled. Added a visible, editable plain input that only steps aside once the real widget actually attaches, so the address field can never go permanently dead.
