@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { markDrawPaid } from "@/app/draws/actions";
 import { formatCurrency } from "@/lib/format";
 import Modal from "@/components/Modal";
+import { withScrollPreserved } from "@/lib/preserveScroll";
 
 export default function MarkPaidButton({
   drawId,
@@ -38,7 +39,7 @@ export default function MarkPaidButton({
     if (!(received > 0)) return;
     startTransition(async () => {
       try {
-        await markDrawPaid(drawId, projectId, received, datePaid || undefined);
+        await withScrollPreserved(() => markDrawPaid(drawId, projectId, received, datePaid || undefined));
         setOpen(false);
       } catch (err) {
         alert(err instanceof Error ? err.message : "Could not mark paid.");

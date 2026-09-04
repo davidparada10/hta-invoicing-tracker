@@ -4,6 +4,7 @@ import { useTransition } from "react";
 import { DrawStatus } from "@/lib/types";
 import { updateDrawStatus } from "@/app/draws/actions";
 import { STATUS_STYLES } from "@/lib/badgeTone";
+import { withScrollPreserved } from "@/lib/preserveScroll";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
 
@@ -28,7 +29,7 @@ export default function DrawStatusSelect({
     }
     startTransition(async () => {
       try {
-        await updateDrawStatus(drawId, projectId, next);
+        await withScrollPreserved(() => updateDrawStatus(drawId, projectId, next));
       } catch (err) {
         e.target.value = status;
         alert(err instanceof Error ? err.message : "Could not update draw status.");
