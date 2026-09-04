@@ -221,6 +221,8 @@ export default function DrawFormModal({
         date_submitted: parsed.date_submitted ?? v.date_submitted,
         amount_requested:
           parsed.amount_requested !== undefined ? String(parsed.amount_requested) : v.amount_requested,
+        amount_approved:
+          parsed.amount_approved !== undefined ? String(parsed.amount_approved) : v.amount_approved,
         retainage_held:
           parsed.retainage_held !== undefined ? String(parsed.retainage_held) : v.retainage_held,
         status: v.status === "draft" ? "submitted" : v.status,

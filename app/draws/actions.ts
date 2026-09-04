@@ -100,10 +100,15 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
 
     if (isLenderPortalPdfText(text)) {
       const parsed = await parseLenderDrawFromPdf(buffer);
+      // The allocation against each budget line should reflect what the
+      // lender actually approved, not merely what was requested — those two
+      // columns can differ substantially (e.g. a partial approval), and
+      // using "requested" here overstates what's actually been drawn
+      // against the line.
       const allocationLines = parsed.allocations.map((a) => ({
         item_number: a.item_number,
         description: a.description,
-        amount: a.requested_value,
+        amount: a.approved_value,
       }));
       const allocations = projectId
         ? await matchAllocationsToBudgetLines(projectId, allocationLines)
@@ -112,6 +117,7 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
         draw_number: parsed.draw_number,
         period_end: parsed.period_end,
         amount_requested: parsed.amount_requested,
+        amount_approved: parsed.amount_approved,
         retainage_held: parsed.retainage_held,
         allocations,
         allocationsMatched: allocations.length,

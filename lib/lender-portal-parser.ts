@@ -12,6 +12,7 @@ export interface ParsedLenderAllocation {
   item_number: string;
   description: string;
   requested_value: number;
+  approved_value: number;
 }
 
 export interface ParsedLenderDraw {
@@ -184,6 +185,7 @@ export async function parseLenderDrawFromPdf(buffer: Buffer): Promise<ParsedLend
       item_number: r.item_number,
       description: r.description,
       requested_value: round2(r.numbers[3]),
+      approved_value: round2(r.numbers[4]),
     }));
 
   return {

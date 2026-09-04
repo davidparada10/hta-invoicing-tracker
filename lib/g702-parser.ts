@@ -29,6 +29,7 @@ export interface ParsedG702Draw {
   period_end?: string;
   date_submitted?: string;
   amount_requested?: number;
+  amount_approved?: number;
   retainage_held?: number;
 }
 
