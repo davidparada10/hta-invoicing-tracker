@@ -18,6 +18,7 @@ export interface ParsedLenderAllocation {
 export interface ParsedLenderDraw {
   draw_number?: number;
   period_end?: string;
+  date_submitted?: string;
   amount_requested?: number;
   amount_approved?: number;
   retainage_held?: number;
@@ -191,6 +192,10 @@ export async function parseLenderDrawFromPdf(buffer: Buffer): Promise<ParsedLend
   return {
     draw_number: drawNumber,
     period_end: periodEnd,
+    // "Effective on <date>" is this draw request's submission date — there's
+    // no separate period_start/period_end concept in this lender's export,
+    // so the same value is reused for both.
+    date_submitted: periodEnd,
     amount_requested: round2(totalsRequested),
     amount_approved: round2(totalsApproved),
     retainage_held,

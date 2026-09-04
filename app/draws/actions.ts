@@ -116,7 +116,13 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
       return {
         draw_number: parsed.draw_number,
         period_end: parsed.period_end,
-        amount_requested: parsed.amount_requested,
+        date_submitted: parsed.date_submitted,
+        // The lender's "Requested Value" is what the contractor asked for,
+        // not what's actually collectible — this app tracks amount_requested
+        // as the figure "Outstanding" is computed against, so using the true
+        // requested total would keep showing a balance that was never going
+        // to be approved. Use the approved total for both fields instead.
+        amount_requested: parsed.amount_approved,
         amount_approved: parsed.amount_approved,
         retainage_held: parsed.retainage_held,
         allocations,
