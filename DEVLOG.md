@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-03 (later)
+- Fixed the page jumping to the top on every draw/project status change from the dashboard or a project page. updateDrawStatus, updateProjectStatus, and markDrawPaid all revalidate "/" unconditionally, and neither page wraps the affected table in its own Suspense boundary, so Next's router refresh re-renders the whole page and resets scroll. A naive "restore scroll right after the action resolves" didn't work (verified live — the refresh isn't synchronous with the action's own promise, so the reset can land after a one-shot restore); switched to watching for the "scrollY snapped to 0" signature for a second afterward and re-applying the prior position, which never fights a normal scroll the user makes in that window. Wired into the three status-changing controls (DrawStatusSelect, ProjectStatusSelect, MarkPaidButton).
+
 ## 2026-09-03
 - Fixed a real "AGE" bug on Open Draws, caught via 6122 Victoria draw #7: it was created as a draft with date_submitted already set to 2026-08-25 (the G702/xlsx parser guesses this from the billing period at import), then later flipped to submitted — but both status-change paths (the quick dropdown and the Edit Draw modal) only auto-stamped date_submitted/date_approved when that field was empty, so the parser's guessed date silently survived instead of the real submission date, showing 9 days old instead of a few hours. Both paths now key off the actual status transition instead of field-emptiness; the Edit Draw modal additionally respects a date the user deliberately typed over the pre-filled one. Verified all three cases (dropdown, modal with untouched date, modal with an edited date) against a disposable test project, then corrected Victoria draw #7's date_submitted to today.
 
