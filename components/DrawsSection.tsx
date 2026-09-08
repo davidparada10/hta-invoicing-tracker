@@ -106,7 +106,7 @@ export default function DrawsSection({
               {formatDate(d.period_start)} – {formatDate(d.period_end)}
             </p>
 
-            <div className="grid grid-cols-3 gap-2 mt-3 text-sm">
+            <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Requested</p>
                 <p>{formatCurrency(d.amount_requested)}</p>
@@ -116,15 +116,19 @@ export default function DrawsSection({
                 <p>{formatCurrency(d.amount_approved)}</p>
               </div>
               <div>
+                <p className="text-xs text-muted-foreground">Paid</p>
+                <p>{formatCurrency(d.amount_paid)}</p>
+              </div>
+              <div>
                 <p className="text-xs text-muted-foreground">Retainage</p>
                 <p>{formatCurrency(d.retainage_held)}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-2 mt-2 text-xs text-muted-foreground">
-              <div>Submitted {formatDate(d.date_submitted)}</div>
-              <div>Approved {formatDate(d.date_approved)}</div>
-              <div>Paid {formatDate(d.date_paid)}</div>
+              <div>Submitted: {formatDate(d.date_submitted)}</div>
+              <div>Approved: {formatDate(d.date_approved)}</div>
+              <div>Paid: {formatDate(d.date_paid)}</div>
             </div>
 
             <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
@@ -172,10 +176,11 @@ export default function DrawsSection({
               <th className="text-left px-4 py-2">Period</th>
               <th className="text-right px-4 py-2">Requested</th>
               <th className="text-right px-4 py-2">Approved</th>
+              <th className="text-right px-4 py-2">Paid</th>
               <th className="text-right px-4 py-2">Retainage</th>
-              <th className="text-left px-4 py-2">Submitted</th>
-              <th className="text-left px-4 py-2">Approved</th>
-              <th className="text-left px-4 py-2">Paid</th>
+              <th className="text-left px-4 py-2">Date Submitted</th>
+              <th className="text-left px-4 py-2">Date Approved</th>
+              <th className="text-left px-4 py-2">Date Paid</th>
               <th className="text-left px-4 py-2">Status</th>
               <th className="px-4 py-2"></th>
             </tr>
@@ -198,6 +203,7 @@ export default function DrawsSection({
                 </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.amount_requested)}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.amount_approved)}</td>
+                <td className="px-4 py-2 text-right">{formatCurrency(d.amount_paid)}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.retainage_held)}</td>
                 <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
                 <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_approved)}</td>
@@ -234,7 +240,7 @@ export default function DrawsSection({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
                   No draws found.
                 </td>
               </tr>
