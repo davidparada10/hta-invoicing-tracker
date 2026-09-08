@@ -200,26 +200,33 @@ async function saveAllocations(
   drawId: string,
   allocations: AllocationInput[]
 ) {
-  // Insert the new set before deleting the old one (not the other way around)
-  // so a failed insert leaves the draw's prior allocations intact instead of
-  // wiped — the old rows are captured by ID up front and removed only after
-  // the new set is safely written.
+  // Upsert the new set (on the draw_id+budget_line_id unique constraint)
+  // rather than inserting fresh rows — a plain insert collides with any
+  // existing row for a budget line still present in the new set, which is
+  // the common case (editing a draw normally keeps most of its line items).
+  // Only budget lines genuinely dropped from this draw get deleted, and only
+  // after the upsert succeeds, so a failed write never wipes prior data.
   const { data: existing, error: selectError } = await supabase
     .from("inv_draw_line_allocations")
-    .select("id")
+    .select("id, budget_line_id")
     .eq("draw_id", drawId);
   if (selectError) throw selectError;
-  const staleIds = (existing ?? []).map((r) => r.id);
+
+  const newBudgetLineIds = new Set(allocations.map((a) => a.budget_line_id));
+  const staleIds = (existing ?? [])
+    .filter((r) => !newBudgetLineIds.has(r.budget_line_id))
+    .map((r) => r.id);
 
   if (allocations.length > 0) {
-    const { error: insertError } = await supabase.from("inv_draw_line_allocations").insert(
+    const { error: upsertError } = await supabase.from("inv_draw_line_allocations").upsert(
       allocations.map((a) => ({
         draw_id: drawId,
         budget_line_id: a.budget_line_id,
         amount: a.amount,
-      }))
+      })),
+      { onConflict: "draw_id,budget_line_id" }
     );
-    if (insertError) throw insertError;
+    if (upsertError) throw upsertError;
   }
 
   if (staleIds.length > 0) {
