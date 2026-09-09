@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { DrawStatus } from "@/lib/types";
 import { updateDrawStatus } from "@/app/draws/actions";
-import { STATUS_STYLES } from "@/lib/badgeTone";
+import { STATUS_TEXT_STYLES } from "@/lib/badgeTone";
 import { withScrollPreserved } from "@/lib/preserveScroll";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
@@ -18,7 +18,7 @@ export default function DrawStatusSelect({
   status: DrawStatus;
 }) {
   const [isPending, startTransition] = useTransition();
-  const style = STATUS_STYLES[status] ?? STATUS_STYLES.draft;
+  const style = STATUS_TEXT_STYLES[status] ?? STATUS_TEXT_STYLES.draft;
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const next = e.target.value as DrawStatus;
@@ -39,7 +39,7 @@ export default function DrawStatusSelect({
 
   return (
     <span
-      className={`relative inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] leading-4 font-medium capitalize whitespace-nowrap focus-within:ring-2 focus-within:ring-border ${style} ${
+      className={`relative inline-flex items-center text-xs font-semibold uppercase tracking-wide whitespace-nowrap rounded focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-border ${style} ${
         isPending ? "opacity-50" : ""
       }`}
     >

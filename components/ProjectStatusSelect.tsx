@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { ProjectStatus } from "@/lib/types";
 import { updateProjectStatus } from "@/app/projects/actions";
-import { PROJECT_STATUS_STYLES } from "@/lib/badgeTone";
+import { PROJECT_STATUS_TEXT_STYLES } from "@/lib/badgeTone";
 import { withScrollPreserved } from "@/lib/preserveScroll";
 
 const STATUSES: ProjectStatus[] = ["active", "closed"];
@@ -32,7 +32,7 @@ export default function ProjectStatusSelect({
 
   return (
     <span
-      className={`relative inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[11px] leading-4 font-medium capitalize whitespace-nowrap focus-within:ring-2 focus-within:ring-border ${PROJECT_STATUS_STYLES[status]} ${
+      className={`relative inline-flex items-center text-xs font-semibold uppercase tracking-wide whitespace-nowrap rounded focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-border ${PROJECT_STATUS_TEXT_STYLES[status]} ${
         isPending ? "opacity-50" : ""
       }`}
     >

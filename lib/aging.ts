@@ -2,7 +2,7 @@
 // the server-only Supabase client) so components that need this can stay
 // "use client" without bundling server code.
 
-import { badgeCard, badgeTone } from "@/lib/badgeTone";
+import { badgeCard, badgeText, badgeTone } from "@/lib/badgeTone";
 import { parseLocalDate } from "@/lib/format";
 
 export type AgingBucket = "current" | "31-60" | "61-90" | "90+";
@@ -34,6 +34,15 @@ export const AGING_BUCKET_BADGE_STYLE: Record<AgingBucket, string> = {
   "31-60": badgeTone("amber"),
   "61-90": badgeTone("orange"),
   "90+": badgeTone("red"),
+};
+
+/** Plain colored figure for a table row (no chip fill) — same hues as
+    AGING_BUCKET_BADGE_STYLE, styled to read as a ledger entry. */
+export const AGING_BUCKET_TEXT_STYLE: Record<AgingBucket, string> = {
+  current: badgeText("emerald"),
+  "31-60": badgeText("amber"),
+  "61-90": badgeText("orange"),
+  "90+": badgeText("red"),
 };
 
 /** Filter cards above the open-draws table — same hue as the age chips, stronger when selected. */

@@ -7,12 +7,12 @@ export default function DrawsDueAlertBanner({ rollups }: { rollups: ProjectRollu
   if (overdue.length === 0) return null;
 
   return (
-    <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 dark:border-amber-800 dark:bg-amber-950/40">
-      <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+    <div className="mb-6 border-l-[3px] border-amber-500 dark:border-amber-600 pl-4 py-1">
+      <p className="text-sm font-semibold text-foreground">
         {overdue.length} {overdue.length === 1 ? "project needs" : "projects need"} a draw created
         this month
       </p>
-      <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+      <p className="text-xs text-muted-foreground mt-0.5">
         {overdue
           .map((r) => `${r.project.name} (${r.nextDrawLabel ?? "no cadence set"})`)
           .join(" · ")}

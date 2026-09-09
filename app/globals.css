@@ -137,6 +137,13 @@ body {
   box-shadow: 0 0 0 1px var(--tone-ring-strong);
 }
 
+/* Plain colored text — a status word or age figure in a table row,
+   without the chip's fill/ring, styled like a stamp on a billing form
+   rather than a SaaS status pill. */
+.tone-text {
+  color: var(--tone-text);
+}
+
 .tone-emerald {
   --tone-fill: rgba(16, 185, 129, 0.12);
   --tone-fill-hover: rgba(16, 185, 129, 0.18);

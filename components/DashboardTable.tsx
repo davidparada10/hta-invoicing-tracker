@@ -62,8 +62,16 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <span className="font-medium text-foreground hover:underline">
                   {r.project.name}
                 </span>
-                {r.project.address && (
-                  <div className="text-xs text-muted-foreground truncate">{r.project.address}</div>
+                {(r.project.address || r.totalDraft > 0) && (
+                  <div className="text-xs text-muted-foreground truncate">
+                    {r.project.address}
+                    {r.project.address && r.totalDraft > 0 && " · "}
+                    {r.totalDraft > 0 && (
+                      <span className="text-amber-700 dark:text-amber-300">
+                        {formatCurrency(r.totalDraft)} draft
+                      </span>
+                    )}
+                  </div>
                 )}
               </Link>
               <div className="shrink-0">
@@ -91,18 +99,6 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <p>{formatCurrency(r.balanceToComplete)}</p>
                 <p className="text-xs text-muted-foreground">
                   +{formatCurrency(r.totalDrawRetainage)} retainage
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Draft</p>
-                <p
-                  className={
-                    r.totalDraft > 0
-                      ? "font-medium text-amber-700 dark:text-amber-300"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {r.totalDraft > 0 ? formatCurrency(r.totalDraft) : "—"}
                 </p>
               </div>
               <div>
@@ -138,7 +134,6 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               <th className="text-right px-4 py-2">Paid to Date</th>
               <th className="text-right px-4 py-2">Contract Value</th>
               <th className="text-right px-4 py-2">Balance to Complete</th>
-              <th className="text-right px-4 py-2">Draft</th>
               <th className="text-left px-4 py-2">Next Draw</th>
               <th className="text-left px-4 py-2">Status</th>
             </tr>
@@ -154,8 +149,16 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     <span className="font-medium text-foreground hover:underline">
                       {r.project.name}
                     </span>
-                    {r.project.address && (
-                      <div className="text-xs text-muted-foreground">{r.project.address}</div>
+                    {(r.project.address || r.totalDraft > 0) && (
+                      <div className="text-xs text-muted-foreground">
+                        {r.project.address}
+                        {r.project.address && r.totalDraft > 0 && " · "}
+                        {r.totalDraft > 0 && (
+                          <span className="text-amber-700 dark:text-amber-300">
+                            {formatCurrency(r.totalDraft)} draft
+                          </span>
+                        )}
+                      </div>
                     )}
                   </Link>
                 </td>
@@ -175,13 +178,6 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                   </div>
                 </td>
                 <td
-                  className={`px-4 py-2 text-right font-medium ${
-                    r.totalDraft > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"
-                  }`}
-                >
-                  {r.totalDraft > 0 ? formatCurrency(r.totalDraft) : "—"}
-                </td>
-                <td
                   className={`px-4 py-2 whitespace-nowrap ${
                     r.isDrawUrgent ? "font-bold text-red-600 dark:text-red-400" : "text-muted-foreground"
                   }`}
@@ -196,7 +192,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
                   No {statusFilter === "active" && !search.trim() ? "active " : ""}projects found.
                 </td>
               </tr>

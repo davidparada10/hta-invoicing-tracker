@@ -6,9 +6,9 @@ import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw } from "@/lib/types
 import { formatCurrency, formatDate } from "@/lib/format";
 import {
   AGING_BUCKETS,
-  AGING_BUCKET_BADGE_STYLE,
   AGING_BUCKET_CARD_STYLE,
   AGING_BUCKET_LABEL,
+  AGING_BUCKET_TEXT_STYLE,
   AgingBucket,
   agingBucket,
   daysOpen,
@@ -178,9 +178,7 @@ export default function OpenDrawsSection({
                 >
                   {d.project.name}
                 </Link>
-                <span
-                  className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${AGING_BUCKET_BADGE_STYLE[bucket]}`}
-                >
+                <span className={`shrink-0 text-xs font-semibold tabular-nums ${AGING_BUCKET_TEXT_STYLE[bucket]}`}>
                   {age}d
                 </span>
               </div>
@@ -274,9 +272,7 @@ export default function OpenDrawsSection({
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
                   <td className="px-4 py-2">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${AGING_BUCKET_BADGE_STYLE[bucket]}`}
-                    >
+                    <span className={`text-xs font-semibold tabular-nums ${AGING_BUCKET_TEXT_STYLE[bucket]}`}>
                       {age}d
                     </span>
                   </td>

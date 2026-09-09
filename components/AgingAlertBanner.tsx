@@ -25,13 +25,18 @@ export default function AgingAlertBanner({ draws }: { draws: OpenDraw[] }) {
   return (
     <Link
       href="/?aging=stale#open-draws"
-      className="block mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 hover:bg-red-100 transition-colors dark:border-red-900/60 dark:bg-red-950/40 dark:hover:bg-red-950/70"
+      className="group block mb-6 border-l-[3px] border-red-600 dark:border-red-500 pl-4 py-1"
     >
-      <p className="text-sm font-semibold text-red-800 dark:text-red-200">
-        {stale.length} {stale.length === 1 ? "draw has" : "draws have"} been open 60+ days —{" "}
-        {formatCurrency(totalAtRisk)} at risk
+      <p className="text-sm text-foreground">
+        <span className="font-semibold">
+          {stale.length} {stale.length === 1 ? "draw has" : "draws have"} been open 60+ days
+        </span>
+        {" — "}
+        <span className="font-semibold text-red-600 dark:text-red-400 group-hover:underline">
+          {formatCurrency(totalAtRisk)} at risk
+        </span>
       </p>
-      <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+      <p className="text-xs text-muted-foreground mt-0.5">
         Oldest: {oldest.draw.project.name} draw #{oldest.draw.draw_number}, {oldest.age} days —{" "}
         {formatCurrency(openBalance(oldest.draw))} outstanding. View all in Open Draws below.
       </p>
