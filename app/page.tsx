@@ -24,6 +24,26 @@ export default async function DashboardPage(
     getBillingReport(currentYear),
   ]);
 
+  const activeProjectCount = rollups.filter((r) => r.project.status === "active").length;
+  const openDrawsCount = openDraws.filter((d) => d.status !== "draft").length;
+  const avgDaysOutstanding =
+    openDraws.length > 0
+      ? Math.round(
+          openDraws.reduce((acc, d) => acc + daysOpen(d.date_submitted ?? d.created_at), 0) /
+            openDraws.length
+        )
+      : null;
+  const balanceToComplete =
+    totals.totalBudget - totals.totalPaidToOwner - totals.totalOpenToOwner - totals.totalRetainage;
+  const pctBilled =
+    totals.totalBudget > 0
+      ? `${(
+          ((totals.totalPaidToOwner + totals.totalOpenToOwner + totals.totalRetainage) /
+            totals.totalBudget) *
+          100
+        ).toFixed(0)}%`
+      : "—";
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
@@ -39,168 +59,116 @@ export default async function DashboardPage(
         <DrawsDueAlertBanner rollups={rollups} />
         <AgingAlertBanner draws={openDraws} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Currently invoiced (awaiting payment)
-            </p>
-            <p className="text-2xl font-semibold text-invoiced mt-1">
-              {formatCurrency(totals.totalOpenToOwner)}
-            </p>
-          </div>
-          <Link
-            href="/billing"
-            className="rounded-xl border border-border bg-card p-5 hover:bg-muted"
-          >
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Billed YTD ({currentYear})
-            </p>
-            <p className="text-2xl font-semibold text-foreground mt-1">
-              {formatCurrency(billingYtd.ytdRequested)}
-            </p>
-          </Link>
-          <Link
-            href="/billing"
-            className="rounded-xl border border-border bg-card p-5 hover:bg-muted"
-          >
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Payments Received YTD ({currentYear})
-            </p>
-            <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400 mt-1">
-              {formatCurrency(billingYtd.ytdReceived)}
-            </p>
-          </Link>
-        </div>
+        {/* Hero total — the one number this page exists to answer, styled
+            after an AIA G702 application's grand-total line (rule under
+            the figure) rather than another card in a shelf of cards. */}
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+          Currently invoiced — awaiting payment
+        </p>
+        <p className="text-4xl sm:text-5xl font-semibold text-invoiced tracking-tight">
+          {formatCurrency(totals.totalOpenToOwner)}
+        </p>
+        <div className="border-t border-foreground/70 border-b-[3px] border-b-foreground mt-3 mb-2" />
+        <p className="text-sm text-muted-foreground mb-8">
+          {openDrawsCount} open draws across {activeProjectCount} active projects
+        </p>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Total contract value
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {formatCurrency(totals.totalBudget)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Total paid to date
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {formatCurrency(totals.totalPaidToOwner)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Balance to complete
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {formatCurrency(
-                totals.totalBudget -
-                  totals.totalPaidToOwner -
-                  totals.totalOpenToOwner -
-                  totals.totalRetainage
-              )}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Active projects
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {rollups.filter((r) => r.project.status === "active").length}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              % billed of contract
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {totals.totalBudget > 0
-                ? `${(
-                    ((totals.totalPaidToOwner + totals.totalOpenToOwner + totals.totalRetainage) /
-                      totals.totalBudget) *
-                    100
-                  ).toFixed(0)}%`
-                : "—"}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Avg days outstanding
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {openDraws.length > 0
-                ? `${Math.round(
-                    openDraws.reduce(
-                      (acc, d) => acc + daysOpen(d.date_submitted ?? d.created_at),
-                      0
-                    ) / openDraws.length
-                  )} days`
-                : "—"}
-            </p>
-          </div>
-          <div
-            className={`rounded-lg border p-4 ${
-              totals.totalDraft > 0
-                ? "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40"
-                : "border-border bg-card"
-            }`}
-          >
-            <p
-              className={`text-xs font-medium uppercase tracking-wide ${
-                totals.totalDraft > 0
-                  ? "text-amber-700 dark:text-amber-300"
-                  : "text-muted-foreground"
-              }`}
+        {/* Supporting figures — grouped by what kind of number they are
+            (a G703 continuation sheet), not one undifferentiated shelf. */}
+        <div className="border-t border-border mb-8">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-2">
+            Year to date ({currentYear})
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border">
+            <Link href="/billing" className="py-3 block hover:bg-muted">
+              <p className="text-xs text-muted-foreground mb-1">Billed</p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatCurrency(billingYtd.ytdRequested)}
+              </p>
+            </Link>
+            <Link
+              href="/billing"
+              className="py-3 sm:pl-4 sm:border-l border-border block hover:bg-muted"
             >
-              Draft invoices total
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {formatCurrency(totals.totalDraft)}
-            </p>
-            <p
-              className={`text-xs mt-0.5 ${
-                totals.totalDraft > 0
-                  ? "text-amber-700 dark:text-amber-300"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {totals.totalDraft > 0 ? "Needs to be submitted" : "Not yet submitted"}
-            </p>
+              <p className="text-xs text-muted-foreground mb-1">Received</p>
+              <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">
+                {formatCurrency(billingYtd.ytdReceived)}
+              </p>
+            </Link>
+            <div className="py-3 sm:pl-4 sm:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">Avg. days outstanding</p>
+              <p className="text-xl font-semibold text-foreground">
+                {avgDaysOutstanding !== null ? `${avgDaysOutstanding} days` : "—"}
+              </p>
+            </div>
           </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Open draws
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {openDraws.filter((d) => d.status !== "draft").length}
-            </p>
+
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-2">
+            Contract totals
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-border">
+            <div className="py-3">
+              <p className="text-xs text-muted-foreground mb-1">Contract value</p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatCurrency(totals.totalBudget)}
+              </p>
+            </div>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">Paid to date</p>
+              <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">
+                {formatCurrency(totals.totalPaidToOwner)}
+              </p>
+            </div>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">Balance to complete</p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatCurrency(balanceToComplete)}
+              </p>
+            </div>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">% billed of contract</p>
+              <p className="text-xl font-semibold text-foreground">{pctBilled}</p>
+            </div>
           </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Total retainage held
-            </p>
-            <p className="text-lg font-semibold text-foreground mt-1">
-              {formatCurrency(totals.totalRetainage)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Coming soon
-            </p>
-            <p className="text-lg font-semibold text-muted-foreground mt-1">—</p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Coming soon
-            </p>
-            <p className="text-lg font-semibold text-muted-foreground mt-1">—</p>
-          </div>
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Coming soon
-            </p>
-            <p className="text-lg font-semibold text-muted-foreground mt-1">—</p>
+
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-2">
+            Status
+          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 border-b border-border">
+            <div className="py-3">
+              <p className="text-xs text-muted-foreground mb-1">Active projects</p>
+              <p className="text-xl font-semibold text-foreground">{activeProjectCount}</p>
+            </div>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">Open draws</p>
+              <p className="text-xl font-semibold text-foreground">{openDrawsCount}</p>
+            </div>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">Retainage held</p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatCurrency(totals.totalRetainage)}
+              </p>
+            </div>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p
+                className={`text-xs mb-1 ${
+                  totals.totalDraft > 0
+                    ? "text-amber-700 dark:text-amber-300"
+                    : "text-muted-foreground"
+                }`}
+              >
+                Draft invoices, not yet submitted
+              </p>
+              <p
+                className={`text-xl font-semibold ${
+                  totals.totalDraft > 0
+                    ? "text-amber-700 dark:text-amber-300"
+                    : "text-foreground"
+                }`}
+              >
+                {formatCurrency(totals.totalDraft)}
+              </p>
+            </div>
           </div>
         </div>
 
