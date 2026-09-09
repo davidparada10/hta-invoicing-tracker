@@ -316,6 +316,8 @@ export default function WorkflowPage() {
             <Detail term="lib/aging.ts">Days-open / aging-bucket math for the dashboard alert banner and Open Draws filters</Detail>
             <Detail term="lib/billing.ts">YTD/QTD billed-vs-received calc for the Billing Summary page</Detail>
             <Detail term="lib/drawSchedule.ts">Recurring draw-cadence math — this cycle&rsquo;s due date, isDrawOverdue/isDrawUrgent, matched by the draw&rsquo;s billed period rather than when it was created</Detail>
+            <Detail term="lib/drawAllocations.ts">Pure diffing logic for saving a draw&rsquo;s schedule-of-values allocations (upsert vs. delete) — split out of app/draws/actions.ts so it&rsquo;s unit-tested</Detail>
+            <Detail term="*.test.ts, vitest.config.mts">Unit tests (Vitest) for the pure logic modules — run via `npm run test`, gated in .husky/pre-push alongside lint and build</Detail>
             <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools</Detail>
             <Detail term="lib/auth/session.ts">Passcode session signing/verification</Detail>
             <Detail term="lib/auth/rateLimit.ts">Per-IP login throttling against inv_login_attempts</Detail>
