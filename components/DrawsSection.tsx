@@ -10,6 +10,15 @@ import { deleteDraw } from "@/app/draws/actions";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
 
+// A "paid" draw whose amount_paid doesn't match what was approved is a
+// closed-but-short (or over-) payment — permanent, not a normal pending
+// balance, so it's easy to miss without a flag once the draw shows "paid."
+function shortPaymentGap(draw: OwnerDraw): number | null {
+  if (draw.status !== "paid") return null;
+  const gap = Number(draw.amount_approved ?? 0) - Number(draw.amount_paid ?? 0);
+  return Math.abs(gap) > 0.01 ? gap : null;
+}
+
 export default function DrawsSection({
   projectId,
   draws,
@@ -117,7 +126,15 @@ export default function DrawsSection({
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Paid</p>
-                <p>{formatCurrency(d.amount_paid)}</p>
+                <p className={shortPaymentGap(d) !== null ? "text-invoiced font-medium" : ""}>
+                  {formatCurrency(d.amount_paid)}
+                  {shortPaymentGap(d) !== null && (
+                    <span className="block text-xs font-normal">
+                      {formatCurrency(Math.abs(shortPaymentGap(d)!))}{" "}
+                      {shortPaymentGap(d)! > 0 ? "less" : "more"} than approved
+                    </span>
+                  )}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Retainage</p>
@@ -203,7 +220,18 @@ export default function DrawsSection({
                 </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.amount_requested)}</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.amount_approved)}</td>
-                <td className="px-4 py-2 text-right">{formatCurrency(d.amount_paid)}</td>
+                <td
+                  className={`px-4 py-2 text-right ${shortPaymentGap(d) !== null ? "text-invoiced font-medium" : ""}`}
+                  title={
+                    shortPaymentGap(d) !== null
+                      ? `Paid ${formatCurrency(Math.abs(shortPaymentGap(d)!))} ${
+                          shortPaymentGap(d)! > 0 ? "less" : "more"
+                        } than approved`
+                      : undefined
+                  }
+                >
+                  {formatCurrency(d.amount_paid)}
+                </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.retainage_held)}</td>
                 <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
                 <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_approved)}</td>
