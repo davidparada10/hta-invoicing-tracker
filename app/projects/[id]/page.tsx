@@ -72,41 +72,42 @@ export default async function ProjectDetailPage(
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Currently Invoiced (Open)
-            </p>
-            <p className="text-2xl font-semibold text-invoiced mt-1">
-              {formatCurrency(totalOpenToOwner)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Total Paid to Date
-            </p>
-            <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400 mt-1">
-              {formatCurrency(totalPaidToOwner)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Contract Value
-            </p>
-            <p className="text-2xl font-semibold text-foreground mt-1">
-              {formatCurrency(totalBudget)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Balance to Complete
-            </p>
-            <p className="text-2xl font-semibold text-foreground mt-1">
-              {formatCurrency(balanceToComplete)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatCurrency(totalRetainage)} retainage to date
-            </p>
+        {/* Hero total — same ledger treatment as the dashboard: the one
+            number this page exists to answer, not another card in a shelf. */}
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+          Currently invoiced — open
+        </p>
+        <p className="text-4xl sm:text-5xl font-semibold text-invoiced tracking-tight">
+          {formatCurrency(totalOpenToOwner)}
+        </p>
+        <div className="border-t border-foreground/70 border-b-[3px] border-b-foreground mt-3 mb-6" />
+
+        <div className="border-t border-border mb-6">
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide pt-4 pb-2">
+            Contract totals
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border">
+            <div className="py-3">
+              <p className="text-xs text-muted-foreground mb-1">Paid to date</p>
+              <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">
+                {formatCurrency(totalPaidToOwner)}
+              </p>
+            </div>
+            <div className="py-3 sm:pl-4 sm:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">Contract value</p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatCurrency(totalBudget)}
+              </p>
+            </div>
+            <div className="py-3 sm:pl-4 sm:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">Balance to complete</p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatCurrency(balanceToComplete)}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {formatCurrency(totalRetainage)} retainage to date
+              </p>
+            </div>
           </div>
         </div>
 
