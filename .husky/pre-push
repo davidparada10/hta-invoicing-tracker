@@ -7,6 +7,15 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
+echo "Running 'npm run test' before push..."
+npm run test
+
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "❌ Tests failed — push aborted. Fix the error above before pushing."
+  exit 1
+fi
+
 echo "Running 'npm run build' before push..."
 npm run build
 
@@ -16,4 +25,4 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "✅ Lint and build passed."
+echo "✅ Lint, tests, and build passed."

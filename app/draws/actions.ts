@@ -12,6 +12,7 @@ import {
   ParsedG702Draw,
 } from "@/lib/g702-parser";
 import { isLenderPortalPdfText, parseLenderDrawFromPdf } from "@/lib/lender-portal-parser";
+import { diffAllocations } from "@/lib/drawAllocations";
 
 function normalizeMatchKey(s: string): string {
   return s
@@ -206,20 +207,18 @@ async function saveAllocations(
   // the common case (editing a draw normally keeps most of its line items).
   // Only budget lines genuinely dropped from this draw get deleted, and only
   // after the upsert succeeds, so a failed write never wipes prior data.
+  // See lib/drawAllocations.ts for the (unit-tested) diffing logic itself.
   const { data: existing, error: selectError } = await supabase
     .from("inv_draw_line_allocations")
     .select("id, budget_line_id")
     .eq("draw_id", drawId);
   if (selectError) throw selectError;
 
-  const newBudgetLineIds = new Set(allocations.map((a) => a.budget_line_id));
-  const staleIds = (existing ?? [])
-    .filter((r) => !newBudgetLineIds.has(r.budget_line_id))
-    .map((r) => r.id);
+  const { toUpsert, staleIds } = diffAllocations(existing ?? [], allocations);
 
-  if (allocations.length > 0) {
+  if (toUpsert.length > 0) {
     const { error: upsertError } = await supabase.from("inv_draw_line_allocations").upsert(
-      allocations.map((a) => ({
+      toUpsert.map((a) => ({
         draw_id: drawId,
         budget_line_id: a.budget_line_id,
         amount: a.amount,
