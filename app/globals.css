@@ -18,13 +18,13 @@
 
 .dark {
   color-scheme: dark;
-  --background: #020617;
-  --foreground: #f1f5f9;
-  --card: #0f172a;
-  --border: #334155;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --primary: #f1f5f9;
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #18181b;
+  --border: #3f3f46;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --primary: #f4f4f5;
   --invoiced: #ff3344;
   --diagram-draw-fill: rgba(29, 78, 216, 0.18);
   --diagram-budget-fill: rgba(194, 65, 12, 0.18);
