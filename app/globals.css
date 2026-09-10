@@ -13,6 +13,7 @@
   --primary: #0f172a;
   --invoiced: #ed1c24;
   --paid: #047857;
+  --billed: #1d4ed8;
   --diagram-draw-fill: #eff6ff;
   --diagram-budget-fill: #fff7ed;
 }
@@ -28,6 +29,7 @@
   --primary: #f4f4f5;
   --invoiced: #ff3344;
   --paid: #059669;
+  --billed: #2563eb;
   --diagram-draw-fill: rgba(29, 78, 216, 0.18);
   --diagram-budget-fill: rgba(194, 65, 12, 0.18);
 }
@@ -105,6 +107,13 @@ body {
   }
   .bg-paid {
     background-color: var(--paid);
+  }
+
+  /* Billed/invoiced/drawn amounts (the blue side of the invoiced-vs-paid
+     pair in charts and budget breakdowns) — same fix as --paid: one shade
+     instead of a dark-mode-only jump to a brighter blue. */
+  .text-billed {
+    color: var(--billed);
   }
 
   .select-caret {

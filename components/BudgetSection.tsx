@@ -163,7 +163,7 @@ export default function BudgetSection({
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Drawn to Date
           </p>
-          <p className="text-2xl font-semibold text-blue-700 dark:text-blue-400 mt-1">
+          <p className="text-2xl font-semibold text-billed mt-1">
             {formatCurrency(totalDrawn)}
           </p>
         </div>
@@ -239,7 +239,7 @@ export default function BudgetSection({
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Drawn</p>
-                  <p className="text-blue-700 dark:text-blue-400">{formatCurrency(drawn)}</p>
+                  <p className="text-billed">{formatCurrency(drawn)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Balance</p>
@@ -306,7 +306,7 @@ export default function BudgetSection({
                   )}
                 </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(l.scheduled_value)}</td>
-                <td className="px-4 py-2 text-right text-blue-700 dark:text-blue-400">{formatCurrency(drawn)}</td>
+                <td className="px-4 py-2 text-right text-billed">{formatCurrency(drawn)}</td>
                 <td
                   className={`px-4 py-2 text-right ${
                     l.scheduled_value - drawn < 0 ? "text-invoiced" : "text-muted-foreground"
