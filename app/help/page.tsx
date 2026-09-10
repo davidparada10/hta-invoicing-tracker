@@ -140,7 +140,7 @@ export default function HelpPage() {
             <rect x="300" y="614" width="440" height="64" rx="10" fill={MUTED_SURFACE} stroke={BORDER} strokeWidth={1.4} />
             <text x="520" y="638" textAnchor="middle" fontWeight="600" fontSize="13" fill={INK}>Project Detail Page</text>
             <text x="520" y="656" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill={MUTED_INK}>
-              &quot;Total Paid to Date&quot;  next to  &quot;Currently Invoiced (Open)&quot;  next to  &quot;Contract Value&quot;
+              &quot;Currently Invoiced — Open&quot; hero, then Paid to Date / Contract Value / Balance to Complete
             </text>
           </svg>
 
