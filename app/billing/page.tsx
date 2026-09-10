@@ -3,6 +3,7 @@ import SiteHeader from "@/components/SiteHeader";
 import { getBillingReport, getProjectBillingBreakdown } from "@/lib/data";
 import { currentQuarter } from "@/lib/billing";
 import { formatCurrency, formatDaysToPay } from "@/lib/format";
+import ExportCsvButton from "@/components/ExportCsvButton";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ export default async function BillingPage(
     <div className="min-h-screen">
       <SiteHeader />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-1 gap-3">
           <h1 className="text-2xl font-semibold text-foreground">Billing Summary</h1>
           <div className="flex items-center gap-3 text-sm">
             <Link href={`/billing?year=${year - 1}`} className="text-muted-foreground hover:text-foreground">
@@ -49,6 +50,42 @@ export default async function BillingPage(
             ) : (
               <span className="text-muted-foreground">{year + 1} →</span>
             )}
+            <ExportCsvButton
+              filename={`billing-summary-${year}.csv`}
+              sections={[
+                {
+                  title: `By Quarter (${year})`,
+                  headers: ["Quarter", "Billed", "Received", "Outstanding", "Avg Days to Pay"],
+                  rows: [
+                    ...report.quarters.map((q) => [
+                      QUARTER_LABEL[q.quarter],
+                      q.requested,
+                      q.received,
+                      q.requested - q.received,
+                      formatDaysToPay(q.avgDaysToPay),
+                    ]),
+                    [
+                      `Total (${year})`,
+                      report.ytdRequested,
+                      report.ytdReceived,
+                      outstandingYtd,
+                      formatDaysToPay(report.ytdAvgDaysToPay),
+                    ],
+                  ],
+                },
+                {
+                  title: `By Project (${year})`,
+                  headers: ["Project", "Billed", "Received", "Outstanding", "Avg Days to Pay"],
+                  rows: projectRows.map((p) => [
+                    p.projectName,
+                    p.requested,
+                    p.received,
+                    p.requested - p.received,
+                    formatDaysToPay(p.avgDaysToPay),
+                  ]),
+                },
+              ]}
+            />
           </div>
         </div>
         <p className="text-sm text-muted-foreground mb-6">
