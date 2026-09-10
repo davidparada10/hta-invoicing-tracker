@@ -19,9 +19,7 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
   return (
     <div className="rounded-xl border border-border bg-card p-5 mb-6">
       <div className="flex items-baseline justify-between mb-1">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Draws Paid of Requested
-        </span>
+        <span className="text-xs text-muted-foreground">Draws paid of requested</span>
         <span className="text-sm font-medium text-foreground">{paidPct.toFixed(0)}%</span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -35,7 +33,7 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5 border-t border-border">
         <SummaryStat label="Requested" value={formatCurrency(totalRequested)} />
         <SummaryStat
-          label="Currently Invoiced"
+          label="Currently invoiced"
           value={formatCurrency(totalOpenToOwner)}
           valueClassName="text-invoiced"
         />
@@ -44,7 +42,7 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
           value={formatCurrency(totalPaidToOwner)}
           valueClassName="text-emerald-700 dark:text-emerald-400"
         />
-        <SummaryStat label="Retainage Held" value={formatCurrency(retainageHeld)} />
+        <SummaryStat label="Retainage held" value={formatCurrency(retainageHeld)} />
       </div>
     </div>
   );
@@ -61,7 +59,7 @@ function SummaryStat({
 }) {
   return (
     <div>
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className={`text-lg font-semibold mt-0.5 ${valueClassName}`}>{value}</p>
     </div>
   );

@@ -71,9 +71,9 @@ export default function AddProjectModal() {
     <>
       <button
         onClick={() => { setDueType(""); setOpen(true); }}
-        className="rounded-lg bg-primary text-background text-sm font-medium px-3 py-1.5 hover:opacity-90"
+        className="rounded bg-primary text-background text-sm font-semibold px-3.5 py-1.5 hover:opacity-90"
       >
-        + Add Project
+        + Add project
       </button>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Add Project">

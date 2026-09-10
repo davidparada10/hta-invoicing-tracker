@@ -57,42 +57,45 @@ export default async function BillingPage(
           accrual.
         </p>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Billed {isCurrentYear ? "YTD" : year}
-            </p>
-            <p className="text-2xl font-semibold text-foreground mt-1">
-              {formatCurrency(report.ytdRequested)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Received {isCurrentYear ? "YTD" : year}
-            </p>
-            <p className="text-2xl font-semibold text-emerald-700 dark:text-emerald-400 mt-1">
-              {formatCurrency(report.ytdReceived)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Outstanding {isCurrentYear ? "YTD" : year}
-            </p>
-            <p
-              className={`text-2xl font-semibold mt-1 ${
-                outstandingYtd > 0 ? "text-invoiced" : "text-foreground"
-              }`}
-            >
-              {formatCurrency(outstandingYtd)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-card p-5">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Avg days to pay
-            </p>
-            <p className="text-2xl font-semibold text-foreground mt-1">
-              {formatDaysToPay(report.ytdAvgDaysToPay)}
-            </p>
+        {/* Hero total — same ledger treatment as the dashboard and project
+            pages: the one number this report exists to answer (what's
+            billed but not yet received), not another card in a shelf. */}
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+          Outstanding {isCurrentYear ? "YTD" : year}
+        </p>
+        <p
+          className={`text-4xl sm:text-5xl font-semibold tracking-tight ${
+            outstandingYtd > 0 ? "text-invoiced" : "text-foreground"
+          }`}
+        >
+          {formatCurrency(outstandingYtd)}
+        </p>
+        <div className="border-t border-foreground/70 border-b-[3px] border-b-foreground mt-3 mb-6" />
+
+        <div className="border-t border-border mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border">
+            <div className="py-3">
+              <p className="text-xs text-muted-foreground mb-1">
+                Billed {isCurrentYear ? "YTD" : year}
+              </p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatCurrency(report.ytdRequested)}
+              </p>
+            </div>
+            <div className="py-3 sm:pl-4 sm:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">
+                Received {isCurrentYear ? "YTD" : year}
+              </p>
+              <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">
+                {formatCurrency(report.ytdReceived)}
+              </p>
+            </div>
+            <div className="py-3 sm:pl-4 sm:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1">Avg days to pay</p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatDaysToPay(report.ytdAvgDaysToPay)}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -103,8 +106,8 @@ export default async function BillingPage(
             return (
               <div
                 key={q.quarter}
-                className={`rounded-xl border p-4 ${
-                  isActive ? "border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40" : "border-border bg-card"
+                className={`rounded-xl border border-border bg-card p-4 ${
+                  isActive ? "border-l-[3px] border-l-amber-500 dark:border-l-amber-600" : ""
                 }`}
               >
                 <p className="font-medium text-foreground">
@@ -179,10 +182,10 @@ export default async function BillingPage(
               {report.quarters.map((q) => {
                 const isActive = q.quarter === activeQuarter;
                 return (
-                  <tr key={q.quarter} className={isActive ? "bg-amber-50 dark:bg-amber-950/40" : ""}>
+                  <tr key={q.quarter}>
                     <td
-                      className={`px-4 py-2 font-medium text-foreground sticky left-0 z-10 ${
-                        isActive ? "bg-amber-50 dark:bg-amber-950/40" : "bg-card"
+                      className={`px-4 py-2 font-medium text-foreground sticky left-0 z-10 bg-card ${
+                        isActive ? "border-l-[3px] border-l-amber-500 dark:border-l-amber-600" : ""
                       }`}
                     >
                       {QUARTER_LABEL[q.quarter]}
