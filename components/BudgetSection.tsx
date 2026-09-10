@@ -211,7 +211,7 @@ export default function BudgetSection({
 
       {importError && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{importError}</p>}
       {importMessage && !importError && (
-        <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-3">{importMessage}</p>
+        <p className="text-sm text-paid mb-3">{importMessage}</p>
       )}
 
       {/* Mobile: one card per line item */}

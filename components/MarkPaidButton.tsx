@@ -55,7 +55,7 @@ export default function MarkPaidButton({
         disabled={isPending}
         className={
           className ??
-          "text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 text-xs font-medium disabled:opacity-50"
+          "text-paid hover:opacity-70 text-xs font-medium disabled:opacity-50"
         }
       >
         {isPending ? "Marking…" : "Mark Paid"}

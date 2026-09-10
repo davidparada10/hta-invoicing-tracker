@@ -314,7 +314,7 @@ export default function DrawFormModal({
           {parsing && <p className="text-xs text-muted-foreground mt-1">Reading file…</p>}
           {parseError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{parseError}</p>}
           {parsedFileName && !parsing && !parseError && (
-            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+            <p className="text-xs text-paid mt-1">
               Auto-filled from {parsedFileName}.
               {parsedAllocationsCount
                 ? ` Also filled in ${parsedAllocationsCount} schedule-of-values line${

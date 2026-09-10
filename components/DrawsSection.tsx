@@ -171,7 +171,7 @@ export default function DrawsSection({
                   drawNumber={d.draw_number}
                   amountRequested={d.amount_requested}
                   amountPaid={d.amount_paid}
-                  className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 text-xs font-medium disabled:opacity-50"
+                  className="text-paid hover:opacity-70 text-xs font-medium disabled:opacity-50"
                 />
               )}
             </div>
@@ -247,7 +247,7 @@ export default function DrawsSection({
                       drawNumber={d.draw_number}
                       amountRequested={d.amount_requested}
                       amountPaid={d.amount_paid}
-                      className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 text-xs font-medium mr-3 disabled:opacity-50"
+                      className="text-paid hover:opacity-70 text-xs font-medium mr-3 disabled:opacity-50"
                     />
                   )}
                   <button
