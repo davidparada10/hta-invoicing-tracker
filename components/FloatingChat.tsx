@@ -243,7 +243,7 @@ function ChatPart({
       return <p className="text-xs text-red-600 dark:text-red-400">{String(output.error)}</p>;
     }
     if (isWrite) {
-      return <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">✓ Done.</p>;
+      return <p className="text-xs text-paid font-medium">✓ Done.</p>;
     }
     return <ToolResult toolName={toolName} output={output} />;
   }
@@ -298,7 +298,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
                 <td className="px-1 py-1 text-right text-invoiced">
                   {formatCurrency(p.totalOpenToOwner as number)}
                 </td>
-                <td className="px-1 py-1 text-right text-emerald-700 dark:text-emerald-400">
+                <td className="px-1 py-1 text-right text-paid">
                   {formatCurrency(p.totalPaidToOwner as number)}
                 </td>
               </tr>
@@ -334,7 +334,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
               <tr key={i} className="border-t border-border">
                 <td className="px-1 py-1">{String(p.project)}</td>
                 <td className="px-1 py-1">#{String(p.drawNumber)}</td>
-                <td className="px-1 py-1 text-right text-emerald-700 dark:text-emerald-400">
+                <td className="px-1 py-1 text-right text-paid">
                   {formatCurrency(p.amountPaid as number)}
                 </td>
                 <td className="px-1 py-1 text-right">{formatCurrency(p.retainageHeld as number)}</td>
@@ -383,7 +383,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
         <p className="text-xs font-medium">{String(project.name)}</p>
         <div className="flex gap-3 text-xs">
           <span className="text-invoiced">Open: {formatCurrency(totals.totalOpenToOwner as number)}</span>
-          <span className="text-emerald-700 dark:text-emerald-400">
+          <span className="text-paid">
             Paid: {formatCurrency(totals.totalPaidToOwner as number)}
           </span>
           <span className="text-muted-foreground">Contract: {formatCurrency(totals.totalBudget as number)}</span>
@@ -425,7 +425,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
         <p className="text-xs font-medium">{String(output.year)} YTD</p>
         <div className="flex gap-3 text-xs">
           <span className="text-invoiced">Billed: {formatCurrency(output.ytdRequested as number)}</span>
-          <span className="text-emerald-700 dark:text-emerald-400">
+          <span className="text-paid">
             Received: {formatCurrency(output.ytdReceived as number)}
           </span>
           {output.ytdAvgDaysToPay != null && (
@@ -446,7 +446,7 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
                 <tr key={i} className="border-t border-border">
                   <td className="px-1 py-1">{String(p.project)}</td>
                   <td className="px-1 py-1 text-right">{formatCurrency(p.requested as number)}</td>
-                  <td className="px-1 py-1 text-right text-emerald-700 dark:text-emerald-400">
+                  <td className="px-1 py-1 text-right text-paid">
                     {formatCurrency(p.received as number)}
                   </td>
                 </tr>

@@ -86,7 +86,7 @@ export default async function BillingPage(
               <p className="text-xs text-muted-foreground mb-1">
                 Received {isCurrentYear ? "YTD" : year}
               </p>
-              <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">
+              <p className="text-xl font-semibold text-paid">
                 {formatCurrency(report.ytdReceived)}
               </p>
             </div>
@@ -125,7 +125,7 @@ export default async function BillingPage(
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Received</p>
-                    <p className="text-emerald-700 dark:text-emerald-400">{formatCurrency(q.received)}</p>
+                    <p className="text-paid">{formatCurrency(q.received)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Outstanding</p>
@@ -150,7 +150,7 @@ export default async function BillingPage(
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Received</p>
-                <p className="text-emerald-700 dark:text-emerald-400">{formatCurrency(report.ytdReceived)}</p>
+                <p className="text-paid">{formatCurrency(report.ytdReceived)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
@@ -196,7 +196,7 @@ export default async function BillingPage(
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">{formatCurrency(q.requested)}</td>
-                    <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
+                    <td className="px-4 py-2 text-right text-paid">
                       {formatCurrency(q.received)}
                     </td>
                     <td
@@ -217,7 +217,7 @@ export default async function BillingPage(
               <tr className="border-t border-border font-semibold text-foreground">
                 <td className="px-4 py-2 sticky left-0 z-10 bg-card">Total ({year})</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(report.ytdRequested)}</td>
-                <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
+                <td className="px-4 py-2 text-right text-paid">
                   {formatCurrency(report.ytdReceived)}
                 </td>
                 <td
@@ -251,7 +251,7 @@ export default async function BillingPage(
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Received</p>
-                  <p className="text-emerald-700 dark:text-emerald-400">{formatCurrency(p.received)}</p>
+                  <p className="text-paid">{formatCurrency(p.received)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Outstanding</p>
@@ -280,7 +280,7 @@ export default async function BillingPage(
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Received</p>
-                <p className="text-emerald-700 dark:text-emerald-400">{formatCurrency(report.ytdReceived)}</p>
+                <p className="text-paid">{formatCurrency(report.ytdReceived)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
@@ -320,7 +320,7 @@ export default async function BillingPage(
                     </Link>
                   </td>
                   <td className="px-4 py-2 text-right">{formatCurrency(p.requested)}</td>
-                  <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
+                  <td className="px-4 py-2 text-right text-paid">
                     {formatCurrency(p.received)}
                   </td>
                   <td
@@ -347,7 +347,7 @@ export default async function BillingPage(
               <tr className="border-t border-border font-semibold text-foreground">
                 <td className="px-4 py-2 sticky left-0 z-10 bg-card">Total ({year})</td>
                 <td className="px-4 py-2 text-right">{formatCurrency(report.ytdRequested)}</td>
-                <td className="px-4 py-2 text-right text-emerald-700 dark:text-emerald-400">
+                <td className="px-4 py-2 text-right text-paid">
                   {formatCurrency(report.ytdReceived)}
                 </td>
                 <td

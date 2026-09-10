@@ -2,7 +2,7 @@ import { OwnerDraw } from "@/lib/types";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
 
 const INVOICED_COLOR = "#1d4ed8";
-const PAID_COLOR = "#047857";
+const PAID_COLOR = "var(--paid)";
 
 interface MonthBucket {
   key: string;

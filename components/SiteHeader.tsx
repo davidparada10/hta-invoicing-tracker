@@ -28,15 +28,26 @@ export default function SiteHeader() {
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-4 flex flex-col gap-3">
           <div className="flex items-start justify-between gap-4">
-            <Link href="/" className="inline-block min-w-0">
-              <Image
-                src="/hta-logo.png"
-                alt="HTA Construction"
-                width={4745}
-                height={1500}
-                className="h-16 sm:h-20 w-auto"
-                priority
-              />
+            <Link href="/" className="inline-block shrink-0">
+              {/* The source PNG bakes "CONSTRUCTION" in as solid black pixels
+                  alongside the red HTA mark, so it can't be recolored for dark
+                  mode with CSS alone — crop to just the mark and set
+                  "CONSTRUCTION" as live, theme-aware text underneath instead.
+                  w-fit keeps the crop sized to the image, not squeezed by the
+                  flex row it sits in (that clipped it away entirely on mobile). */}
+              <div className="h-12 sm:h-[61px] w-fit overflow-hidden">
+                <Image
+                  src="/hta-logo.png"
+                  alt="HTA"
+                  width={4745}
+                  height={1500}
+                  className="h-16 sm:h-20 w-auto"
+                  priority
+                />
+              </div>
+              <p className="text-foreground font-semibold text-xs sm:text-sm tracking-[0.32em] mt-0.5">
+                CONSTRUCTION
+              </p>
             </Link>
             <button
               onClick={() => setMenuOpen((v) => !v)}

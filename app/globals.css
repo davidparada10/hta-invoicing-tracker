@@ -12,6 +12,7 @@
   --muted-foreground: #64748b;
   --primary: #0f172a;
   --invoiced: #ed1c24;
+  --paid: #047857;
   --diagram-draw-fill: #eff6ff;
   --diagram-budget-fill: #fff7ed;
 }
@@ -26,6 +27,7 @@
   --muted-foreground: #a1a1aa;
   --primary: #f4f4f5;
   --invoiced: #ff3344;
+  --paid: #059669;
   --diagram-draw-fill: rgba(29, 78, 216, 0.18);
   --diagram-budget-fill: rgba(194, 65, 12, 0.18);
 }
@@ -94,6 +96,15 @@ body {
   /* Bright stop-sign red — currently invoiced / outstanding AR amounts */
   .text-invoiced {
     color: var(--invoiced);
+  }
+
+  /* Paid/received amounts — one shade everywhere instead of the lighter
+     emerald-400 dark mode used to switch to, which never matched the chart. */
+  .text-paid {
+    color: var(--paid);
+  }
+  .bg-paid {
+    background-color: var(--paid);
   }
 
   .select-caret {

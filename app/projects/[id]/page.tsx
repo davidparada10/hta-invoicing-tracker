@@ -89,7 +89,7 @@ export default async function ProjectDetailPage(
           <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border">
             <div className="py-3">
               <p className="text-xs text-muted-foreground mb-1">Paid to date</p>
-              <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">
+              <p className="text-xl font-semibold text-paid">
                 {formatCurrency(totalPaidToOwner)}
               </p>
             </div>

@@ -23,7 +23,7 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
         <span className="text-sm font-medium text-foreground">{paidPct.toFixed(0)}%</span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
-        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${paidPct}%` }} />
+        <div className="h-full bg-paid rounded-full" style={{ width: `${paidPct}%` }} />
       </div>
       <p className="text-xs text-muted-foreground mt-1">
         {formatCurrency(totalPaidToOwner)} paid · {formatCurrency(totalOpenToOwner)} open of{" "}
@@ -40,7 +40,7 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
         <SummaryStat
           label="Paid"
           value={formatCurrency(totalPaidToOwner)}
-          valueClassName="text-emerald-700 dark:text-emerald-400"
+          valueClassName="text-paid"
         />
         <SummaryStat label="Retainage held" value={formatCurrency(retainageHeld)} />
       </div>

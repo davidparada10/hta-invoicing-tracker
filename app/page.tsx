@@ -91,7 +91,7 @@ export default async function DashboardPage(
               className="py-3 sm:pl-4 sm:border-l border-border block hover:bg-muted"
             >
               <p className="text-xs text-muted-foreground mb-1">Received</p>
-              <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">
+              <p className="text-xl font-semibold text-paid">
                 {formatCurrency(billingYtd.ytdReceived)}
               </p>
             </Link>
@@ -115,7 +115,7 @@ export default async function DashboardPage(
             </div>
             <div className="py-3 lg:pl-4 lg:border-l border-border">
               <p className="text-xs text-muted-foreground mb-1">Paid to date</p>
-              <p className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">
+              <p className="text-xl font-semibold text-paid">
                 {formatCurrency(totals.totalPaidToOwner)}
               </p>
             </div>

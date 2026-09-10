@@ -86,7 +86,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Paid to Date</p>
-                <p className="font-medium text-emerald-700 dark:text-emerald-400">
+                <p className="font-medium text-paid">
                   {formatCurrency(r.totalPaidToOwner)}
                 </p>
               </div>
@@ -165,7 +165,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <td className="px-4 py-2 text-right font-medium text-invoiced">
                   {formatCurrency(r.totalOpenToOwner)}
                 </td>
-                <td className="px-4 py-2 text-right font-medium text-emerald-700 dark:text-emerald-400">
+                <td className="px-4 py-2 text-right font-medium text-paid">
                   {formatCurrency(r.totalPaidToOwner)}
                 </td>
                 <td className="px-4 py-2 text-right text-foreground">
