@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
 
-const PUBLIC_PATHS = ["/login", "/api/login"];
+// /api/cron/* is exempt from the session-cookie gate because Vercel Cron's
+// request carries only "Authorization: Bearer $CRON_SECRET", never a
+// session cookie — each cron route independently verifies that header
+// itself, so this doesn't weaken auth, it just lets that check run at all.
+const PUBLIC_PATHS = ["/login", "/api/login", "/api/cron"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
