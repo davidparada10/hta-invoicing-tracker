@@ -12,6 +12,9 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-10 (evening) — ~18m, 7:41–7:49 PM
+- Polished the login screen so the card reads as one block: the HTA logo is larger and centered, and the title/subtitle underneath are now center-aligned to match instead of sitting left-justified under a centered mark.
+
 ## 2026-09-08
 - Fixed a production crash caught live: editing 12010 Aneta draw #2 threw a Postgres duplicate-key error on save. Root cause was a real regression from the "insert before delete" safety fix to saveAllocations a few days earlier (2026-09-03) — inserting the new allocation set before deleting the old rows collides with any existing row for a budget line still present in the new set, which is the common case for editing an existing draw (most line items stay the same, only some amounts change). This broke saving any edit to a draw that already had schedule-of-values allocations — a core, everyday workflow, not an edge case. Switched to an upsert on the (draw_id, budget_line_id) constraint instead of a plain insert, so an existing line updates in place with no conflict, and only genuinely-dropped lines get deleted afterward. Verified against a disposable test project reproducing the exact scenario (keep one line with a changed amount, drop another, add a new one) — all three now save correctly. The real Aneta draw #2 wasn't left corrupted; the failed insert happened before any delete, so its data was untouched, but the user's edit itself didn't save and needs to be redone.
 - Also confirmed (not bugs, on request): 12010 Aneta draw #5 and 1532 Hi Point draw #10 both show line-item allocations exceeding amount_requested by exactly their retainage_held — correct AIA G702/G703 convention (line items are gross billed amount; amount_requested is net of retainage). $0.00 approved on both is also expected since they're still "submitted," not yet signed off.

@@ -53,10 +53,10 @@ function LoginForm() {
         <div className="text-foreground mb-6 flex justify-center">
           <Logo className="h-16 w-auto" />
         </div>
-        <h1 className="text-xl font-semibold text-foreground mb-1">
+        <h1 className="text-xl font-semibold text-foreground mb-1 text-center">
           Multi-Family Invoice Tracker
         </h1>
-        <p className="text-sm text-muted-foreground mb-6">Enter the site passcode to continue.</p>
+        <p className="text-sm text-muted-foreground mb-6 text-center">Enter the site passcode to continue.</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="password"
