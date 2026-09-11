@@ -326,6 +326,9 @@ export default function WorkflowPage() {
             <Detail term="components/AddressAutocomplete.tsx">Google Places autocomplete for the project Address field, with a plain-text fallback</Detail>
             <Detail term="components/AgingAlertBanner.tsx, ProjectStatusSelect.tsx">Dashboard 60+ day alert; inline active/closed status dropdown</Detail>
             <Detail term="components/DrawsDueAlertBanner.tsx">Dashboard alert for projects overdue on their recurring draw cadence</Detail>
+            <Detail term="components/Logo.tsx">The HTA mark as inline SVG (traced from the source PNG) — CONSTRUCTION uses currentColor so it&rsquo;s theme-aware; the red H·T·A mark keeps its explicit brand-red fill in both themes</Detail>
+            <Detail term="components/ExportCsvButton.tsx">Generic client-side CSV export (Blob download, no server round trip) — currently wired into Billing Summary only</Detail>
+            <Detail term="lib/digest.ts, lib/msGraph.ts, app/api/cron/digest">Scheduled email digest scaffold — same 60+ day / draw-due criteria as the dashboard banners, sent via Microsoft Graph. Not yet active: needs an Azure app registration (Mail.Send application permission, admin consent) and its env vars (see .env.local.example) before the cron job can actually send</Detail>
           </dl>
         </div>
       </main>
