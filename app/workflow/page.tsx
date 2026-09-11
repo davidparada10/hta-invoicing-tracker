@@ -107,11 +107,11 @@ export default function WorkflowPage() {
           Multi-Family Invoice Tracker — System Workflow
         </h1>
         <p className="text-sm text-muted-foreground max-w-3xl mb-8">
-          Eight flows: G702 draw upload · G703 schedule-of-values import · draw lifecycle &amp;
+          Nine flows: G702 draw upload · G703 schedule-of-values import · draw lifecycle &amp;
           Mark Paid (partial pay supported) · aging alerts &amp; collections filters · billing
           summary reporting · AI assistant (read + confirm-to-write) · recurring draw-cadence
-          reminders · passcode auth gate. Written for anyone who needs to pick up maintenance on
-          this app.
+          reminders · soft-delete &amp; trash (30-day recovery window) · passcode auth gate.
+          Written for anyone who needs to pick up maintenance on this app.
         </p>
 
         <div className="flex flex-wrap gap-x-5 gap-y-2 mb-10 text-xs text-muted-foreground">
@@ -224,9 +224,9 @@ export default function WorkflowPage() {
         <Flow
           number="8"
           title="Passcode Auth Gate"
-          subtitle="Every request except /login and static assets — backed by RLS at the DB layer, not just the app layer"
+          subtitle="Every request except /login, static assets, and /api/cron/* — backed by RLS at the DB layer, not just the app layer"
           steps={[
-            { icon: "🌐", title: "Any request", detail: "middleware.ts intercepts", category: "trigger", edgeLabel: "checks" },
+            { icon: "🌐", title: "Any request", detail: "proxy.ts intercepts — /api/cron/* is exempt since Vercel Cron sends a Bearer token, not a session cookie; each cron route checks CRON_SECRET itself", category: "trigger", edgeLabel: "checks" },
             { icon: "🔑", title: "Session cookie?", detail: "hta_inv_session — HMAC-signed, 30 day TTL", category: "decision", edgeLabel: "invalid" },
             { icon: "🔒", title: "Redirect to /login", detail: "Passcode form", category: "output", edgeLabel: "submits" },
             { icon: "🚦", title: "Rate limit check", detail: "inv_login_attempts by IP — 10 failures/15min locks that IP out for 15min, even against a correct passcode", category: "decision", edgeLabel: "not locked" },
@@ -329,6 +329,9 @@ export default function WorkflowPage() {
             <Detail term="components/Logo.tsx">The HTA mark as inline SVG (traced from the source PNG) — CONSTRUCTION uses currentColor so it&rsquo;s theme-aware; the red H·T·A mark keeps its explicit brand-red fill in both themes</Detail>
             <Detail term="components/ExportCsvButton.tsx">Generic client-side CSV export (Blob download, no server round trip) — currently wired into Billing Summary only</Detail>
             <Detail term="lib/digest.ts, lib/msGraph.ts, app/api/cron/digest">Scheduled email digest scaffold — same 60+ day / draw-due criteria as the dashboard banners, sent via Microsoft Graph. Not yet active: needs an Azure app registration (Mail.Send application permission, admin consent) and its env vars (see .env.local.example) before the cron job can actually send</Detail>
+            <Detail term="deleteDraw/restoreDraw, deleteBudgetLine/restoreBudgetLine">Soft-delete (deleted_at) instead of a real DELETE — every read in lib/data.ts filters it out, so a deleted row simply stops appearing rather than being unrecoverable. components/TrashSection.tsx (the project page&rsquo;s third tab) lists and restores them</Detail>
+            <Detail term="app/api/cron/purge-trash">Permanently deletes anything that&rsquo;s sat soft-deleted for 30+ days — same CRON_SECRET-gated pattern as the digest cron</Detail>
+            <Detail term="proxy.ts">Session-cookie gate for every route except /login, /api/login, and /api/cron/* — cron routes are exempt here because Vercel Cron sends only a Bearer token, never a session cookie, so each cron route verifies CRON_SECRET itself instead</Detail>
           </dl>
         </div>
       </main>

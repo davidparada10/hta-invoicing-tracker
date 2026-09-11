@@ -3,10 +3,13 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import DrawsSection from "@/components/DrawsSection";
 import BudgetSection from "@/components/BudgetSection";
+import TrashSection from "@/components/TrashSection";
 import MonthlyBillingChart from "@/components/MonthlyBillingChart";
 import {
   getAllocationsForProject,
   getBudgetLinesForProject,
+  getDeletedBudgetLinesForProject,
+  getDeletedDrawsForProject,
   getDrawsForProject,
   getProject,
   openBalance,
@@ -30,13 +33,16 @@ export default async function ProjectDetailPage(
   const project = await getProject(params.id);
   if (!project) notFound();
 
-  const [draws, budgetLines, allocations] = await Promise.all([
+  const tab =
+    searchParams.tab === "budget" ? "budget" : searchParams.tab === "trash" ? "trash" : "draws";
+
+  const [draws, budgetLines, allocations, deletedDraws, deletedBudgetLines] = await Promise.all([
     getDrawsForProject(project.id),
     getBudgetLinesForProject(project.id),
     getAllocationsForProject(project.id),
+    tab === "trash" ? getDeletedDrawsForProject(project.id) : Promise.resolve([]),
+    tab === "trash" ? getDeletedBudgetLinesForProject(project.id) : Promise.resolve([]),
   ]);
-
-  const tab = searchParams.tab === "budget" ? "budget" : "draws";
 
   const totalPaidToOwner = draws
     .filter((d) => d.status !== "draft")
@@ -131,6 +137,13 @@ export default async function ProjectDetailPage(
               projectId={project.id}
               budgetLines={budgetLines}
               allocations={allocations}
+            />
+          )}
+          {tab === "trash" && (
+            <TrashSection
+              projectId={project.id}
+              deletedDraws={deletedDraws}
+              deletedBudgetLines={deletedBudgetLines}
             />
           )}
         </div>

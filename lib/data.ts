@@ -62,7 +62,20 @@ export async function getDrawsForProject(projectId: string): Promise<OwnerDraw[]
     .from("inv_owner_draws")
     .select("*")
     .eq("project_id", projectId)
+    .is("deleted_at", null)
     .order("draw_number", { ascending: true });
+  if (error) throw error;
+  return data as OwnerDraw[];
+}
+
+export async function getDeletedDrawsForProject(projectId: string): Promise<OwnerDraw[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("inv_owner_draws")
+    .select("*")
+    .eq("project_id", projectId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
   if (error) throw error;
   return data as OwnerDraw[];
 }
@@ -73,26 +86,53 @@ export async function getBudgetLinesForProject(projectId: string): Promise<Budge
     .from("inv_project_budget_lines")
     .select("*")
     .eq("project_id", projectId)
+    .is("deleted_at", null)
     .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data as BudgetLine[];
+}
+
+export async function getDeletedBudgetLinesForProject(projectId: string): Promise<BudgetLine[]> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("inv_project_budget_lines")
+    .select("*")
+    .eq("project_id", projectId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
   if (error) throw error;
   return data as BudgetLine[];
 }
 
 export async function getAllocationsForProject(projectId: string): Promise<DrawLineAllocation[]> {
   const supabase = createServerSupabaseClient();
-  const rows = await fetchAllRows<DrawLineAllocation & { inv_owner_draws: unknown }>(
-    supabase,
-    "inv_draw_line_allocations",
-    "*, inv_owner_draws!inner(project_id)",
-    (query) => query.eq("inv_owner_draws.project_id", projectId)
-  );
-  return rows.map((row) => ({
-    id: row.id,
-    draw_id: row.draw_id,
-    budget_line_id: row.budget_line_id,
-    amount: row.amount,
-    created_at: row.created_at,
-  }));
+  const [rows, liveDraws, liveBudgetLines] = await Promise.all([
+    fetchAllRows<DrawLineAllocation & { inv_owner_draws: unknown }>(
+      supabase,
+      "inv_draw_line_allocations",
+      "*, inv_owner_draws!inner(project_id)",
+      (query) => query.eq("inv_owner_draws.project_id", projectId)
+    ),
+    getDrawsForProject(projectId),
+    getBudgetLinesForProject(projectId),
+  ]);
+
+  // A soft-deleted draw or budget line's old allocations shouldn't keep
+  // counting toward "Drawn to Date" once it's hidden from the live tables —
+  // filter here, the one place every caller (dashboard totals included)
+  // reads allocations from, rather than relying on each consumer to remember.
+  const liveDrawIds = new Set(liveDraws.map((d) => d.id));
+  const liveBudgetLineIds = new Set(liveBudgetLines.map((l) => l.id));
+
+  return rows
+    .filter((row) => liveDrawIds.has(row.draw_id) && liveBudgetLineIds.has(row.budget_line_id))
+    .map((row) => ({
+      id: row.id,
+      draw_id: row.draw_id,
+      budget_line_id: row.budget_line_id,
+      amount: row.amount,
+      created_at: row.created_at,
+    }));
 }
 
 export async function getAllocationsForDraw(drawId: string): Promise<DrawLineAllocation[]> {
@@ -104,12 +144,16 @@ export async function getAllocationsForDraw(drawId: string): Promise<DrawLineAll
 
 export async function getAllDraws(): Promise<OwnerDraw[]> {
   const supabase = createServerSupabaseClient();
-  return fetchAllRows<OwnerDraw>(supabase, "inv_owner_draws");
+  return fetchAllRows<OwnerDraw>(supabase, "inv_owner_draws", "*", (query) =>
+    query.is("deleted_at", null)
+  );
 }
 
 export async function getAllBudgetLines(): Promise<BudgetLine[]> {
   const supabase = createServerSupabaseClient();
-  return fetchAllRows<BudgetLine>(supabase, "inv_project_budget_lines");
+  return fetchAllRows<BudgetLine>(supabase, "inv_project_budget_lines", "*", (query) =>
+    query.is("deleted_at", null)
+  );
 }
 
 export async function getBillingReport(year: number): Promise<BillingReport> {

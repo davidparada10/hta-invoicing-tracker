@@ -34,6 +34,7 @@ export interface OwnerDraw {
   status: DrawStatus;
   notes: string | null;
   created_at: string;
+  deleted_at: string | null;
 }
 
 export interface BudgetLine {
@@ -46,6 +47,7 @@ export interface BudgetLine {
   sort_order: number;
   retention_exempt: boolean;
   created_at: string;
+  deleted_at: string | null;
 }
 
 export interface DrawLineAllocation {

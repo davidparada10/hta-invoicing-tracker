@@ -52,7 +52,20 @@ export async function upsertBudgetLine(formData: FormData) {
 
 export async function deleteBudgetLine(id: string, projectId: string) {
   const supabase = createServerSupabaseClient();
-  const { error } = await supabase.from("inv_project_budget_lines").delete().eq("id", id);
+  const { error } = await supabase
+    .from("inv_project_budget_lines")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function restoreBudgetLine(id: string, projectId: string) {
+  const supabase = createServerSupabaseClient();
+  const { error } = await supabase
+    .from("inv_project_budget_lines")
+    .update({ deleted_at: null })
+    .eq("id", id);
   if (error) throw error;
   revalidatePath(`/projects/${projectId}`);
 }

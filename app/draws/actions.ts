@@ -409,7 +409,21 @@ export async function updateDrawStatus(id: string, projectId: string, status: Dr
 
 export async function deleteDraw(id: string, projectId: string) {
   const supabase = createServerSupabaseClient();
-  const { error } = await supabase.from("inv_owner_draws").delete().eq("id", id);
+  const { error } = await supabase
+    .from("inv_owner_draws")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/");
+}
+
+export async function restoreDraw(id: string, projectId: string) {
+  const supabase = createServerSupabaseClient();
+  const { error } = await supabase
+    .from("inv_owner_draws")
+    .update({ deleted_at: null })
+    .eq("id", id);
   if (error) throw error;
   revalidatePath(`/projects/${projectId}`);
   revalidatePath("/");
