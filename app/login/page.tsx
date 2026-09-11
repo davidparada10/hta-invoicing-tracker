@@ -50,8 +50,8 @@ function LoginForm() {
         <ThemeToggle />
       </div>
       <div className="w-full max-w-sm bg-card rounded-xl shadow-sm border border-border p-8">
-        <div className="text-foreground mb-4">
-          <Logo className="h-10 w-auto" />
+        <div className="text-foreground mb-6 flex justify-center">
+          <Logo className="h-16 w-auto" />
         </div>
         <h1 className="text-xl font-semibold text-foreground mb-1">
           Multi-Family Invoice Tracker
