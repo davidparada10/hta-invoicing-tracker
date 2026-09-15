@@ -14,7 +14,9 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
   const totalOpenToOwner = sum(draws.map(openBalance));
   const retainageHeld = sum(draws.map((d) => d.retainage_held));
 
-  const paidPct = totalRequested > 0 ? Math.min(100, (totalPaidToOwner / totalRequested) * 100) : 0;
+  const paidPctRaw = totalRequested > 0 ? Math.min(100, (totalPaidToOwner / totalRequested) * 100) : 0;
+  // Round down short of 100% so the label can't claim "100%" while a balance is still open.
+  const paidPct = paidPctRaw >= 100 ? 100 : Math.floor(paidPctRaw);
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 mb-6">
