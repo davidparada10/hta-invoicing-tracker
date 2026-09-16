@@ -166,6 +166,13 @@ export async function getProjectBillingBreakdown(year: number): Promise<ProjectB
   return buildProjectBillingBreakdown(draws, projects, year);
 }
 
+// Below this, a balance is noise (a bank/processing fee, rounding) rather
+// than money actually worth chasing — draws under it don't count as open
+// anywhere (Open Draws, aging alerts, portfolio totals). Set above the
+// largest fee-type gap seen in practice (Gilmore's $652.40) so it can't
+// hide a real, collectible shortfall.
+const MIN_MEANINGFUL_OPEN_BALANCE = 1000;
+
 // A draw's outstanding balance: what's been billed but not yet actually
 // received, regardless of status. Catches a draw marked "paid" for less
 // than it requested — the shortfall stays open rather than disappearing.
@@ -232,7 +239,7 @@ export async function getOpenDraws(): Promise<OpenDraw[]> {
     // but are included so they're reachable for a quick status change
     // without opening the project — excluded from the $ totals/aging
     // summary in OpenDrawsSection, which filter them back out.
-    .filter((d) => d.status === "draft" || openBalance(d) > 0.005)
+    .filter((d) => d.status === "draft" || openBalance(d) > MIN_MEANINGFUL_OPEN_BALANCE)
     .map((d) => {
       const project = projectsById.get(d.project_id);
       return {
