@@ -28,7 +28,7 @@ export default function BudgetSection({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const totalBudget = useMemo(
-    () => budgetLines.reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0),
+    () => budgetLines.filter((l) => !l.excluded_from_contract).reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0),
     [budgetLines]
   );
 
@@ -153,7 +153,7 @@ export default function BudgetSection({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         <div className="rounded-xl border border-border bg-card p-5">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Contract Value (Scheduled Value)
+            Contract Value
           </p>
           <p className="text-2xl font-semibold text-foreground mt-1">
             {formatCurrency(totalBudget)}
@@ -225,6 +225,11 @@ export default function BudgetSection({
                 {l.retention_exempt && (
                   <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                     No retention
+                  </span>
+                )}
+                {l.excluded_from_contract && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                    Owner cost
                   </span>
                 )}
               </p>
@@ -302,6 +307,11 @@ export default function BudgetSection({
                   {l.retention_exempt && (
                     <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                       No retention
+                    </span>
+                  )}
+                  {l.excluded_from_contract && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Owner cost
                     </span>
                   )}
                 </td>
@@ -393,6 +403,16 @@ export default function BudgetSection({
               className="rounded border-border"
             />
             No retention held on this line (e.g. bonds, insurance, GC fee)
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              name="excluded_from_contract"
+              defaultChecked={editing?.excluded_from_contract ?? false}
+              className="rounded border-border"
+            />
+            Owner cost, not part of HTA&apos;s contract (e.g. architect fees, city/county fees)
           </label>
 
           {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}

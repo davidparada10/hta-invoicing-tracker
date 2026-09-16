@@ -12,6 +12,11 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-15
+- Added `excluded_from_contract` to budget lines (same pattern as the existing `retention_exempt` flag) so a Schedule of Values that mixes owner-paid soft costs (architect fees, city/county fees) in with HTA's own scope can flag those lines out of every Contract Value total — dashboard, project detail, Schedule of Values tab, and the chat assistant — while keeping them visible in the SoV for reference. Reconciled 14118 Gilmore against the owner's actual approved contract (a proposal workbook the user supplied): flagged its two true owner-cost lines (Design Team $199,536, City/County Fees $249,978), bringing its Contract Value from an inflated $7,049,514.00 down to the correct $6,600,000.00.
+- Fixed the "Draws paid of requested" progress bar claiming 100% while a balance was still open — it rounded the label via `toFixed(0)` but used the unrounded value for the bar width, so 99.5% paid displayed as "100%" next to a bar that wasn't quite full. Now floors short of 100% so the label only reads 100% when actually fully paid.
+- Corrected 2226 Valley draw #14: `amount_approved` was $0.00 (unfilled data, not a real approval), which made the short-payment flag read backwards. Set to the requested amount and recorded in the draw's notes why the owner held $4,201.93 back (later corrected to: paid the Low Voltage subcontractor directly for that amount rather than through HTA).
+
 ## 2026-09-10 (evening) — ~18m, 7:41–7:49 PM
 - Polished the login screen so the card reads as one block: the HTA logo is larger and centered, and the title/subtitle underneath are now center-aligned to match instead of sitting left-justified under a centered mark.
 

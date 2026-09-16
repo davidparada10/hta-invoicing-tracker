@@ -6,6 +6,7 @@ import BudgetSection from "@/components/BudgetSection";
 import TrashSection from "@/components/TrashSection";
 import MonthlyBillingChart from "@/components/MonthlyBillingChart";
 import {
+  contractValue,
   getAllocationsForProject,
   getBudgetLinesForProject,
   getDeletedBudgetLinesForProject,
@@ -48,7 +49,7 @@ export default async function ProjectDetailPage(
     .filter((d) => d.status !== "draft")
     .reduce((acc, d) => acc + (d.amount_paid ?? 0), 0);
   const totalOpenToOwner = draws.reduce((acc, d) => acc + openBalance(d), 0);
-  const totalBudget = budgetLines.reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0);
+  const totalBudget = contractValue(budgetLines);
   const totalRetainage = draws.reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);
   // amount_requested/amount_paid are net of retention (the G702 "current
   // payment due"), so totalPaidToOwner + totalOpenToOwner alone understates

@@ -46,6 +46,7 @@ export interface BudgetLine {
   scheduled_value: number;
   sort_order: number;
   retention_exempt: boolean;
+  excluded_from_contract: boolean;
   created_at: string;
   deleted_at: string | null;
 }

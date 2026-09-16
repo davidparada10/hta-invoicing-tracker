@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import {
+  contractValue,
   getDashboardData,
   getOpenDraws,
   getDrawsForProject,
@@ -145,7 +146,7 @@ export const getBillingSummaryTool = tool({
 
 export const getScheduleOfValuesTool = tool({
   description:
-    "Get the full schedule-of-values line items for one project (item number, category, description, scheduled value, retention-exempt flag) — use for 'what's the SoV for X' or 'how much is budgeted for Y' questions.",
+    "Get the full schedule-of-values line items for one project (item number, category, description, scheduled value, retention-exempt flag, excluded-from-contract flag) — use for 'what's the SoV for X' or 'how much is budgeted for Y' questions. totalScheduledValue is the full sheet total; totalContractValue excludes any owner-paid items (e.g. architect/permit fees) flagged excludedFromContract — use totalContractValue when the question is about HTA's actual contract value.",
   inputSchema: z.object({
     projectName: z.string().describe("The project name, or a close match (e.g. 'Aneta')"),
   }),
@@ -157,12 +158,14 @@ export const getScheduleOfValuesTool = tool({
     return {
       project: resolved.project.name,
       totalScheduledValue: budgetLines.reduce((acc, l) => acc + l.scheduled_value, 0),
+      totalContractValue: contractValue(budgetLines),
       lines: budgetLines.map((l) => ({
         itemNumber: l.item_number,
         category: l.category,
         description: l.description,
         scheduledValue: l.scheduled_value,
         retentionExempt: l.retention_exempt,
+        excludedFromContract: l.excluded_from_contract,
       })),
     };
   },
@@ -207,7 +210,7 @@ export const getProjectDetailsTool = tool({
       .filter((d) => d.status !== "draft")
       .reduce((acc, d) => acc + d.amount_paid, 0);
     const totalOpenToOwner = draws.reduce((acc, d) => acc + openBalance(d), 0);
-    const totalBudget = budgetLines.reduce((acc, l) => acc + l.scheduled_value, 0);
+    const totalBudget = contractValue(budgetLines);
 
     return {
       project: {

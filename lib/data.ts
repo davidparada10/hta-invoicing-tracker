@@ -174,6 +174,18 @@ export function openBalance(d: OwnerDraw): number {
   return Math.max(0, (d.amount_requested ?? 0) - (d.amount_paid ?? 0));
 }
 
+// A Schedule of Values sometimes carries owner-paid items (architect fees,
+// permit/plan-check fees) alongside HTA's own scope, uploaded as one sheet —
+// those lines are flagged excluded_from_contract so every "Contract Value"
+// total (dashboard, project detail, Schedule of Values tab) reflects only
+// what HTA is actually contracted for, while the excluded lines stay visible
+// in the Schedule of Values for reference.
+export function contractValue(lines: BudgetLine[]): number {
+  return lines
+    .filter((l) => !l.excluded_from_contract)
+    .reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0);
+}
+
 export async function getOpenDraws(): Promise<OpenDraw[]> {
   const [projects, draws] = await Promise.all([getProjects(), getAllDraws()]);
 
@@ -235,7 +247,7 @@ export async function getDashboardData(): Promise<{
       projectDraws.filter((d) => d.status === "draft").map((d) => d.amount_requested)
     );
 
-    const totalBudget = sum(projectBudgetLines.map((l) => l.scheduled_value));
+    const totalBudget = contractValue(projectBudgetLines);
     // amount_requested/amount_paid are net of retention (the G702 "current
     // payment due"), so totalPaidToOwner + totalOpenToOwner alone understates
     // what's actually been billed against the contract by the retainage

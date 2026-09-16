@@ -250,7 +250,7 @@ export default function WorkflowPage() {
           <DataTable
             icon="📋"
             name="inv_project_budget_lines"
-            fields="project_id → schedule of values: item_number · category · description · scheduled_value · retention_exempt"
+            fields="project_id → schedule of values: item_number · category · description · scheduled_value · retention_exempt · excluded_from_contract"
           />
           <DataTable
             icon="🔗"

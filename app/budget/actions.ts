@@ -26,6 +26,7 @@ export async function upsertBudgetLine(formData: FormData) {
     description: (formData.get("description") as string) ?? "",
     scheduled_value: toNumber(formData.get("scheduled_value")),
     retention_exempt: formData.get("retention_exempt") === "on",
+    excluded_from_contract: formData.get("excluded_from_contract") === "on",
   };
 
   if (id) {
