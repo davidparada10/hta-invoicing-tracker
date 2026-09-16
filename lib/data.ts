@@ -169,9 +169,35 @@ export async function getProjectBillingBreakdown(year: number): Promise<ProjectB
 // A draw's outstanding balance: what's been billed but not yet actually
 // received, regardless of status. Catches a draw marked "paid" for less
 // than it requested — the shortfall stays open rather than disappearing.
+// Nets out excluded_allocated (when the draw is decorated with it) so a
+// gap caused by owner-paid, non-HTA scope doesn't read as money HTA is
+// still owed.
 export function openBalance(d: OwnerDraw): number {
   if (d.status === "draft") return 0;
-  return Math.max(0, (d.amount_requested ?? 0) - (d.amount_paid ?? 0));
+  return Math.max(0, (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0) - (d.amount_paid ?? 0));
+}
+
+// Sums each draw's allocations against excluded_from_contract budget
+// lines, keyed by draw_id — the amount of that draw's billing that was for
+// owner-paid scope, not HTA's. Used to decorate draws before computing
+// openBalance so that portion stops reading as outstanding.
+export function excludedAllocationByDraw(
+  allocations: { draw_id: string; budget_line_id: string; amount: number }[],
+  budgetLines: BudgetLine[]
+): Map<string, number> {
+  const excludedLineIds = new Set(
+    budgetLines.filter((l) => l.excluded_from_contract).map((l) => l.id)
+  );
+  const map = new Map<string, number>();
+  for (const a of allocations) {
+    if (!excludedLineIds.has(a.budget_line_id)) continue;
+    map.set(a.draw_id, (map.get(a.draw_id) ?? 0) + a.amount);
+  }
+  return map;
+}
+
+function withExcludedAllocated(draws: OwnerDraw[], excludedMap: Map<string, number>): OwnerDraw[] {
+  return draws.map((d) => ({ ...d, excluded_allocated: excludedMap.get(d.id) ?? 0 }));
 }
 
 // A Schedule of Values sometimes carries owner-paid items (architect fees,
@@ -187,11 +213,21 @@ export function contractValue(lines: BudgetLine[]): number {
 }
 
 export async function getOpenDraws(): Promise<OpenDraw[]> {
-  const [projects, draws] = await Promise.all([getProjects(), getAllDraws()]);
+  const [projects, draws, budgetLines, allocationRows] = await Promise.all([
+    getProjects(),
+    getAllDraws(),
+    getAllBudgetLines(),
+    fetchAllRows<{ draw_id: string; budget_line_id: string; amount: number }>(
+      createServerSupabaseClient(),
+      "inv_draw_line_allocations",
+      "draw_id, budget_line_id, amount"
+    ),
+  ]);
 
   const projectsById = new Map(projects.map((p) => [p.id, p]));
+  const excludedMap = excludedAllocationByDraw(allocationRows, budgetLines);
 
-  const openDraws = draws
+  const openDraws = withExcludedAllocated(draws, excludedMap)
     // Drafts have no real outstanding balance yet (nothing's been billed),
     // but are included so they're reachable for a quick status change
     // without opening the project — excluded from the $ totals/aging
@@ -224,15 +260,24 @@ export async function getDashboardData(): Promise<{
     totalDraft: number;
   };
 }> {
-  const [projects, draws, budgetLines] = await Promise.all([
+  const [projects, draws, budgetLines, allocationRows] = await Promise.all([
     getProjects(),
     getAllDraws(),
     getAllBudgetLines(),
+    fetchAllRows<{ draw_id: string; budget_line_id: string; amount: number }>(
+      createServerSupabaseClient(),
+      "inv_draw_line_allocations",
+      "draw_id, budget_line_id, amount"
+    ),
   ]);
+  const excludedMap = excludedAllocationByDraw(allocationRows, budgetLines);
 
   const now = new Date();
   const rollups: ProjectRollup[] = projects.map((project) => {
-    const projectDraws = draws.filter((d) => d.project_id === project.id);
+    const projectDraws = withExcludedAllocated(
+      draws.filter((d) => d.project_id === project.id),
+      excludedMap
+    );
     const projectBudgetLines = budgetLines.filter((l) => l.project_id === project.id);
 
     const totalRequested = sum(projectDraws.map((d) => d.amount_requested));

@@ -2,6 +2,8 @@ import { tool } from "ai";
 import { z } from "zod";
 import {
   contractValue,
+  excludedAllocationByDraw,
+  getAllocationsForProject,
   getDashboardData,
   getOpenDraws,
   getDrawsForProject,
@@ -201,10 +203,13 @@ export const getProjectDetailsTool = tool({
     if ("error" in resolved) return { error: resolved.error };
     const project = resolved.project;
 
-    const [draws, budgetLines] = await Promise.all([
+    const [rawDraws, budgetLines, allocations] = await Promise.all([
       getDrawsForProject(project.id),
       getBudgetLinesForProject(project.id),
+      getAllocationsForProject(project.id),
     ]);
+    const excludedMap = excludedAllocationByDraw(allocations, budgetLines);
+    const draws = rawDraws.map((d) => ({ ...d, excluded_allocated: excludedMap.get(d.id) ?? 0 }));
 
     const totalPaidToOwner = draws
       .filter((d) => d.status !== "draft")

@@ -5,7 +5,7 @@ import { agingBucket, daysOpen } from "@/lib/aging";
 
 function openBalance(d: OpenDraw): number {
   if (d.status === "draft") return 0;
-  return Math.max(0, (d.amount_requested ?? 0) - (d.amount_paid ?? 0));
+  return Math.max(0, (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0) - (d.amount_paid ?? 0));
 }
 
 // Only draws that have actually crossed into "needs a call" territory (61+

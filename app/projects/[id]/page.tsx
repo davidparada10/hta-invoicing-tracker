@@ -7,6 +7,7 @@ import TrashSection from "@/components/TrashSection";
 import MonthlyBillingChart from "@/components/MonthlyBillingChart";
 import {
   contractValue,
+  excludedAllocationByDraw,
   getAllocationsForProject,
   getBudgetLinesForProject,
   getDeletedBudgetLinesForProject,
@@ -37,13 +38,19 @@ export default async function ProjectDetailPage(
   const tab =
     searchParams.tab === "budget" ? "budget" : searchParams.tab === "trash" ? "trash" : "draws";
 
-  const [draws, budgetLines, allocations, deletedDraws, deletedBudgetLines] = await Promise.all([
+  const [rawDraws, budgetLines, allocations, deletedDraws, deletedBudgetLines] = await Promise.all([
     getDrawsForProject(project.id),
     getBudgetLinesForProject(project.id),
     getAllocationsForProject(project.id),
     tab === "trash" ? getDeletedDrawsForProject(project.id) : Promise.resolve([]),
     tab === "trash" ? getDeletedBudgetLinesForProject(project.id) : Promise.resolve([]),
   ]);
+
+  // Nets each draw's billing against excluded_from_contract budget lines
+  // (owner-paid scope, e.g. architect/permit fees) out of "outstanding" —
+  // see openBalance() in lib/data.ts.
+  const excludedMap = excludedAllocationByDraw(allocations, budgetLines);
+  const draws = rawDraws.map((d) => ({ ...d, excluded_allocated: excludedMap.get(d.id) ?? 0 }));
 
   const totalPaidToOwner = draws
     .filter((d) => d.status !== "draft")

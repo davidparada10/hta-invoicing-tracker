@@ -163,7 +163,7 @@ export default function WorkflowPage() {
             { icon: "👤", title: "Mark Paid click", detail: "Opens a modal — amount received + date paid, defaults to full outstanding balance today", category: "trigger", edgeLabel: "calls" },
             { icon: "⚡", title: "markDrawPaid", detail: "amount_paid += received (accumulates); status always → paid", category: "server", edgeLabel: "writes" },
             { icon: "🗄️", title: "inv_owner_draws", detail: "status paid, but a short payment still counts as open", category: "data", edgeLabel: "checked by" },
-            { icon: "✅", title: "openBalance()", detail: "lib/data.ts — max(0, requested − paid); underpaid draws stay in Open Draws", category: "output" },
+            { icon: "✅", title: "openBalance()", detail: "lib/data.ts — max(0, requested − excluded_allocated − paid); underpaid draws stay in Open Draws. excluded_allocated nets out billing against excluded_from_contract budget lines, so owner-paid or written-off amounts stop reading as outstanding", category: "output" },
           ]}
         />
 

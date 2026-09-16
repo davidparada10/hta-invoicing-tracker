@@ -35,6 +35,13 @@ export interface OwnerDraw {
   notes: string | null;
   created_at: string;
   deleted_at: string | null;
+  // Not a DB column — attached by lib/data.ts where allocations and budget
+  // lines are in scope: the portion of this draw billed against a budget
+  // line flagged excluded_from_contract (owner-paid scope, not HTA's).
+  // openBalance() nets it out of "outstanding" so money that was never
+  // HTA's to collect stops reading as owed. Undecorated draws default to 0
+  // via `?? 0`, so every existing call site keeps working unchanged.
+  excluded_allocated?: number;
 }
 
 export interface BudgetLine {

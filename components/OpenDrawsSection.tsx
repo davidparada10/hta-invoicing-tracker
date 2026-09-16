@@ -22,7 +22,7 @@ type BucketFilter = AgingBucket | "stale" | null;
 
 function openBalance(d: OpenDraw): number {
   if (d.status === "draft") return 0;
-  return Math.max(0, (d.amount_requested ?? 0) - (d.amount_paid ?? 0));
+  return Math.max(0, (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0) - (d.amount_paid ?? 0));
 }
 
 function ageOf(d: OpenDraw): number {
