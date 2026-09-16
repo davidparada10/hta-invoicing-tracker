@@ -25,9 +25,9 @@ export default function AgingAlertBanner({ draws }: { draws: OpenDraw[] }) {
   return (
     <Link
       href="/?aging=stale#open-draws"
-      className="group block mb-6 border-l-[3px] border-red-600 dark:border-red-500 pl-4 py-1"
+      className="group block mb-6 rounded-r-lg border-l-4 border-red-600 dark:border-red-500 bg-red-50 dark:bg-red-950/30 pl-4 pr-4 py-3"
     >
-      <p className="text-sm text-foreground">
+      <p className="text-base text-foreground">
         <span className="font-semibold">
           {stale.length} {stale.length === 1 ? "draw has" : "draws have"} been open 60+ days
         </span>
@@ -36,7 +36,7 @@ export default function AgingAlertBanner({ draws }: { draws: OpenDraw[] }) {
           {formatCurrency(totalAtRisk)} at risk
         </span>
       </p>
-      <p className="text-xs text-muted-foreground mt-0.5">
+      <p className="text-sm text-muted-foreground mt-0.5">
         Oldest: {oldest.draw.project.name} draw #{oldest.draw.draw_number}, {oldest.age} days —{" "}
         {formatCurrency(openBalance(oldest.draw))} outstanding. View all in Open Draws below.
       </p>
