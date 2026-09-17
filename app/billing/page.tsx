@@ -1,6 +1,6 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
-import { getBillingReport, getProjectBillingBreakdown } from "@/lib/data";
+import { getBillingReport, getProjectBillingBreakdown, MIN_MEANINGFUL_OPEN_BALANCE } from "@/lib/data";
 import { currentQuarter } from "@/lib/billing";
 import { formatCurrency, formatDaysToPay } from "@/lib/format";
 import ExportCsvButton from "@/components/ExportCsvButton";
@@ -102,7 +102,7 @@ export default async function BillingPage(
         </p>
         <p
           className={`text-4xl sm:text-5xl font-semibold tracking-tight ${
-            outstandingYtd > 0 ? "text-invoiced" : "text-foreground"
+            outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : "text-foreground"
           }`}
         >
           {formatCurrency(outstandingYtd)}
@@ -166,7 +166,7 @@ export default async function BillingPage(
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Outstanding</p>
-                    <p className={q.requested - q.received > 0 ? "text-invoiced" : ""}>
+                    <p className={q.requested - q.received > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
                       {formatCurrency(q.requested - q.received)}
                     </p>
                   </div>
@@ -191,7 +191,7 @@ export default async function BillingPage(
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
-                <p className={outstandingYtd > 0 ? "text-invoiced" : ""}>
+                <p className={outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
                   {formatCurrency(outstandingYtd)}
                 </p>
               </div>
@@ -238,7 +238,7 @@ export default async function BillingPage(
                     </td>
                     <td
                       className={`px-4 py-2 text-right ${
-                        q.requested - q.received > 0 ? "text-invoiced" : ""
+                        q.requested - q.received > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
                       }`}
                     >
                       {formatCurrency(q.requested - q.received)}
@@ -259,7 +259,7 @@ export default async function BillingPage(
                 </td>
                 <td
                   className={`px-4 py-2 text-right ${
-                    outstandingYtd > 0 ? "text-invoiced" : ""
+                    outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
                   }`}
                 >
                   {formatCurrency(outstandingYtd)}
@@ -292,7 +292,7 @@ export default async function BillingPage(
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Outstanding</p>
-                  <p className={p.requested - p.received > 0 ? "text-invoiced" : ""}>
+                  <p className={p.requested - p.received > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
                     {formatCurrency(p.requested - p.received)}
                   </p>
                 </div>
@@ -321,7 +321,7 @@ export default async function BillingPage(
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
-                <p className={outstandingYtd > 0 ? "text-invoiced" : ""}>
+                <p className={outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
                   {formatCurrency(outstandingYtd)}
                 </p>
               </div>
@@ -362,7 +362,7 @@ export default async function BillingPage(
                   </td>
                   <td
                     className={`px-4 py-2 text-right ${
-                      p.requested - p.received > 0 ? "text-invoiced" : ""
+                      p.requested - p.received > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
                     }`}
                   >
                     {formatCurrency(p.requested - p.received)}
@@ -389,7 +389,7 @@ export default async function BillingPage(
                 </td>
                 <td
                   className={`px-4 py-2 text-right ${
-                    outstandingYtd > 0 ? "text-invoiced" : ""
+                    outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
                   }`}
                 >
                   {formatCurrency(outstandingYtd)}

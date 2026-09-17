@@ -1,6 +1,6 @@
 import { OwnerDraw } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
-import { openBalance } from "@/lib/data";
+import { hasMeaningfulOpenBalance, openBalance } from "@/lib/data";
 
 function sum(values: number[]): number {
   return values.reduce((acc, v) => acc + (v ?? 0), 0);
@@ -37,7 +37,7 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
         <SummaryStat
           label="Currently invoiced"
           value={formatCurrency(totalOpenToOwner)}
-          valueClassName="text-invoiced"
+          valueClassName={hasMeaningfulOpenBalance(draws) ? "text-invoiced" : "text-foreground"}
         />
         <SummaryStat
           label="Paid"

@@ -2,6 +2,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
 import { BillingReport, ProjectBillingRow, buildBillingReport, buildProjectBillingBreakdown } from "@/lib/billing";
 import { drawDueLabel, isDrawOverdue, isDrawUrgent } from "@/lib/drawSchedule";
+import { MIN_MEANINGFUL_OPEN_BALANCE } from "@/lib/aging";
+
+export { MIN_MEANINGFUL_OPEN_BALANCE };
 
 // Supabase's PostgREST API silently caps a plain select() at 1000 rows with
 // no error — inv_project_budget_lines alone passed that as soon as ~10
@@ -170,13 +173,6 @@ export async function getProjectBillingBreakdown(year: number): Promise<ProjectB
   return buildProjectBillingBreakdown(withExcludedAllocated(draws, excludedMap), projects, year);
 }
 
-// Below this, a balance is noise (a bank/processing fee, rounding) rather
-// than money actually worth chasing — draws under it don't count as open
-// anywhere (Open Draws, aging alerts, portfolio totals). Set above the
-// largest fee-type gap seen in practice (Gilmore's $652.40) so it can't
-// hide a real, collectible shortfall.
-const MIN_MEANINGFUL_OPEN_BALANCE = 1000;
-
 // A draw's outstanding balance: what's been billed but not yet actually
 // received, regardless of status. Catches a draw marked "paid" for less
 // than it requested — the shortfall stays open rather than disappearing.
@@ -186,6 +182,14 @@ const MIN_MEANINGFUL_OPEN_BALANCE = 1000;
 export function openBalance(d: OwnerDraw): number {
   if (d.status === "draft") return 0;
   return Math.max(0, (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0) - (d.amount_paid ?? 0));
+}
+
+// A summed open balance can be pure noise — several draws each under
+// MIN_MEANINGFUL_OPEN_BALANCE adding up above it. This checks the draws
+// themselves rather than the sum, so UI can tell "several small fees" from
+// "one real balance" and only alarm-color the latter.
+export function hasMeaningfulOpenBalance(draws: OwnerDraw[]): boolean {
+  return draws.some((d) => openBalance(d) > MIN_MEANINGFUL_OPEN_BALANCE);
 }
 
 // Sums each draw's allocations against excluded_from_contract budget
@@ -310,6 +314,7 @@ export async function getDashboardData(): Promise<{
       projectDraws.filter((d) => d.status !== "draft").map((d) => d.amount_paid)
     );
     const totalOpenToOwner = sum(projectDraws.map(openBalance));
+    const meaningfulOpenBalance = hasMeaningfulOpenBalance(projectDraws);
     const totalDraft = sum(
       projectDraws.filter((d) => d.status === "draft").map((d) => d.amount_requested)
     );
@@ -329,6 +334,7 @@ export async function getDashboardData(): Promise<{
       totalDrawRetainage,
       totalPaidToOwner,
       totalOpenToOwner,
+      hasMeaningfulOpenBalance: meaningfulOpenBalance,
       totalDraft,
       totalBudget,
       balanceToComplete,

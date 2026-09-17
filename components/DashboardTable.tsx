@@ -82,7 +82,13 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
             <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">Currently Invoiced</p>
-                <p className="font-medium text-invoiced">{formatCurrency(r.totalOpenToOwner)}</p>
+                <p
+                  className={`font-medium ${
+                    r.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
+                  }`}
+                >
+                  {formatCurrency(r.totalOpenToOwner)}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Paid to Date</p>
@@ -162,7 +168,11 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     )}
                   </Link>
                 </td>
-                <td className="px-4 py-2 text-right font-medium text-invoiced">
+                <td
+                  className={`px-4 py-2 text-right font-medium ${
+                    r.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
+                  }`}
+                >
                   {formatCurrency(r.totalOpenToOwner)}
                 </td>
                 <td className="px-4 py-2 text-right font-medium text-paid">

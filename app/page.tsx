@@ -65,7 +65,11 @@ export default async function DashboardPage(
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
           Currently invoiced — awaiting payment
         </p>
-        <p className="text-4xl sm:text-5xl font-semibold text-invoiced tracking-tight">
+        <p
+          className={`text-4xl sm:text-5xl font-semibold tracking-tight ${
+            rollups.some((r) => r.hasMeaningfulOpenBalance) ? "text-invoiced" : "text-foreground"
+          }`}
+        >
           {formatCurrency(totals.totalOpenToOwner)}
         </p>
         <div className="border-t border-foreground/70 border-b-[3px] border-b-foreground mt-3 mb-2" />

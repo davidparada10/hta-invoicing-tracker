@@ -7,6 +7,14 @@ import { parseLocalDate } from "@/lib/format";
 
 export type AgingBucket = "current" | "31-60" | "61-90" | "90+";
 
+// Below this, a balance is noise (a bank/processing fee, rounding) rather
+// than money actually worth chasing — draws under it don't count as open
+// anywhere (Open Draws, aging alerts, portfolio totals), and UI showing an
+// open/outstanding figure uses a quiet, non-alarm color for it. Set above
+// the largest fee-type gap seen in practice (Gilmore's $652.40) so it can't
+// hide a real, collectible shortfall.
+export const MIN_MEANINGFUL_OPEN_BALANCE = 1000;
+
 export function daysOpen(referenceDateISO: string, now: Date = new Date()): number {
   const ref = parseLocalDate(referenceDateISO);
   const diffMs = now.getTime() - ref.getTime();

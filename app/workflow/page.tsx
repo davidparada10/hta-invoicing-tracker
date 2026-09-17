@@ -164,6 +164,7 @@ export default function WorkflowPage() {
             { icon: "⚡", title: "markDrawPaid", detail: "amount_paid += received (accumulates); status always → paid", category: "server", edgeLabel: "writes" },
             { icon: "🗄️", title: "inv_owner_draws", detail: "status paid, but a short payment still counts as open", category: "data", edgeLabel: "checked by" },
             { icon: "✅", title: "openBalance()", detail: "lib/data.ts — max(0, requested − excluded_allocated − paid); underpaid draws stay in Open Draws. excluded_allocated nets out billing against excluded_from_contract budget lines, so owner-paid or written-off amounts stop reading as outstanding", category: "output" },
+            { icon: "🎨", title: "hasMeaningfulOpenBalance()", detail: "lib/data.ts — true only if some individual draw's openBalance() clears MIN_MEANINGFUL_OPEN_BALANCE; a project's summed \"Currently Invoiced\" can be pure fee noise (several draws each under the line), so the alarm-red color follows this, not the raw total", category: "output" },
           ]}
         />
 

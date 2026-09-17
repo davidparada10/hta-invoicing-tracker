@@ -77,6 +77,11 @@ export interface ProjectRollup {
   totalDrawRetainage: number;
   totalPaidToOwner: number;
   totalOpenToOwner: number;
+  // totalOpenToOwner can be entirely noise — several draws each under
+  // MIN_MEANINGFUL_OPEN_BALANCE summing above it. True only when at least
+  // one individual draw is itself a real, collectible balance; UI uses this
+  // (not the raw total) to decide whether to render it as an alarm.
+  hasMeaningfulOpenBalance: boolean;
   totalDraft: number;
   totalBudget: number;
   balanceToComplete: number;
