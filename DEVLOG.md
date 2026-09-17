@@ -12,6 +12,12 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-09-17
+- A design audit turned up a real correctness gap: Billing Summary's "Outstanding" column bypassed `openBalance()` entirely — `lib/billing.ts` summed raw `amount_requested`/`amount_paid` directly, so it never picked up the `excluded_allocated` netting from the 09-15 fix. Gilmore showed $452,076.40 outstanding on Billing Summary vs. $2,562.40 everywhere else — same number, two different answers depending on the page. `getBillingReport`/`getProjectBillingBreakdown` now decorate draws with `excluded_allocated` before handing them to `lib/billing.ts`, and "Billed" nets it out the same way "requested" does elsewhere — Billed YTD dropped by exactly $449,514, Outstanding YTD by the same.
+
+## 2026-09-16
+- Gave the dashboard's two alert banners (draw-due, aging-at-risk) more visual weight — a tinted background and thicker border, bigger headline text — so the monthly "draw needed" reminder doesn't read as quiet as a passive status note, without reintroducing the filled pastel box the ledger redesign moved away from.
+
 ## 2026-09-15
 - Added `excluded_from_contract` to budget lines (same pattern as the existing `retention_exempt` flag) so a Schedule of Values that mixes owner-paid soft costs (architect fees, city/county fees) in with HTA's own scope can flag those lines out of every Contract Value total — dashboard, project detail, Schedule of Values tab, and the chat assistant — while keeping them visible in the SoV for reference. Reconciled 14118 Gilmore against the owner's actual approved contract (a proposal workbook the user supplied): flagged its two true owner-cost lines (Design Team $199,536, City/County Fees $249,978), bringing its Contract Value from an inflated $7,049,514.00 down to the correct $6,600,000.00.
 - Fixed the "Draws paid of requested" progress bar claiming 100% while a balance was still open — it rounded the label via `toFixed(0)` but used the unrounded value for the bar width, so 99.5% paid displayed as "100%" next to a bar that wasn't quite full. Now floors short of 100% so the label only reads 100% when actually fully paid.

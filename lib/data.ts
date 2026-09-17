@@ -157,13 +157,17 @@ export async function getAllBudgetLines(): Promise<BudgetLine[]> {
 }
 
 export async function getBillingReport(year: number): Promise<BillingReport> {
-  const draws = await getAllDraws();
-  return buildBillingReport(draws, year);
+  const [draws, excludedMap] = await Promise.all([getAllDraws(), getPortfolioExcludedMap()]);
+  return buildBillingReport(withExcludedAllocated(draws, excludedMap), year);
 }
 
 export async function getProjectBillingBreakdown(year: number): Promise<ProjectBillingRow[]> {
-  const [draws, projects] = await Promise.all([getAllDraws(), getProjects()]);
-  return buildProjectBillingBreakdown(draws, projects, year);
+  const [draws, projects, excludedMap] = await Promise.all([
+    getAllDraws(),
+    getProjects(),
+    getPortfolioExcludedMap(),
+  ]);
+  return buildProjectBillingBreakdown(withExcludedAllocated(draws, excludedMap), projects, year);
 }
 
 // Below this, a balance is noise (a bank/processing fee, rounding) rather
@@ -219,10 +223,13 @@ export function contractValue(lines: BudgetLine[]): number {
     .reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0);
 }
 
-export async function getOpenDraws(): Promise<OpenDraw[]> {
-  const [projects, draws, budgetLines, allocationRows] = await Promise.all([
-    getProjects(),
-    getAllDraws(),
+// Portfolio-wide version of excludedAllocationByDraw's inputs — fetched
+// together wherever draws need excluded_allocated decoration but the caller
+// doesn't already have budget lines + allocations in scope for a single
+// project (see app/projects/[id]/page.tsx, which computes its own from data
+// it already fetched).
+async function getPortfolioExcludedMap(): Promise<Map<string, number>> {
+  const [budgetLines, allocationRows] = await Promise.all([
     getAllBudgetLines(),
     fetchAllRows<{ draw_id: string; budget_line_id: string; amount: number }>(
       createServerSupabaseClient(),
@@ -230,9 +237,17 @@ export async function getOpenDraws(): Promise<OpenDraw[]> {
       "draw_id, budget_line_id, amount"
     ),
   ]);
+  return excludedAllocationByDraw(allocationRows, budgetLines);
+}
+
+export async function getOpenDraws(): Promise<OpenDraw[]> {
+  const [projects, draws, excludedMap] = await Promise.all([
+    getProjects(),
+    getAllDraws(),
+    getPortfolioExcludedMap(),
+  ]);
 
   const projectsById = new Map(projects.map((p) => [p.id, p]));
-  const excludedMap = excludedAllocationByDraw(allocationRows, budgetLines);
 
   const openDraws = withExcludedAllocated(draws, excludedMap)
     // Drafts have no real outstanding balance yet (nothing's been billed),

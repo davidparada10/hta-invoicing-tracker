@@ -13,6 +13,11 @@ export interface DrawForBilling {
   date_submitted: string | null;
   date_paid: string | null;
   created_at: string;
+  // See lib/data.ts openBalance()/excludedAllocationByDraw() — billing
+  // against an excluded_from_contract line was never real HTA billing, so
+  // it's netted out of "requested" here too, the same way it's netted out
+  // of "outstanding" everywhere else.
+  excluded_allocated?: number;
 }
 
 export interface ProjectBillingRow {
@@ -82,7 +87,7 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
     const requestedDate = d.date_submitted ?? d.created_at;
     const requested = yearAndQuarterOf(requestedDate);
     if (requested.year === year) {
-      quarters[requested.quarter - 1].requested += d.amount_requested ?? 0;
+      quarters[requested.quarter - 1].requested += (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0);
     }
 
     const amountPaid = d.amount_paid ?? 0;
@@ -152,7 +157,7 @@ export function buildProjectBillingBreakdown(
     const requestedDate = d.date_submitted ?? d.created_at;
     const requested = yearAndQuarterOf(requestedDate);
     if (requested.year === year) {
-      rowFor(d.project_id).requested += d.amount_requested ?? 0;
+      rowFor(d.project_id).requested += (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0);
     }
 
     const amountPaid = d.amount_paid ?? 0;
