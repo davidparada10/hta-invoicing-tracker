@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, parseLocalDate } from "@/lib/format";
+import { daysOpen } from "@/lib/aging";
 import DrawStatusSelect from "@/components/DrawStatusSelect";
 import DrawFormModal from "@/components/DrawFormModal";
 import MarkPaidButton from "@/components/MarkPaidButton";
@@ -17,6 +18,26 @@ function shortPaymentGap(draw: OwnerDraw): number | null {
   if (draw.status !== "paid") return null;
   const gap = Number(draw.amount_approved ?? 0) - Number(draw.amount_paid ?? 0);
   return Math.abs(gap) > 0.01 ? gap : null;
+}
+
+// Time from submission to approval — a fixed fact once approved, a live
+// running count while a draw is still sitting with the owner/lender. Only
+// meaningful for a draw that's actually been submitted; null if it skipped
+// approval entirely (e.g. marked paid directly from submitted).
+function daysToApprove(draw: OwnerDraw): number | null {
+  if (!draw.date_submitted) return null;
+  if (draw.date_approved) {
+    return daysOpen(draw.date_submitted, parseLocalDate(draw.date_approved));
+  }
+  return draw.status === "submitted" ? daysOpen(draw.date_submitted) : null;
+}
+
+function approvalLabel(draw: OwnerDraw): string {
+  const days = daysToApprove(draw);
+  if (draw.date_approved) {
+    return days !== null ? `${formatDate(draw.date_approved)} (${days}d)` : formatDate(draw.date_approved);
+  }
+  return days !== null ? `In review ${days}d` : formatDate(draw.date_approved);
 }
 
 export default function DrawsSection({
@@ -144,7 +165,7 @@ export default function DrawsSection({
 
             <div className="grid grid-cols-3 gap-2 mt-2 text-xs text-muted-foreground">
               <div>Submitted: {formatDate(d.date_submitted)}</div>
-              <div>Approved: {formatDate(d.date_approved)}</div>
+              <div>Approved: {approvalLabel(d)}</div>
               <div>Paid: {formatDate(d.date_paid)}</div>
             </div>
 
@@ -234,7 +255,7 @@ export default function DrawsSection({
                 </td>
                 <td className="px-4 py-2 text-right">{formatCurrency(d.retainage_held)}</td>
                 <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
-                <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_approved)}</td>
+                <td className="px-4 py-2 text-muted-foreground">{approvalLabel(d)}</td>
                 <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_paid)}</td>
                 <td className="px-4 py-2">
                   <DrawStatusSelect drawId={d.id} projectId={projectId} status={d.status} />
