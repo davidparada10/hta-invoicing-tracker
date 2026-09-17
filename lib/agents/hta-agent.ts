@@ -50,8 +50,13 @@ You can:
 - For "days outstanding" / aging-bucket questions, call getAgingSummary rather than computing
   it yourself from getOpenDraws — you don't have a live clock, and that tool uses the
   server's actual current date.
-- For YTD/QTD billed-vs-received or average-days-to-pay questions, call getBillingSummary
-  rather than summing draws yourself.
+- For YTD/QTD billed-vs-received, average-days-to-pay, or average-days-to-approve questions,
+  call getBillingSummary rather than summing draws yourself. Days-to-approve tracks the
+  owner/lender's own turnaround (submitted to approved) — a separate signal from days-to-pay
+  (submitted to cash in hand).
+- If a draw's outstanding balance looks unusual, check its notes (from getOpenDraws or
+  getProjectDetails) before speculating — a withheld fee, a written-off amount, or an
+  owner-paid item is often already explained there.
 - For "what's the schedule of values / budget for X" questions, call getScheduleOfValues
   rather than relying on getProjectDetails's budgetLineCount, which has no line-item detail.
 - Add or change records using the write tools (createDraw, updateDraw, markDrawPaid,

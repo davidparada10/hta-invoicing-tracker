@@ -11,6 +11,7 @@ export interface DrawForBilling {
   amount_requested: number | null;
   amount_paid: number | null;
   date_submitted: string | null;
+  date_approved: string | null;
   date_paid: string | null;
   created_at: string;
   // See lib/data.ts openBalance()/excludedAllocationByDraw() — billing
@@ -26,6 +27,7 @@ export interface ProjectBillingRow {
   requested: number;
   received: number;
   avgDaysToPay: number | null;
+  avgDaysToApprove: number | null;
 }
 
 export interface QuarterBucket {
@@ -33,6 +35,7 @@ export interface QuarterBucket {
   requested: number;
   received: number;
   avgDaysToPay: number | null;
+  avgDaysToApprove: number | null;
 }
 
 export interface BillingReport {
@@ -40,6 +43,7 @@ export interface BillingReport {
   ytdRequested: number;
   ytdReceived: number;
   ytdAvgDaysToPay: number | null;
+  ytdAvgDaysToApprove: number | null;
   quarters: QuarterBucket[];
 }
 
@@ -65,6 +69,16 @@ function daysToPay(d: DrawForBilling): number | null {
   return daysOpen(d.date_submitted ?? d.created_at, parseLocalDate(d.date_paid));
 }
 
+// Days from submitted to approved — the owner/lender's own turnaround, as
+// opposed to daysToPay's full submit-to-cash lag. Only defined once a real
+// date_approved is on the draw; a draw that skipped approval (e.g. marked
+// paid directly from submitted) contributes nothing rather than reading as
+// instant.
+function daysToApprove(d: DrawForBilling): number | null {
+  if (!d.date_approved) return null;
+  return daysOpen(d.date_submitted ?? d.created_at, parseLocalDate(d.date_approved));
+}
+
 // "Requested" is bucketed by when a draw was submitted (billed); "received"
 // by when it was actually paid — a draw billed in one quarter can be paid in
 // a later one, which is the point of showing both columns side by side.
@@ -76,10 +90,14 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
     requested: 0,
     received: 0,
     avgDaysToPay: null,
+    avgDaysToApprove: null,
   }));
   const daysByQuarter = [1, 2, 3, 4].map(() => ({ sum: 0, count: 0 }));
+  const approveDaysByQuarter = [1, 2, 3, 4].map(() => ({ sum: 0, count: 0 }));
   let ytdDaysSum = 0;
   let ytdDaysCount = 0;
+  let ytdApproveDaysSum = 0;
+  let ytdApproveDaysCount = 0;
 
   for (const d of draws) {
     if (d.status === "draft") continue;
@@ -109,10 +127,22 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
         ytdDaysCount += 1;
       }
     }
+
+    const approveLag = daysToApprove(d);
+    if (approveLag !== null) {
+      const approved = yearAndQuarterOf(d.date_approved as string);
+      if (approved.year === year) {
+        approveDaysByQuarter[approved.quarter - 1].sum += approveLag;
+        approveDaysByQuarter[approved.quarter - 1].count += 1;
+        ytdApproveDaysSum += approveLag;
+        ytdApproveDaysCount += 1;
+      }
+    }
   }
 
   for (let i = 0; i < 4; i++) {
     quarters[i].avgDaysToPay = averageDays(daysByQuarter[i].sum, daysByQuarter[i].count);
+    quarters[i].avgDaysToApprove = averageDays(approveDaysByQuarter[i].sum, approveDaysByQuarter[i].count);
   }
 
   return {
@@ -120,6 +150,7 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
     ytdRequested: quarters.reduce((acc, q) => acc + q.requested, 0),
     ytdReceived: quarters.reduce((acc, q) => acc + q.received, 0),
     ytdAvgDaysToPay: averageDays(ytdDaysSum, ytdDaysCount),
+    ytdAvgDaysToApprove: averageDays(ytdApproveDaysSum, ytdApproveDaysCount),
     quarters,
   };
 }
@@ -135,6 +166,7 @@ export function buildProjectBillingBreakdown(
   const nameById = new Map(projects.map((p) => [p.id, p.name]));
   const rows = new Map<string, ProjectBillingRow>();
   const daysByProject = new Map<string, { sum: number; count: number }>();
+  const approveDaysByProject = new Map<string, { sum: number; count: number }>();
 
   const rowFor = (projectId: string) => {
     let row = rows.get(projectId);
@@ -145,6 +177,7 @@ export function buildProjectBillingBreakdown(
         requested: 0,
         received: 0,
         avgDaysToPay: null,
+        avgDaysToApprove: null,
       };
       rows.set(projectId, row);
     }
@@ -180,11 +213,27 @@ export function buildProjectBillingBreakdown(
         daysByProject.set(d.project_id, sample);
       }
     }
+
+    const approveLag = daysToApprove(d);
+    if (approveLag !== null) {
+      const approved = yearAndQuarterOf(d.date_approved as string);
+      if (approved.year === year) {
+        rowFor(d.project_id);
+        const sample = approveDaysByProject.get(d.project_id) ?? { sum: 0, count: 0 };
+        sample.sum += approveLag;
+        sample.count += 1;
+        approveDaysByProject.set(d.project_id, sample);
+      }
+    }
   }
 
   for (const [projectId, sample] of Array.from(daysByProject.entries())) {
     const row = rows.get(projectId);
     if (row) row.avgDaysToPay = averageDays(sample.sum, sample.count);
+  }
+  for (const [projectId, sample] of Array.from(approveDaysByProject.entries())) {
+    const row = rows.get(projectId);
+    if (row) row.avgDaysToApprove = averageDays(sample.sum, sample.count);
   }
 
   return Array.from(rows.values()).sort((a, b) => b.requested - a.requested);

@@ -15,7 +15,22 @@ import {
   openBalance,
 } from "@/lib/data";
 import { AGING_BUCKETS, agingBucket, daysOpen } from "@/lib/aging";
+import { parseLocalDate } from "@/lib/format";
 import { resolveProject } from "./shared";
+import { OwnerDraw } from "@/lib/types";
+
+// Time from submitted to approved — a fixed fact once approved, a live
+// running count while a draw still awaits it (mirrors
+// components/DrawsSection.tsx's approvalLabel). null if not applicable:
+// never submitted, or skipped approval entirely (e.g. marked paid directly
+// from submitted).
+function daysToApprove(draw: OwnerDraw): number | null {
+  if (!draw.date_submitted) return null;
+  if (draw.date_approved) {
+    return daysOpen(draw.date_submitted, parseLocalDate(draw.date_approved));
+  }
+  return draw.status === "submitted" ? daysOpen(draw.date_submitted) : null;
+}
 
 export const listProjectsTool = tool({
   description:
@@ -53,6 +68,7 @@ export const getOpenDrawsTool = tool({
       amountPaid: d.amount_paid,
       outstandingBalance: openBalance(d),
       dateSubmitted: d.date_submitted,
+      notes: d.notes,
     }));
   },
 });
@@ -119,7 +135,7 @@ export const getAgingSummaryTool = tool({
 
 export const getBillingSummaryTool = tool({
   description:
-    "Get YTD/QTD billed-vs-received totals and average days to pay, portfolio-wide by quarter and broken down by project, for a given calendar year — matches the Billing Summary page. Defaults to the current year if omitted.",
+    "Get YTD/QTD billed-vs-received totals, average days to pay, and average days to approve (submitted to date_approved — the owner/lender's own turnaround, separate from days to pay), portfolio-wide by quarter and broken down by project, for a given calendar year — matches the Billing Summary page. Defaults to the current year if omitted.",
   inputSchema: z.object({
     year: z.number().int().optional().describe("Calendar year, e.g. 2026. Defaults to the current year."),
   }),
@@ -135,12 +151,14 @@ export const getBillingSummaryTool = tool({
       ytdRequested: report.ytdRequested,
       ytdReceived: report.ytdReceived,
       ytdAvgDaysToPay: report.ytdAvgDaysToPay,
+      ytdAvgDaysToApprove: report.ytdAvgDaysToApprove,
       quarters: report.quarters,
       byProject: byProject.map((p) => ({
         project: p.projectName,
         requested: p.requested,
         received: p.received,
         avgDaysToPay: p.avgDaysToPay,
+        avgDaysToApprove: p.avgDaysToApprove,
       })),
     };
   },
@@ -192,7 +210,7 @@ export const getDrawScheduleStatusTool = tool({
 
 export const getProjectDetailsTool = tool({
   description:
-    "Get full details for one project by name: every draw (status/dates/amounts), schedule-of-values line items, and paid/open/contract-value totals.",
+    "Get full details for one project by name: every draw (status/dates/amounts/notes), schedule-of-values line items, and paid/open/contract-value totals. Each draw's notes often explain why its outstanding balance looks unusual (a fee withheld, an amount written off, an owner-paid item) — check them before answering a 'why does X look off' question. daysToApprove is the submitted-to-approved lag: a live running count if still awaiting approval, the final number once approved, or null if not applicable.",
   inputSchema: z.object({
     projectName: z
       .string()
@@ -235,6 +253,8 @@ export const getProjectDetailsTool = tool({
         dateSubmitted: d.date_submitted,
         dateApproved: d.date_approved,
         datePaid: d.date_paid,
+        daysToApprove: daysToApprove(d),
+        notes: d.notes,
       })),
       budgetLineCount: budgetLines.length,
     };
