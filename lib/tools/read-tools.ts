@@ -185,6 +185,7 @@ export const getScheduleOfValuesTool = tool({
         description: l.description,
         scheduledValue: l.scheduled_value,
         retentionExempt: l.retention_exempt,
+        retentionRateOverridePercent: l.retention_rate_override,
         excludedFromContract: l.excluded_from_contract,
       })),
     };

@@ -14,6 +14,13 @@ function toNullableString(value: FormDataEntryValue | null): string | null {
   return s.length ? s : null;
 }
 
+function toNullableNumber(value: FormDataEntryValue | null): number | null {
+  const s = (value ?? "").toString().trim();
+  if (!s.length) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
 export async function upsertBudgetLine(formData: FormData) {
   const supabase = createServerSupabaseClient();
   const id = toNullableString(formData.get("id"));
@@ -26,6 +33,7 @@ export async function upsertBudgetLine(formData: FormData) {
     description: (formData.get("description") as string) ?? "",
     scheduled_value: toNumber(formData.get("scheduled_value")),
     retention_exempt: formData.get("retention_exempt") === "on",
+    retention_rate_override: toNullableNumber(formData.get("retention_rate_override")),
     excluded_from_contract: formData.get("excluded_from_contract") === "on",
   };
 

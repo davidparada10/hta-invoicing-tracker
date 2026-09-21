@@ -227,6 +227,11 @@ export default function BudgetSection({
                     No retention
                   </span>
                 )}
+                {!l.retention_exempt && l.retention_rate_override !== null && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                    {l.retention_rate_override}% retention
+                  </span>
+                )}
                 {l.excluded_from_contract && (
                   <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                     Owner cost
@@ -307,6 +312,11 @@ export default function BudgetSection({
                   {l.retention_exempt && (
                     <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                       No retention
+                    </span>
+                  )}
+                  {!l.retention_exempt && l.retention_rate_override !== null && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                      {l.retention_rate_override}% retention
                     </span>
                   )}
                   {l.excluded_from_contract && (
@@ -404,6 +414,19 @@ export default function BudgetSection({
             />
             No retention held on this line (e.g. bonds, insurance, GC fee)
           </label>
+
+          <Field label="Retention rate override (%) — leave blank to use each draw's rate">
+            <input
+              name="retention_rate_override"
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              defaultValue={editing?.retention_rate_override ?? ""}
+              placeholder="e.g. 10"
+              className="input"
+            />
+          </Field>
 
           <label className="flex items-center gap-2 text-sm text-foreground">
             <input

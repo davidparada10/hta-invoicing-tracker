@@ -134,7 +134,11 @@ export default function DrawFormModal({
     const rate = Number(retentionMode) / 100;
     const total = budgetLines.reduce((acc, line) => {
       if (line.retention_exempt) return acc;
-      return acc + (Number(lineAmounts[line.id]) || 0) * rate;
+      // A line's own rate (e.g. an elevator sub customarily held at a
+      // different rate than the rest of the contract) wins over the
+      // draw's selected uniform rate.
+      const lineRate = line.retention_rate_override !== null ? line.retention_rate_override / 100 : rate;
+      return acc + (Number(lineAmounts[line.id]) || 0) * lineRate;
     }, 0);
     return Math.round(total * 100) / 100;
   }, [retentionMode, budgetLines, lineAmounts]);

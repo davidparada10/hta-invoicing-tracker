@@ -53,6 +53,13 @@ export interface BudgetLine {
   scheduled_value: number;
   sort_order: number;
   retention_exempt: boolean;
+  // Percent (e.g. 10 for 10%), not a fraction. When set, this line retains
+  // at its own rate regardless of the draw's selected uniform retention
+  // rate — for scope that customarily carries different retention than the
+  // rest of the contract (e.g. an elevator sub). null means "use the
+  // draw's rate," same as before this field existed. Takes effect only
+  // when retention_exempt is false.
+  retention_rate_override: number | null;
   excluded_from_contract: boolean;
   created_at: string;
   deleted_at: string | null;
