@@ -237,15 +237,24 @@ async function saveAllocations(
   }
 }
 
-// Postgres unique_violation on the (project_id, draw_number) constraint —
-// surface it as a clear message instead of a raw DB error, since two people
-// (or a person and a concurrent Cursor session) can otherwise both pick the
-// same next draw number.
-function duplicateDrawNumberError<T extends { code?: string }>(error: T, drawNumber: number): T | Error {
+// Normalizes a Supabase/Postgres error into a real Error with a readable
+// message — a raw PostgrestError (a plain object, not an Error instance)
+// thrown from a Server Action doesn't serialize cleanly back to the client,
+// which surfaces as an opaque React error instead of the actual problem
+// (seen live: a retainage_held check-constraint violation crashed the Add
+// Draw modal instead of showing why the save failed). Known cases get a
+// specific message; anything else still becomes a proper Error so it always
+// degrades to a normal, readable alert.
+function normalizeDrawSaveError(error: { code?: string; message?: string }, drawNumber: number): Error {
   if (error.code === "23505") {
     return new Error(`Draw #${drawNumber} already exists on this project. Choose a different draw number.`);
   }
-  return error;
+  if (error.code === "23514") {
+    return new Error(
+      "One of this draw's amounts violates a data rule (e.g. a negative value where one isn't allowed). Double-check the fields before saving."
+    );
+  }
+  return error instanceof Error ? error : new Error(error.message ?? "Could not save this draw.");
 }
 
 export async function upsertDraw(formData: FormData) {
@@ -316,14 +325,14 @@ export async function upsertDraw(formData: FormData) {
     }
 
     const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
-    if (error) throw duplicateDrawNumberError(error, payload.draw_number);
+    if (error) throw normalizeDrawSaveError(error, payload.draw_number);
   } else {
     const { data, error } = await supabase
       .from("inv_owner_draws")
       .insert(payload)
       .select("id")
       .single();
-    if (error) throw duplicateDrawNumberError(error, payload.draw_number);
+    if (error) throw normalizeDrawSaveError(error, payload.draw_number);
     drawId = data.id;
   }
 
