@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
-import { getAllocationsForProject, getBudgetLinesForProject } from "@/lib/data";
+import { DrawStatus, BudgetLine, DrawLineAllocation, OwnerDraw } from "@/lib/types";
+import { getAllocationsForProject, getBudgetLinesForProject, getDrawsForProject } from "@/lib/data";
 import {
   extractPdfText,
   parseDrawAllocationsFromXlsx,
@@ -430,12 +430,14 @@ export async function restoreDraw(id: string, projectId: string) {
 }
 
 export async function getDrawFormContext(projectId: string): Promise<{
+  draws: OwnerDraw[];
   budgetLines: BudgetLine[];
   allocations: DrawLineAllocation[];
 }> {
-  const [budgetLines, allocations] = await Promise.all([
+  const [draws, budgetLines, allocations] = await Promise.all([
+    getDrawsForProject(projectId),
     getBudgetLinesForProject(projectId),
     getAllocationsForProject(projectId),
   ]);
-  return { budgetLines, allocations };
+  return { draws, budgetLines, allocations };
 }

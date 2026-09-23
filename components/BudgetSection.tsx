@@ -104,7 +104,7 @@ export default function BudgetSection({
     if (
       budgetLines.length > 0 &&
       !confirm(
-        `This project already has ${budgetLines.length} line item(s). Importing will update matching line items and remove any not present in this file. Continue?`
+        `This project already has ${budgetLines.length} line item(s). Importing will update matching line items and add any new ones — nothing gets removed. Continue?`
       )
     ) {
       e.target.value = "";
@@ -138,7 +138,9 @@ export default function BudgetSection({
         }
       }
       setImportMessage(
-        `Imported ${result.count} line items totaling ${formatCurrency(result.total)}.`
+        `Updated ${result.updated} and added ${result.inserted} line item(s). Schedule of values now totals ${formatCurrency(
+          result.total
+        )}.`
       );
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Could not read that file.");

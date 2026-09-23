@@ -303,6 +303,7 @@ export default function DrawsSection({
         onClose={() => setModalOpen(false)}
         projectId={projectId}
         editing={editing}
+        draws={draws}
         budgetLines={budgetLines}
         allocations={allocations}
       />

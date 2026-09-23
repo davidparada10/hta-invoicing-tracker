@@ -142,13 +142,13 @@ export default function WorkflowPage() {
         <Flow
           number="2"
           title="G703 Schedule of Values Import"
-          subtitle="Schedule of Values tab, on-demand — matches by item #, so history on unchanged lines survives"
+          subtitle="Schedule of Values tab, on-demand — add/update only, never deletes"
           steps={[
             { icon: "👤", title: "Upload .xlsx", detail: "Schedule of Values tab — Import button", category: "trigger", edgeLabel: "confirms" },
             { icon: "❓", title: "Lines exist?", detail: "Browser confirm() if project has any", category: "decision", edgeLabel: "yes/no" },
             { icon: "📄", title: "parseBudgetFromXlsx", detail: "lib/g702-parser.ts — walks G703 rows", category: "server", edgeLabel: "returns rows" },
-            { icon: "⚡", title: "importBudgetFromXlsx", detail: "app/budget/actions.ts — matches incoming rows to existing ones by item_number", category: "server", edgeLabel: "update/insert/delete" },
-            { icon: "🗄️", title: "inv_project_budget_lines", detail: "Supabase — item numbers still present are updated in place (keeping their ID, so draw allocations tied to them survive); only items dropped from the file are deleted", category: "data", edgeLabel: "revalidates" },
+            { icon: "⚡", title: "importBudgetFromXlsx", detail: "app/budget/actions.ts — matches incoming rows to existing ones by item_number + category + description, only when that key is unique", category: "server", edgeLabel: "update/insert" },
+            { icon: "🗄️", title: "inv_project_budget_lines", detail: "Supabase — matched lines updated in place (keeping their ID and sort_order, so draw allocations survive); unmatched rows inserted; nothing is ever deleted by an import, even if a line is missing from the file — a partial sheet (a single draw, a change-order addendum) can't wipe the rest of the schedule. Retiring a line for real goes through the manual Delete button (soft-delete, Trash tab)", category: "data", edgeLabel: "revalidates" },
             { icon: "✅", title: "Schedule of Values refreshed", detail: "Contract value + line table", category: "output" },
           ]}
         />

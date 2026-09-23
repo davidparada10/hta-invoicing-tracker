@@ -74,6 +74,7 @@ export default function DrawFormModal({
   onClose,
   projectId,
   editing,
+  draws,
   budgetLines,
   allocations,
 }: {
@@ -81,6 +82,7 @@ export default function DrawFormModal({
   onClose: () => void;
   projectId: string;
   editing: OwnerDraw | null;
+  draws: OwnerDraw[];
   budgetLines: BudgetLine[];
   allocations: DrawLineAllocation[];
 }) {
@@ -91,7 +93,7 @@ export default function DrawFormModal({
   const [parsedAllocationsCount, setParsedAllocationsCount] = useState<number | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [lineAmounts, setLineAmounts] = useState<Record<string, string>>({});
-  const [retentionMode, setRetentionMode] = useState<"manual" | "0" | "5" | "10">("manual");
+  const [retentionMode, setRetentionMode] = useState<"manual" | "0" | "5" | "10" | "release">("manual");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -129,8 +131,19 @@ export default function DrawFormModal({
     allocationsTotal > 0 &&
     Math.abs(allocationsTotal - (requestedAmount + retainageHeldAmount)) > 0.01;
 
+  // Retention held on every OTHER draw of this project — the balance this
+  // draw would release in full, since each draw's own retainage_held is an
+  // incremental amount (added this period) rather than a running total.
+  const retentionHeldToDate = useMemo(() => {
+    const total = draws
+      .filter((d) => d.id !== editing?.id)
+      .reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);
+    return Math.round(total * 100) / 100;
+  }, [draws, editing]);
+
   const computedRetention = useMemo(() => {
     if (retentionMode === "manual") return null;
+    if (retentionMode === "release") return -retentionHeldToDate;
     const rate = Number(retentionMode) / 100;
     const total = budgetLines.reduce((acc, line) => {
       if (line.retention_exempt) return acc;
@@ -141,7 +154,7 @@ export default function DrawFormModal({
       return acc + (Number(lineAmounts[line.id]) || 0) * lineRate;
     }, 0);
     return Math.round(total * 100) / 100;
-  }, [retentionMode, budgetLines, lineAmounts]);
+  }, [retentionMode, budgetLines, lineAmounts, retentionHeldToDate]);
 
   useEffect(() => {
     if (computedRetention === null) return;
@@ -409,15 +422,23 @@ export default function DrawFormModal({
               name="retainage_held"
               type="number"
               step="0.01"
-              min="0"
               value={formValues.retainage_held}
               onChange={(e) => updateField("retainage_held", e.target.value)}
               readOnly={retentionMode !== "manual"}
               className={`input ${retentionMode !== "manual" ? "bg-muted text-muted-foreground" : ""}`}
             />
-            {retentionMode !== "manual" && (
+            {retentionMode === "release" ? (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Releases the {formatCurrency(retentionHeldToDate)} held across this project&rsquo;s
+                other draws.
+              </p>
+            ) : retentionMode !== "manual" ? (
               <p className="text-[11px] text-muted-foreground mt-1">
                 Computed from {retentionMode}% retention on the schedule of values below.
+              </p>
+            ) : (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Negative releases previously withheld retention (e.g. the final draw).
               </p>
             )}
           </Field>
@@ -482,6 +503,7 @@ export default function DrawFormModal({
                     <option value="0">0%</option>
                     <option value="5">5%</option>
                     <option value="10">10%</option>
+                    <option value="release">Release retention</option>
                   </select>
                 </label>
                 <span

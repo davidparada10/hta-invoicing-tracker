@@ -84,6 +84,7 @@ export default function OpenDrawsSection({
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<OwnerDraw | null>(null);
   const [projectId, setProjectId] = useState<string>("");
+  const [projectDraws, setProjectDraws] = useState<OwnerDraw[]>([]);
   const [budgetLines, setBudgetLines] = useState<BudgetLine[]>([]);
   const [allocations, setAllocations] = useState<DrawLineAllocation[]>([]);
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -93,6 +94,7 @@ export default function OpenDrawsSection({
     try {
       const ctx = await getDrawFormContext(draw.project.id);
       setProjectId(draw.project.id);
+      setProjectDraws(ctx.draws);
       setBudgetLines(ctx.budgetLines);
       setAllocations(ctx.allocations);
       setEditing(draw);
@@ -314,6 +316,7 @@ export default function OpenDrawsSection({
         onClose={() => setModalOpen(false)}
         projectId={projectId}
         editing={editing}
+        draws={projectDraws}
         budgetLines={budgetLines}
         allocations={allocations}
       />

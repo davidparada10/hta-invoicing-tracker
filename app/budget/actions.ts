@@ -83,7 +83,7 @@ const MAX_BUDGET_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB — matches the G702 d
 
 export async function importBudgetFromXlsx(
   formData: FormData
-): Promise<{ count: number; total: number }> {
+): Promise<{ updated: number; inserted: number; total: number }> {
   const file = formData.get("budget_file");
   const projectId = formData.get("project_id") as string;
   if (!(file instanceof File)) {
@@ -119,56 +119,81 @@ export async function importBudgetFromXlsx(
 
   const supabase = createServerSupabaseClient();
 
-  // Match incoming rows to existing ones by item_number so a re-import updates
-  // in place instead of delete-then-recreate. Recreating would assign new IDs,
-  // and inv_draw_line_allocations cascades on budget_line_id deletion — so a
+  // Match incoming rows to existing ones so a re-import updates in place
+  // instead of delete-then-recreate. Recreating would assign new IDs, and
+  // inv_draw_line_allocations cascades on budget_line_id deletion — so a
   // routine re-import (e.g. a corrected G703) would silently wipe every
   // draw's allocation history against lines that didn't actually change.
+  //
+  // item_number alone isn't a safe key: these sheets restart numbering
+  // per category (item "1" in "Electrical" and item "1" in "General
+  // Requirements" are unrelated lines), so item_number+category+description
+  // is used instead — and a key that isn't unique on the existing side is
+  // left unmatched entirely rather than guessing, since guessing wrong
+  // means silently overwriting an unrelated line's value.
   const { data: existing, error: existingError } = await supabase
     .from("inv_project_budget_lines")
-    .select("id, item_number, scheduled_value")
+    .select("id, item_number, category, description, scheduled_value, sort_order")
     .eq("project_id", projectId);
   if (existingError) throw existingError;
 
-  const existingByItemNumber = new Map(
-    (existing ?? []).filter((l) => l.item_number).map((l) => [l.item_number, l.id])
-  );
-  const matchedIds = new Set<string>();
+  function matchKey(l: { item_number: string | null; category: string | null; description: string }): string {
+    return [l.item_number ?? "", l.category ?? "", l.description]
+      .map((s) => s.trim().toLowerCase())
+      .join("|");
+  }
 
-  const rows = parsed.map((line, i) => ({
+  const existingKeyCounts = new Map<string, number>();
+  for (const l of existing ?? []) {
+    const key = matchKey(l);
+    existingKeyCounts.set(key, (existingKeyCounts.get(key) ?? 0) + 1);
+  }
+  const existingByKey = new Map<string, string>();
+  for (const l of existing ?? []) {
+    const key = matchKey(l);
+    if (l.item_number && existingKeyCounts.get(key) === 1) existingByKey.set(key, l.id);
+  }
+  const rows = parsed.map((line) => ({
     item_number: line.item_number,
     category: line.category,
     description: line.description,
     scheduled_value: line.scheduled_value,
-    sort_order: i + 1,
   }));
 
-  // Sanity-check the parse before overwriting anything: a mis-parsed cell
-  // (e.g. a shifted column reading $10 as $1,000,000) would otherwise
-  // silently replace a plausible budget with a nonsensical one. Skip the
+  // Sanity-check the parse before writing anything: a mis-parsed cell (e.g.
+  // a shifted column reading $10 as $1,000,000) would otherwise silently
+  // land a nonsensical value. Also catches uploading a small partial sheet
+  // (a change-order addendum, a single draw's continuation sheet) by
+  // mistake — its total will look tiny next to the real budget. Skip the
   // check on a project's first-ever import — there's nothing to compare against.
   const existingTotal = (existing ?? []).reduce((acc, l) => acc + (l.scheduled_value ?? 0), 0);
   const newTotal = rows.reduce((acc, r) => acc + r.scheduled_value, 0);
   const force = formData.get("force") === "true";
   if (existingTotal > 0 && !force && (newTotal > existingTotal * 5 || newTotal < existingTotal / 5)) {
     throw new Error(
-      `MAGNITUDE_MISMATCH:${existingTotal}:${newTotal}:The new file totals ${newTotal.toLocaleString(
+      `MAGNITUDE_MISMATCH:${existingTotal}:${newTotal}:This file totals ${newTotal.toLocaleString(
         "en-US",
         { style: "currency", currency: "USD" }
-      )} vs. the current ${existingTotal.toLocaleString("en-US", {
+      )} vs. the existing schedule's ${existingTotal.toLocaleString("en-US", {
         style: "currency",
         currency: "USD",
-      })} — that's a big enough swing it might be a parsing error. Double-check the file, or confirm to import anyway.`
+      })} — that's a big enough swing it might be a parsing error, or a partial file (like a single draw's sheet) rather than the full schedule of values. Double-check before continuing.`
     );
   }
 
+  // Matched lines are updated in place, keeping their existing sort_order —
+  // reassigning it from the uploaded file's row order would scramble the
+  // display order of every line the file doesn't mention. New lines are
+  // appended after whatever's already there.
   const toUpdate = rows
-    .filter((r) => r.item_number && existingByItemNumber.has(r.item_number))
-    .map((r) => ({ id: existingByItemNumber.get(r.item_number!)!, ...r }));
-  const toInsert = rows.filter((r) => !r.item_number || !existingByItemNumber.has(r.item_number));
+    .filter((r) => r.item_number && existingByKey.has(matchKey(r)))
+    .map((r) => ({ id: existingByKey.get(matchKey(r))!, ...r }));
+  const maxSortOrder = (existing ?? []).reduce((acc, l) => Math.max(acc, l.sort_order ?? 0), 0);
+  const toInsert = rows
+    .filter((r) => !r.item_number || !existingByKey.has(matchKey(r)))
+    .map((r, i) => ({ ...r, sort_order: maxSortOrder + i + 1 }));
 
   for (const line of toUpdate) {
-    matchedIds.add(line.id);
     const { id, ...payload } = line;
     const { error } = await supabase.from("inv_project_budget_lines").update(payload).eq("id", id);
     if (error) throw error;
@@ -181,19 +206,24 @@ export async function importBudgetFromXlsx(
     if (error) throw error;
   }
 
-  // Only lines genuinely dropped from the new schedule get deleted (and,
-  // correctly, cascade their allocations) — anything still present keeps its
-  // ID and history.
-  const staleIds = (existing ?? []).filter((l) => !matchedIds.has(l.id)).map((l) => l.id);
-  if (staleIds.length > 0) {
-    const { error } = await supabase.from("inv_project_budget_lines").delete().in("id", staleIds);
-    if (error) throw error;
-  }
-
+  // Deliberately no delete pass here: a re-import only adds/updates lines it
+  // recognizes. A line genuinely retired from the contract is removed by
+  // hand (which soft-deletes to the Trash tab) — safer than trusting every
+  // future upload to be a complete, authoritative schedule of values.
   revalidatePath(`/projects/${projectId}`);
 
+  // The file's own total no longer equals the project's total now that a
+  // partial file doesn't replace the whole schedule — report what this
+  // import actually changed instead.
+  const prevMatchedTotal = new Set(toUpdate.map((r) => r.id));
+  const resultingTotal =
+    (existing ?? []).reduce((acc, l) => acc + (prevMatchedTotal.has(l.id) ? 0 : l.scheduled_value ?? 0), 0) +
+    toUpdate.reduce((acc, r) => acc + r.scheduled_value, 0) +
+    toInsert.reduce((acc, r) => acc + r.scheduled_value, 0);
+
   return {
-    count: rows.length,
-    total: rows.reduce((acc, r) => acc + r.scheduled_value, 0),
+    updated: toUpdate.length,
+    inserted: toInsert.length,
+    total: resultingTotal,
   };
 }
