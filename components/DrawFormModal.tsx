@@ -181,7 +181,11 @@ export default function DrawFormModal({
     formData.set("allocations", JSON.stringify(allocationsPayload));
     setIsSaving(true);
     try {
-      await upsertDraw(formData);
+      const result = await upsertDraw(formData);
+      if (result?.error) {
+        alert(result.error);
+        return;
+      }
       onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Could not save draw.");

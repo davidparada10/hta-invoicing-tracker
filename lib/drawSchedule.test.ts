@@ -105,13 +105,45 @@ describe("isDrawOverdue / isDrawUrgent — cycle matching by period_end", () => 
     expect(isDrawOverdue(project, draws, referenceDate)).toBe(false);
   });
 
-  it("a late-submitted draw for last month's period does not satisfy this month's cadence", () => {
-    // Same scenario as the Victoria draw #7 case: submitted this month, but
-    // period_end still belongs to the previous month.
+  it("trusts date_submitted when it lands in the same due-date cycle as period_end", () => {
+    // Due the 7th: period_end Aug 25 is already past August's own due date,
+    // so it rolls into September's cycle — and Sep 3 (before September's
+    // due date) also lands in September's cycle. Same cycle both ways, so
+    // the actual submission date decides, and it satisfies September.
     const draws = [
       { period_end: "2026-08-25", date_submitted: "2026-09-03", created_at: "2026-08-26T22:14:29Z" },
     ];
-    expect(isDrawOverdue(project, draws, referenceDate)).toBe(true);
+    expect(isDrawOverdue(project, draws, referenceDate)).toBe(false);
+  });
+
+  it("falls back to period_end's own cycle when date_submitted crosses into a different one", () => {
+    // The actual Victoria draw #7 case, due the 25th: period_end Aug 25 is
+    // exactly on August's own due date (August's cycle), but it wasn't
+    // filed until Sep 3 — after August's due date but before September's,
+    // so date_submitted's own cycle is September. Different cycles, so the
+    // late filing doesn't get to retroactively satisfy September; that
+    // cycle still needs its own draw.
+    const victoria = { draw_due_type: "day_of_month" as const, draw_due_day: 25 };
+    const afterSeptDue = new Date(2026, 8, 26); // Sep 26, one day past due
+    const draws = [
+      { period_end: "2026-08-25", date_submitted: "2026-09-03", created_at: "2026-08-26T22:14:29Z" },
+    ];
+    expect(isDrawOverdue(victoria, draws, afterSeptDue)).toBe(true);
+  });
+
+  it("falls back to period_end's cycle the other direction too: a draw filed well past its own period's due date", () => {
+    // The actual Gilmore draw #9 case, due the 15th: period_end Aug 26 is
+    // already past August's due date, so it's in September's cycle. It
+    // wasn't filed until Sep 21 — past September's own due date too, so
+    // date_submitted's cycle is October. Different cycles again, so it
+    // falls back to period_end's cycle (September) rather than the later
+    // October filing date, and correctly satisfies September.
+    const gilmore = { draw_due_type: "day_of_month" as const, draw_due_day: 15 };
+    const lateSept = new Date(2026, 8, 24); // Sep 24
+    const draws = [
+      { period_end: "2026-08-26", date_submitted: "2026-09-21", created_at: "2026-08-26T22:14:29Z" },
+    ];
+    expect(isDrawOverdue(gilmore, draws, lateSept)).toBe(false);
   });
 
   it("isDrawUrgent fires within the warning window even before the due date", () => {

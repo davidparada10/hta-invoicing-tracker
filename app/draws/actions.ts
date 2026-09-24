@@ -257,91 +257,105 @@ function normalizeDrawSaveError(error: { code?: string; message?: string }, draw
   return error instanceof Error ? error : new Error(error.message ?? "Could not save this draw.");
 }
 
-export async function upsertDraw(formData: FormData) {
-  const supabase = createServerSupabaseClient();
-  const id = toNullableString(formData.get("id"));
-  const projectId = formData.get("project_id") as string;
-  const allocations = parseAllocations(formData);
+// Returns { error } instead of throwing. Next.js strips the .message off
+// any thrown Server Action error in production, keeping only an opaque
+// digest — a real, readable Error object still reaches the client as a
+// "Minified React error #441" with no actual explanation (seen live twice:
+// a check-constraint violation, then a plain duplicate-draw-number clash
+// that should have been an ordinary validation message). Returning the
+// failure as normal serialized data sidesteps that redaction entirely, and
+// the try/catch below is a last-resort net so nothing this function itself
+// didn't anticipate can throw its way past that same redaction either.
+export async function upsertDraw(formData: FormData): Promise<{ error?: string }> {
+  try {
+    const supabase = createServerSupabaseClient();
+    const id = toNullableString(formData.get("id"));
+    const projectId = formData.get("project_id") as string;
+    const allocations = parseAllocations(formData);
 
-  const payload = {
-    project_id: projectId,
-    draw_number: toNumber(formData.get("draw_number")),
-    period_start: toNullableString(formData.get("period_start")),
-    period_end: toNullableString(formData.get("period_end")),
-    amount_requested: toNumber(formData.get("amount_requested")),
-    amount_approved: toNumber(formData.get("amount_approved")),
-    retainage_held: toNumber(formData.get("retainage_held")),
-    amount_paid: toNumber(formData.get("amount_paid")),
-    date_submitted: toNullableString(formData.get("date_submitted")),
-    date_approved: toNullableString(formData.get("date_approved")),
-    date_paid: toNullableString(formData.get("date_paid")),
-    status: formData.get("status") as string,
-    notes: toNullableString(formData.get("notes")),
-  };
+    const payload = {
+      project_id: projectId,
+      draw_number: toNumber(formData.get("draw_number")),
+      period_start: toNullableString(formData.get("period_start")),
+      period_end: toNullableString(formData.get("period_end")),
+      amount_requested: toNumber(formData.get("amount_requested")),
+      amount_approved: toNumber(formData.get("amount_approved")),
+      retainage_held: toNumber(formData.get("retainage_held")),
+      amount_paid: toNumber(formData.get("amount_paid")),
+      date_submitted: toNullableString(formData.get("date_submitted")),
+      date_approved: toNullableString(formData.get("date_approved")),
+      date_paid: toNullableString(formData.get("date_paid")),
+      status: formData.get("status") as string,
+      notes: toNullableString(formData.get("notes")),
+    };
 
-  if (
-    payload.period_start &&
-    payload.period_end &&
-    new Date(payload.period_end) < new Date(payload.period_start)
-  ) {
-    throw new Error("Period end date can't be before the period start date.");
-  }
-
-  let drawId = id;
-  if (id) {
-    const { data: existing, error: fetchError } = await supabase
-      .from("inv_owner_draws")
-      .select("status, date_submitted, date_approved, date_paid")
-      .eq("id", id)
-      .single();
-    if (fetchError) throw fetchError;
-
-    // Stamp today on the actual transition into a status, same rule as the
-    // quick status dropdown (updateDrawStatus) — but only when the date
-    // field wasn't itself deliberately edited in this save, so a real
-    // backdated submission date typed here is still respected.
-    const today = new Date().toISOString().slice(0, 10);
     if (
-      payload.status === "submitted" &&
-      existing.status !== "submitted" &&
-      payload.date_submitted === existing.date_submitted
+      payload.period_start &&
+      payload.period_end &&
+      new Date(payload.period_end) < new Date(payload.period_start)
     ) {
-      payload.date_submitted = today;
-    }
-    if (
-      payload.status === "approved" &&
-      existing.status !== "approved" &&
-      existing.status !== "paid" &&
-      payload.date_approved === existing.date_approved
-    ) {
-      payload.date_approved = today;
-    }
-    if (
-      payload.status === "paid" &&
-      existing.status !== "paid" &&
-      payload.date_paid === existing.date_paid
-    ) {
-      payload.date_paid = today;
+      return { error: "Period end date can't be before the period start date." };
     }
 
-    const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
-    if (error) throw normalizeDrawSaveError(error, payload.draw_number);
-  } else {
-    const { data, error } = await supabase
-      .from("inv_owner_draws")
-      .insert(payload)
-      .select("id")
-      .single();
-    if (error) throw normalizeDrawSaveError(error, payload.draw_number);
-    drawId = data.id;
-  }
+    let drawId = id;
+    if (id) {
+      const { data: existing, error: fetchError } = await supabase
+        .from("inv_owner_draws")
+        .select("status, date_submitted, date_approved, date_paid")
+        .eq("id", id)
+        .single();
+      if (fetchError) return { error: fetchError.message };
 
-  if (drawId) {
-    await saveAllocations(supabase, drawId, allocations);
-  }
+      // Stamp today on the actual transition into a status, same rule as the
+      // quick status dropdown (updateDrawStatus) — but only when the date
+      // field wasn't itself deliberately edited in this save, so a real
+      // backdated submission date typed here is still respected.
+      const today = new Date().toISOString().slice(0, 10);
+      if (
+        payload.status === "submitted" &&
+        existing.status !== "submitted" &&
+        payload.date_submitted === existing.date_submitted
+      ) {
+        payload.date_submitted = today;
+      }
+      if (
+        payload.status === "approved" &&
+        existing.status !== "approved" &&
+        existing.status !== "paid" &&
+        payload.date_approved === existing.date_approved
+      ) {
+        payload.date_approved = today;
+      }
+      if (
+        payload.status === "paid" &&
+        existing.status !== "paid" &&
+        payload.date_paid === existing.date_paid
+      ) {
+        payload.date_paid = today;
+      }
 
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath("/");
+      const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
+      if (error) return { error: normalizeDrawSaveError(error, payload.draw_number).message };
+    } else {
+      const { data, error } = await supabase
+        .from("inv_owner_draws")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (error) return { error: normalizeDrawSaveError(error, payload.draw_number).message };
+      drawId = data.id;
+    }
+
+    if (drawId) {
+      await saveAllocations(supabase, drawId, allocations);
+    }
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath("/");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not save this draw." };
+  }
 }
 
 export async function markDrawPaid(

@@ -6,11 +6,22 @@
 // the bar is just "does a draft/draw exist for this period," not that it's
 // been submitted.
 //
-// A draw's period_end (falling back to date_submitted, then created_at for
-// the rare row with neither) decides which cycle it belongs to — NOT when
-// the record was created. A draw for August finally drafted two days into
-// September must not silently satisfy September's cadence just because its
-// created_at happens to land there.
+// A draw's date_submitted decides which cycle it belongs to — NOT when the
+// record was created, and not the billing period it covers on its own.
+// What a lender cares about is when the invoice actually went in, which
+// can land in a different calendar month than the work period it bills
+// for (e.g. a draw covering Aug 15-26 submitted Sep 21 satisfies
+// September's cadence, not August's).
+//
+// But date_submitted is only trusted when it falls in the SAME due-date
+// cycle as period_end — i.e. neither date crossed a due-date boundary
+// between when the work period ended and when the invoice was actually
+// filed. When they land in different cycles (a real case: a draw whose
+// period ends right on this cycle's due date, but isn't filed until a few
+// days into the next cycle), the late filing date doesn't get to
+// retroactively claim the next cycle — that cycle still needs its own
+// draw. Falls back to period_end's own cycle in that case, and further
+// back to created_at for the rare row with neither date at all.
 
 import { DrawDueType, Project, OwnerDraw } from "@/lib/types";
 
@@ -98,15 +109,46 @@ function parseDateOnly(value: string): Date {
   return new Date(value.length <= 10 ? `${value}T00:00:00` : value);
 }
 
-function drawCycleDate(d: CycleFields): Date {
-  return parseDateOnly(d.period_end ?? d.date_submitted ?? d.created_at);
+// Which cadence cycle a date belongs to: on or before that calendar
+// month's own due date, it's that month's cycle; after it, the due date
+// has already passed so it rolls into the next month's cycle instead. With
+// no fixed cadence, cycles are just plain calendar months.
+function cadenceBucket(project: ScheduleFields, date: Date): { year: number; month: number } {
+  const dueThisMonth = getDrawDueDate(project, date);
+  if (!dueThisMonth || startOfDay(date).getTime() <= startOfDay(dueThisMonth).getTime()) {
+    return { year: date.getFullYear(), month: date.getMonth() };
+  }
+  const next = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+  return { year: next.getFullYear(), month: next.getMonth() };
 }
 
-function hasDrawForCycle(projectDraws: CycleFields[], referenceDate: Date): boolean {
+function drawCycleDate(project: ScheduleFields, d: CycleFields): Date {
+  const period = d.period_end ? parseDateOnly(d.period_end) : null;
+  const submitted = d.date_submitted ? parseDateOnly(d.date_submitted) : null;
+
+  if (submitted && period) {
+    const periodBucket = cadenceBucket(project, period);
+    const submittedBucket = cadenceBucket(project, submitted);
+    if (periodBucket.year === submittedBucket.year && periodBucket.month === submittedBucket.month) {
+      return submitted;
+    }
+    // Crossed a due-date boundary between the work period ending and the
+    // invoice actually being filed — trust the period's own cycle, not a
+    // late (or early) filing date that lands in a different one.
+    return new Date(periodBucket.year, periodBucket.month, 1);
+  }
+  return submitted ?? period ?? parseDateOnly(d.created_at);
+}
+
+function hasDrawForCycle(
+  project: ScheduleFields,
+  projectDraws: CycleFields[],
+  referenceDate: Date
+): boolean {
   const year = referenceDate.getFullYear();
   const month = referenceDate.getMonth();
   return projectDraws.some((d) => {
-    const date = drawCycleDate(d);
+    const date = drawCycleDate(project, d);
     return date.getFullYear() === year && date.getMonth() === month;
   });
 }
@@ -135,7 +177,7 @@ export function isDrawOverdue(
 ): boolean {
   const daysUntil = daysUntilDrawDue(project, referenceDate);
   if (daysUntil === null || daysUntil > 0) return false;
-  return !hasDrawForCycle(projectDraws, referenceDate);
+  return !hasDrawForCycle(project, projectDraws, referenceDate);
 }
 
 /**
@@ -151,5 +193,5 @@ export function isDrawUrgent(
 ): boolean {
   const daysUntil = daysUntilDrawDue(project, referenceDate);
   if (daysUntil === null || daysUntil > warnDaysBefore) return false;
-  return !hasDrawForCycle(projectDraws, referenceDate);
+  return !hasDrawForCycle(project, projectDraws, referenceDate);
 }
