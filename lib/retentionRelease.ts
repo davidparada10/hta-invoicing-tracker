@@ -58,3 +58,41 @@ export function isImplausibleRetainage(retainageHeld: number, amountRequested: n
   if (amountRequested <= 0) return false;
   return retainageHeld > amountRequested * 0.25;
 }
+
+type RateInferenceDraw = Pick<OwnerDraw, "id" | "status" | "amount_requested" | "retainage_held">;
+
+// The rate this project has actually been withholding, inferred from its
+// own posted history rather than trusted from a possibly-cumulative G702
+// cell. amount_requested is net of retention (see the allocation-mismatch
+// comment in DrawFormModal.tsx), so the implied rate for a draw is
+// retainage / (requested + retainage). Only returns a rate when every
+// candidate draw agrees (within a point) on the same standard bucket —
+// disagreement, or no usable history, means "don't guess."
+export function inferRetentionRate(
+  draws: RateInferenceDraw[],
+  editingId?: string
+): "0" | "5" | "10" | null {
+  const RATES = ["0", "5", "10"] as const;
+  const TOLERANCE = 1;
+
+  const impliedRates = draws
+    .filter(
+      (d) =>
+        d.id !== editingId &&
+        d.status !== "draft" &&
+        (d.amount_requested ?? 0) > 0 &&
+        (d.retainage_held ?? 0) > 0
+    )
+    .map((d) => (d.retainage_held / (d.amount_requested + d.retainage_held)) * 100);
+
+  if (impliedRates.length === 0) return null;
+
+  const matchedBuckets = new Set<(typeof RATES)[number]>();
+  for (const implied of impliedRates) {
+    const bucket = RATES.find((r) => Math.abs(implied - Number(r)) <= TOLERANCE);
+    if (!bucket) return null;
+    matchedBuckets.add(bucket);
+  }
+
+  return matchedBuckets.size === 1 ? [...matchedBuckets][0] : null;
+}

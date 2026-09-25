@@ -1,8 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { computeRetentionRelease, isImplausibleRetainage } from "@/lib/retentionRelease";
+import { computeRetentionRelease, inferRetentionRate, isImplausibleRetainage } from "@/lib/retentionRelease";
 
 function draw(id: string, retainage: number, status: "draft" | "submitted" | "approved" | "paid" = "paid") {
   return { id, status, retainage_held: retainage };
+}
+
+function rateDraw(
+  id: string,
+  amountRequested: number,
+  retainageHeld: number,
+  status: "draft" | "submitted" | "approved" | "paid" = "paid"
+) {
+  return { id, status, amount_requested: amountRequested, retainage_held: retainageHeld };
 }
 
 describe("computeRetentionRelease", () => {
@@ -74,5 +83,43 @@ describe("isImplausibleRetainage", () => {
 
   it("does not flag anything when there's no billed amount to compare against", () => {
     expect(isImplausibleRetainage(5000, 0)).toBe(false);
+  });
+});
+
+describe("inferRetentionRate", () => {
+  it("infers 10% when the project's posted draws consistently held it", () => {
+    // requested is net of retention: 90000 requested + 10000 retainage = 10% of the gross.
+    const draws = [rateDraw("d1", 90000, 10000), rateDraw("d2", 45000, 5000)];
+    expect(inferRetentionRate(draws)).toBe("10");
+  });
+
+  it("infers 5% from history", () => {
+    const draws = [rateDraw("d1", 95000, 5000), rateDraw("d2", 190000, 10000)];
+    expect(inferRetentionRate(draws)).toBe("5");
+  });
+
+  it("returns null when prior draws disagree on a rate", () => {
+    const draws = [rateDraw("d1", 90000, 10000), rateDraw("d2", 95000, 5000)];
+    expect(inferRetentionRate(draws)).toBeNull();
+  });
+
+  it("returns null when there's no usable history", () => {
+    expect(inferRetentionRate([])).toBeNull();
+    // Draws with zero retainage on record don't confirm a 0% rate — could just be unset.
+    expect(inferRetentionRate([rateDraw("d1", 100000, 0)])).toBeNull();
+  });
+
+  it("ignores draft draws and the draw currently being edited", () => {
+    const draws = [
+      rateDraw("d1", 90000, 10000),
+      rateDraw("editing", 100000, 30000), // would look implausible/off-rate if counted
+      rateDraw("draft-draw", 50000, 0, "draft"),
+    ];
+    expect(inferRetentionRate(draws, "editing")).toBe("10");
+  });
+
+  it("returns null when an implied rate doesn't land near any standard bucket", () => {
+    const draws = [rateDraw("d1", 90000, 10000), rateDraw("d2", 85000, 30000)];
+    expect(inferRetentionRate(draws)).toBeNull();
   });
 });

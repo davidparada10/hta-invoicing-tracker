@@ -188,6 +188,14 @@ export default function HelpPage() {
             </tbody>
           </table>
         </div>
+        <p className="text-xs text-muted-foreground mb-8 -mt-6">
+          The AIA form&rsquo;s Total Retainage cell is normally cumulative-to-date, not this
+          draw&rsquo;s own withholding. If this project&rsquo;s prior posted draws agree on a
+          single rate (0/5/10%), the draw form auto-switches Retainage held to compute from the
+          schedule of values at that rate instead of trusting the raw cell — you&rsquo;ll see a
+          note when that happens. Otherwise the parsed cell is used as-is, with a warning if it
+          looks implausibly large for a single draw.
+        </p>
 
         <h2 className="text-sm font-semibold text-foreground mb-1">What gets read from the G703 sheet</h2>
         <p className="text-xs text-muted-foreground mb-3">

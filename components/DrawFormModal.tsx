@@ -5,7 +5,7 @@ import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/typ
 import { formatCurrency } from "@/lib/format";
 import Modal from "@/components/Modal";
 import { parseG702Upload, upsertDraw } from "@/app/draws/actions";
-import { computeRetentionRelease, isImplausibleRetainage } from "@/lib/retentionRelease";
+import { computeRetentionRelease, inferRetentionRate, isImplausibleRetainage } from "@/lib/retentionRelease";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
 const MAX_G702_UPLOAD_BYTES = 20 * 1024 * 1024; // keep in sync with app/draws/actions.ts
@@ -92,10 +92,10 @@ export default function DrawFormModal({
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsedFileName, setParsedFileName] = useState<string | null>(null);
   const [parsedAllocationsCount, setParsedAllocationsCount] = useState<number | null>(null);
-  const [retainageCaution, setRetainageCaution] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [lineAmounts, setLineAmounts] = useState<Record<string, string>>({});
   const [retentionMode, setRetentionMode] = useState<"manual" | "0" | "5" | "10" | "release">("manual");
+  const [autoSelectedRetention, setAutoSelectedRetention] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -103,11 +103,11 @@ export default function DrawFormModal({
     setFormValues(drawToForm(editing));
     setLineAmounts(allocationsForDraw(allocations, editing?.id));
     setRetentionMode("manual");
+    setAutoSelectedRetention(false);
     setParsing(false);
     setParseError(null);
     setParsedFileName(null);
     setParsedAllocationsCount(null);
-    setRetainageCaution(null);
   }, [open, editing, allocations]);
 
   const previousByLine = useMemo(() => {
@@ -133,6 +133,16 @@ export default function DrawFormModal({
     budgetLines.length > 0 &&
     allocationsTotal > 0 &&
     Math.abs(allocationsTotal - (requestedAmount + retainageHeldAmount)) > 0.01;
+
+  // Live, not one-shot: recomputed from whatever is actually in the field
+  // right now, so it clears itself once retentionMode switches to a %
+  // (computed-from-SOV values are incremental by construction and won't
+  // trip this) instead of staying stale after a G702's raw retainage cell
+  // gets overridden by a more reliable computed value.
+  const retainageCaution =
+    parsedFileName && retentionMode === "manual" && isImplausibleRetainage(retainageHeldAmount, requestedAmount)
+      ? `This retainage (${formatCurrency(retainageHeldAmount)}) looks high for a single draw — confirm it isn't a cumulative total before saving, or switch Retention below to a % to compute it from the schedule of values instead.`
+      : null;
 
   // See lib/retentionRelease.ts — retention held on every other POSTED
   // draw of this project (drafts excluded, prior releases netted in).
@@ -220,7 +230,6 @@ export default function DrawFormModal({
     setParseError(null);
     setParsedFileName(null);
     setParsedAllocationsCount(null);
-    setRetainageCaution(null);
 
     if (file.size > MAX_G702_UPLOAD_BYTES) {
       setParseError(
@@ -259,18 +268,23 @@ export default function DrawFormModal({
           return next;
         });
         setParsedAllocationsCount(parsed.allocationsMatched);
-      }
 
-      // A G702's "Total Retainage" cell is normally cumulative-to-date per
-      // the AIA form standard, but this app treats retainage_held as
-      // incremental (this draw's own withholding) — see
-      // lib/retentionRelease.ts's isImplausibleRetainage. Advisory only:
-      // doesn't block the save or change the parsed value.
-      if (parsed.retainage_held !== undefined && parsed.amount_requested !== undefined) {
-        if (isImplausibleRetainage(parsed.retainage_held, parsed.amount_requested)) {
-          setRetainageCaution(
-            `This retainage (${formatCurrency(parsed.retainage_held)}) looks high for a single draw — confirm it isn't a cumulative total before saving.`
-          );
+        // A G702's "Total Retainage" cell is normally cumulative-to-date per
+        // the AIA form standard, but this app treats retainage_held as
+        // incremental (this draw's own withholding). Rather than trust that
+        // cell, prefer computing retention from the SOV lines above — same
+        // as manual entry, incremental by construction — at whatever rate
+        // this project has actually been withholding on its own posted
+        // history. Only kicks in when the user hasn't already picked a mode
+        // and the history unambiguously agrees on one rate; otherwise the
+        // parsed cell stays in place with the live caution below as a
+        // backstop (see lib/retentionRelease.ts's isImplausibleRetainage).
+        if (retentionMode === "manual") {
+          const inferredRate = inferRetentionRate(draws, editing?.id);
+          if (inferredRate !== null) {
+            setRetentionMode(inferredRate);
+            setAutoSelectedRetention(true);
+          }
         }
       }
 
@@ -463,6 +477,8 @@ export default function DrawFormModal({
             ) : retentionMode !== "manual" ? (
               <p className="text-[11px] text-muted-foreground mt-1">
                 Computed from {retentionMode}% retention on the schedule of values below.
+                {autoSelectedRetention &&
+                  " Auto-selected from this project's prior draws, overriding the raw retainage figure parsed from the file, which looked cumulative rather than incremental."}
               </p>
             ) : (
               <p className="text-[11px] text-muted-foreground mt-1">
@@ -524,7 +540,10 @@ export default function DrawFormModal({
                   Retention
                   <select
                     value={retentionMode}
-                    onChange={(e) => setRetentionMode(e.target.value as typeof retentionMode)}
+                    onChange={(e) => {
+                      setRetentionMode(e.target.value as typeof retentionMode);
+                      setAutoSelectedRetention(false);
+                    }}
                     className="rounded border border-border bg-card px-1.5 py-0.5 text-xs text-foreground"
                   >
                     <option value="manual">Manual</option>
