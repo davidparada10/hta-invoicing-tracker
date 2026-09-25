@@ -1,47 +1,12 @@
 import { OwnerDraw } from "@/lib/types";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
+import { buildMonthlyBillingBuckets, niceMax } from "@/lib/monthlyBilling";
 
 const INVOICED_COLOR = "var(--billed)";
 const PAID_COLOR = "var(--paid)";
 
-interface MonthBucket {
-  key: string;
-  label: string;
-  invoiced: number;
-  paid: number;
-}
-
-function monthKey(dateStr: string): string {
-  return dateStr.slice(0, 7);
-}
-
-function monthLabel(key: string): string {
-  const [y, m] = key.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-}
-
-function niceMax(value: number): number {
-  if (value <= 0) return 1;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
-  const normalized = value / magnitude;
-  const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-  return step * magnitude;
-}
-
 export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
-  const byMonth = new Map<string, MonthBucket>();
-
-  for (const d of draws) {
-    const dateStr = d.period_end ?? d.date_submitted ?? d.created_at;
-    if (!dateStr) continue;
-    const key = monthKey(dateStr);
-    const bucket = byMonth.get(key) ?? { key, label: monthLabel(key), invoiced: 0, paid: 0 };
-    bucket.invoiced += d.amount_requested ?? 0;
-    bucket.paid += d.amount_paid ?? 0;
-    byMonth.set(key, bucket);
-  }
-
-  const months = Array.from(byMonth.values()).sort((a, b) => a.key.localeCompare(b.key));
+  const months = buildMonthlyBillingBuckets(draws);
 
   if (months.length === 0) {
     return (
@@ -87,7 +52,9 @@ export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
           </span>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground mb-3">By draw period — what was billed each month vs. paid so far.</p>
+      <p className="text-xs text-muted-foreground mb-3">
+        Invoiced by submission date, paid by payment date — the two can land in different months.
+      </p>
 
       <div className="overflow-x-auto">
         <svg

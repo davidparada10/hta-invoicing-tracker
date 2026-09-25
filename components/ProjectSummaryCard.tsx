@@ -1,27 +1,26 @@
 import { OwnerDraw } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
-import { hasMeaningfulOpenBalance, openBalance } from "@/lib/data";
-
-function sum(values: number[]): number {
-  return values.reduce((acc, v) => acc + (v ?? 0), 0);
-}
+import { computeProjectSummary } from "@/lib/projectSummary";
 
 export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
-  const totalRequested = sum(draws.map((d) => d.amount_requested));
-  const totalPaidToOwner = sum(
-    draws.filter((d) => d.status !== "draft").map((d) => d.amount_paid)
-  );
-  const totalOpenToOwner = sum(draws.map(openBalance));
-  const retainageHeld = sum(draws.map((d) => d.retainage_held));
-
-  const paidPctRaw = totalRequested > 0 ? Math.min(100, (totalPaidToOwner / totalRequested) * 100) : 0;
-  // Round down short of 100% so the label can't claim "100%" while a balance is still open.
-  const paidPct = paidPctRaw >= 100 ? 100 : Math.floor(paidPctRaw);
+  const {
+    totalRequested,
+    totalPaidToOwner,
+    totalOpenToOwner,
+    retainageHeld,
+    hasMeaningfulOpenBalance,
+    paidPct,
+  } = computeProjectSummary(draws);
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 mb-6">
       <div className="flex items-baseline justify-between mb-1">
-        <span className="text-xs text-muted-foreground">Draws paid of requested</span>
+        <span
+          className="text-xs text-muted-foreground"
+          title="Paid vs. HTA's own billed total — excludes draft draws and owner-paid (non-HTA) scope"
+        >
+          Paid of HTA&rsquo;s billed total
+        </span>
         <span className="text-sm font-medium text-foreground">{paidPct.toFixed(0)}%</span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
@@ -37,7 +36,7 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
         <SummaryStat
           label="Currently invoiced"
           value={formatCurrency(totalOpenToOwner)}
-          valueClassName={hasMeaningfulOpenBalance(draws) ? "text-invoiced" : "text-foreground"}
+          valueClassName={hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"}
         />
         <SummaryStat
           label="Paid"

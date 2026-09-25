@@ -58,7 +58,12 @@ export default async function ProjectDetailPage(
     .reduce((acc, d) => acc + (d.amount_paid ?? 0), 0);
   const totalOpenToOwner = draws.reduce((acc, d) => acc + openBalance(d), 0);
   const totalBudget = contractValue(budgetLines);
-  const totalRetainage = draws.reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);
+  // A draft hasn't actually been submitted or certified yet, so nothing's
+  // really been withheld from it — preparing or editing a draft must not
+  // move posted retainage or reduce Balance to complete.
+  const totalRetainage = draws
+    .filter((d) => d.status !== "draft")
+    .reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);
   // amount_requested/amount_paid are net of retention (the G702 "current
   // payment due"), so totalPaidToOwner + totalOpenToOwner alone understates
   // what's actually been billed against the contract by the retainage held —

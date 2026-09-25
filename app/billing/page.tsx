@@ -1,6 +1,11 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
-import { getBillingReport, getProjectBillingBreakdown, MIN_MEANINGFUL_OPEN_BALANCE } from "@/lib/data";
+import {
+  getBillingReport,
+  getProjectBillingBreakdown,
+  getDashboardData,
+  MIN_MEANINGFUL_OPEN_BALANCE,
+} from "@/lib/data";
 import { currentQuarter } from "@/lib/billing";
 import { formatCurrency, formatDaysToPay } from "@/lib/format";
 import ExportCsvButton from "@/components/ExportCsvButton";
@@ -26,11 +31,27 @@ export default async function BillingPage(
   const isCurrentYear = year === thisYear;
   const activeQuarter = isCurrentYear ? currentQuarter(now) : null;
 
-  const [report, projectRows] = await Promise.all([
+  const [report, projectRows, dashboard] = await Promise.all([
     getBillingReport(year),
     getProjectBillingBreakdown(year),
+    getDashboardData(),
   ]);
-  const outstandingYtd = report.ytdRequested - report.ytdReceived;
+  // Billed minus received *within a period* — not the same thing as what's
+  // actually still owed. A draw billed in December and paid in January
+  // makes January's (or that year's) activity go negative even though
+  // that draw itself has zero outstanding balance by the time it's paid;
+  // conversely a draw billed and paid in the same period nets to zero here
+  // regardless of how large either side was. Deliberately not clamped to
+  // zero — a negative period is real information (more got collected than
+  // billed that period), not an error to hide.
+  const activityDiffYtd = report.ytdRequested - report.ytdReceived;
+  // The actual current outstanding balance — sum of each draw's own
+  // collectible balance (requested minus owner-paid scope minus paid,
+  // floored per-draw so an overpayment on one draw can't mask an unpaid
+  // balance on another), portfolio-wide and as of today. Not scoped to
+  // `year`: a balance still owed doesn't stop being owed because the page
+  // is showing a different year.
+  const currentOutstanding = dashboard.totals.totalOpenToOwner;
 
   return (
     <div className="min-h-screen">
@@ -54,8 +75,13 @@ export default async function BillingPage(
               filename={`billing-summary-${year}.csv`}
               sections={[
                 {
+                  title: "Current Outstanding (portfolio, all years, as of today)",
+                  headers: ["Current Outstanding"],
+                  rows: [[currentOutstanding]],
+                },
+                {
                   title: `By Quarter (${year})`,
-                  headers: ["Quarter", "Billed", "Received", "Outstanding", "Avg Days to Pay"],
+                  headers: ["Quarter", "Billed", "Received", "Billed − received", "Avg Days to Pay"],
                   rows: [
                     ...report.quarters.map((q) => [
                       QUARTER_LABEL[q.quarter],
@@ -68,14 +94,14 @@ export default async function BillingPage(
                       `Total (${year})`,
                       report.ytdRequested,
                       report.ytdReceived,
-                      outstandingYtd,
+                      activityDiffYtd,
                       formatDaysToPay(report.ytdAvgDaysToPay),
                     ],
                   ],
                 },
                 {
                   title: `By Project (${year})`,
-                  headers: ["Project", "Billed", "Received", "Outstanding", "Avg Days to Pay"],
+                  headers: ["Project", "Billed", "Received", "Billed − received", "Avg Days to Pay"],
                   rows: projectRows.map((p) => [
                     p.projectName,
                     p.requested,
@@ -95,22 +121,24 @@ export default async function BillingPage(
         </p>
 
         {/* Hero total — same ledger treatment as the dashboard and project
-            pages: the one number this report exists to answer (what's
-            billed but not yet received), not another card in a shelf. */}
+            pages. This is the true current outstanding balance (per-draw
+            collectible balances, portfolio-wide, as of today) — not scoped
+            to the selected year, since a balance still owed doesn't stop
+            being owed because the page is showing a different year. */}
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
-          Outstanding {isCurrentYear ? "YTD" : year}
+          Current Outstanding (all years)
         </p>
         <p
           className={`text-4xl sm:text-5xl font-semibold tracking-tight ${
-            outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : "text-foreground"
+            currentOutstanding > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : "text-foreground"
           }`}
         >
-          {formatCurrency(outstandingYtd)}
+          {formatCurrency(currentOutstanding)}
         </p>
         <div className="border-t border-foreground/70 border-b-[3px] border-b-foreground mt-3 mb-6" />
 
         <div className="border-t border-border mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-3 border-b border-border">
+          <div className="grid grid-cols-1 sm:grid-cols-4 border-b border-border">
             <div className="py-3">
               <p className="text-xs text-muted-foreground mb-1">
                 Billed {isCurrentYear ? "YTD" : year}
@@ -125,6 +153,14 @@ export default async function BillingPage(
               </p>
               <p className="text-xl font-semibold text-paid">
                 {formatCurrency(report.ytdReceived)}
+              </p>
+            </div>
+            <div className="py-3 sm:pl-4 sm:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1" title="Billed minus received within this year — not the same as current outstanding. A draw billed in December and paid in January makes that period's figure negative even though the draw itself is fully paid.">
+                Billed − received {isCurrentYear ? "YTD" : year}
+              </p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatCurrency(activityDiffYtd)}
               </p>
             </div>
             <div className="py-3 sm:pl-4 sm:border-l border-border">
@@ -165,7 +201,7 @@ export default async function BillingPage(
                     <p className="text-paid">{formatCurrency(q.received)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Outstanding</p>
+                    <p className="text-xs text-muted-foreground">Billed − received</p>
                     <p className={q.requested - q.received > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
                       {formatCurrency(q.requested - q.received)}
                     </p>
@@ -190,9 +226,9 @@ export default async function BillingPage(
                 <p className="text-paid">{formatCurrency(report.ytdReceived)}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
-                <p className={outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
-                  {formatCurrency(outstandingYtd)}
+                <p className="text-xs text-muted-foreground font-normal">Billed − received</p>
+                <p className={activityDiffYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
+                  {formatCurrency(activityDiffYtd)}
                 </p>
               </div>
               <div>
@@ -211,7 +247,7 @@ export default async function BillingPage(
                 <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Quarter</th>
                 <th className="text-right px-4 py-2">Billed</th>
                 <th className="text-right px-4 py-2">Received</th>
-                <th className="text-right px-4 py-2">Outstanding</th>
+                <th className="text-right px-4 py-2">Billed − received</th>
                 <th className="text-right px-4 py-2">Avg days to pay</th>
               </tr>
             </thead>
@@ -259,10 +295,10 @@ export default async function BillingPage(
                 </td>
                 <td
                   className={`px-4 py-2 text-right ${
-                    outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
+                    activityDiffYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
                   }`}
                 >
-                  {formatCurrency(outstandingYtd)}
+                  {formatCurrency(activityDiffYtd)}
                 </td>
                 <td className="px-4 py-2 text-right">
                   {formatDaysToPay(report.ytdAvgDaysToPay)}
@@ -291,7 +327,7 @@ export default async function BillingPage(
                   <p className="text-paid">{formatCurrency(p.received)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Outstanding</p>
+                  <p className="text-xs text-muted-foreground">Billed − received</p>
                   <p className={p.requested - p.received > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
                     {formatCurrency(p.requested - p.received)}
                   </p>
@@ -320,9 +356,9 @@ export default async function BillingPage(
                 <p className="text-paid">{formatCurrency(report.ytdReceived)}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-normal">Outstanding</p>
-                <p className={outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
-                  {formatCurrency(outstandingYtd)}
+                <p className="text-xs text-muted-foreground font-normal">Billed − received</p>
+                <p className={activityDiffYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
+                  {formatCurrency(activityDiffYtd)}
                 </p>
               </div>
               <div>
@@ -341,7 +377,7 @@ export default async function BillingPage(
                 <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Project</th>
                 <th className="text-right px-4 py-2">Billed</th>
                 <th className="text-right px-4 py-2">Received</th>
-                <th className="text-right px-4 py-2">Outstanding</th>
+                <th className="text-right px-4 py-2">Billed − received</th>
                 <th className="text-right px-4 py-2">Avg days to pay</th>
               </tr>
             </thead>
@@ -389,10 +425,10 @@ export default async function BillingPage(
                 </td>
                 <td
                   className={`px-4 py-2 text-right ${
-                    outstandingYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
+                    activityDiffYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
                   }`}
                 >
-                  {formatCurrency(outstandingYtd)}
+                  {formatCurrency(activityDiffYtd)}
                 </td>
                 <td className="px-4 py-2 text-right">
                   {formatDaysToPay(report.ytdAvgDaysToPay)}

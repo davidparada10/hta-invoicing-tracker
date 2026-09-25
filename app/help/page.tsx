@@ -148,7 +148,9 @@ export default function HelpPage() {
             Uploading the same workbook from different tabs produces different results: the
             Owner Draws tab reads the G702 summary into one draw&rsquo;s fields for you to
             review before saving; the Schedule of Values tab reads the G703 continuation sheet and
-            replaces the project&rsquo;s full line-item schedule in one pass.
+            adds/updates matching line items — it never deletes, even if a line is missing from
+            the file, since a periodic draw&rsquo;s G703 isn&rsquo;t the master schedule. A line
+            genuinely retired from the contract is removed by hand instead.
           </p>
         </div>
 

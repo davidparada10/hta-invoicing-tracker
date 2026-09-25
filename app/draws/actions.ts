@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DrawStatus, BudgetLine, DrawLineAllocation, OwnerDraw } from "@/lib/types";
-import { getAllocationsForProject, getBudgetLinesForProject, getDrawsForProject } from "@/lib/data";
+import {
+  getAllocationsForProject,
+  getBudgetLinesForProject,
+  getDrawsForProject,
+  getLiveDraw,
+  remainingBalanceForDraw,
+} from "@/lib/data";
 import {
   extractPdfText,
   parseDrawAllocationsFromXlsx,
@@ -303,8 +309,9 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
         .from("inv_owner_draws")
         .select("status, date_submitted, date_approved, date_paid")
         .eq("id", id)
+        .is("deleted_at", null)
         .single();
-      if (fetchError) return { error: fetchError.message };
+      if (fetchError) return { error: "This draw no longer exists or has been deleted." };
 
       // Stamp today on the actual transition into a status, same rule as the
       // quick status dropdown (updateDrawStatus) — but only when the date
@@ -334,8 +341,21 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
         payload.date_paid = today;
       }
 
-      const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
-      if (error) return { error: normalizeDrawSaveError(error, payload.draw_number).message };
+      const { error } = await supabase
+        .from("inv_owner_draws")
+        .update(payload)
+        .eq("id", id)
+        .is("deleted_at", null)
+        .select("id")
+        .single();
+      if (error) {
+        return {
+          error:
+            error.code === "PGRST116"
+              ? "This draw no longer exists or has been deleted."
+              : normalizeDrawSaveError(error, payload.draw_number).message,
+        };
+      }
     } else {
       const { data, error } = await supabase
         .from("inv_owner_draws")
@@ -358,76 +378,108 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
   }
 }
 
+// Returns { error } rather than throwing — see normalizeDrawSaveError above
+// for why (Next.js strips thrown Server Action error messages in
+// production). Both mutations here re-check deleted_at on the write, not
+// just the lookup, since a concurrent delete between the two would
+// otherwise silently "resurrect" the row into a paid/updated state instead
+// of failing.
 export async function markDrawPaid(
   id: string,
   projectId: string,
   amountReceived?: number,
   datePaid?: string
-) {
-  const supabase = createServerSupabaseClient();
+): Promise<{ error?: string }> {
+  try {
+    const supabase = createServerSupabaseClient();
 
-  const { data: draw, error: fetchError } = await supabase
-    .from("inv_owner_draws")
-    .select("amount_requested, amount_paid")
-    .eq("id", id)
-    .single();
-  if (fetchError) throw fetchError;
+    const draw = await getLiveDraw(supabase, { id });
+    if (!draw || draw.project_id !== projectId) {
+      return { error: "This draw no longer exists or has been deleted." };
+    }
 
-  const alreadyPaid = Number(draw.amount_paid) || 0;
-  const outstanding = Math.max(0, (Number(draw.amount_requested) || 0) - alreadyPaid);
-  const received = amountReceived ?? outstanding;
-  if (!(received > 0)) throw new Error("Amount received must be greater than zero.");
+    const alreadyPaid = Number(draw.amount_paid) || 0;
+    const { remaining } = await remainingBalanceForDraw(supabase, draw);
+    const received = amountReceived ?? remaining;
+    if (!(received > 0)) return { error: "Amount received must be greater than zero." };
 
-  const { error } = await supabase
-    .from("inv_owner_draws")
-    .update({
-      status: "paid",
-      amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
-      date_paid: datePaid || new Date().toISOString().slice(0, 10),
-    })
-    .eq("id", id);
-  if (error) throw error;
+    const { error } = await supabase
+      .from("inv_owner_draws")
+      .update({
+        status: "paid",
+        amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
+        date_paid: datePaid || new Date().toISOString().slice(0, 10),
+      })
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select("id")
+      .single();
+    if (error) return { error: "This draw no longer exists or has been deleted." };
 
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath("/");
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath("/");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not mark this draw paid." };
+  }
 }
 
-export async function updateDrawStatus(id: string, projectId: string, status: DrawStatus) {
-  const supabase = createServerSupabaseClient();
-  const today = new Date().toISOString().slice(0, 10);
+export async function updateDrawStatus(
+  id: string,
+  projectId: string,
+  status: DrawStatus
+): Promise<{ error?: string }> {
+  try {
+    const supabase = createServerSupabaseClient();
+    const today = new Date().toISOString().slice(0, 10);
 
-  const { data: draw, error: fetchError } = await supabase
-    .from("inv_owner_draws")
-    .select(
-      "status, amount_requested, amount_approved, amount_paid, date_submitted, date_paid, date_approved"
-    )
-    .eq("id", id)
-    .single();
-  if (fetchError) throw fetchError;
+    const draw = await getLiveDraw(supabase, { id });
+    if (!draw || draw.project_id !== projectId) {
+      return { error: "This draw no longer exists or has been deleted." };
+    }
 
-  const payload: Record<string, unknown> = { status };
+    const payload: Record<string, unknown> = { status };
 
-  // Stamp a date on the actual transition into a status, not just "if the
-  // field happens to be empty" — a still-draft draw can already carry a
-  // date_submitted the G702/xlsx parser guessed from the billing period,
-  // which isn't a real submission date and shouldn't block the real one.
-  if (status === "submitted" && draw.status !== "submitted") {
-    payload.date_submitted = today;
+    // Stamp a date on the actual transition into a status, not just "if the
+    // field happens to be empty" — a still-draft draw can already carry a
+    // date_submitted the G702/xlsx parser guessed from the billing period,
+    // which isn't a real submission date and shouldn't block the real one.
+    if (status === "submitted" && draw.status !== "submitted") {
+      payload.date_submitted = today;
+    }
+    if (status === "paid") {
+      // Defaults to the full collectible amount (requested minus any
+      // owner-paid, non-HTA scope), not the raw requested total — marking
+      // paid must never record owner-paid subcontractor money as HTA's own
+      // cash received. A draw with an existing partial payment on record
+      // is left alone here (its own remaining balance stays visible;
+      // this only fills in the very first payment).
+      if (!(Number(draw.amount_paid) > 0)) {
+        const { excludedAllocated } = await remainingBalanceForDraw(supabase, draw);
+        payload.amount_paid = Math.max(0, (draw.amount_requested ?? 0) - excludedAllocated);
+      }
+      if (draw.status !== "paid") payload.date_paid = today;
+    }
+    if (status === "approved" && draw.status !== "approved" && draw.status !== "paid") {
+      payload.date_approved = today;
+      if (!(Number(draw.amount_approved) > 0)) payload.amount_approved = draw.amount_requested;
+    }
+
+    const { error } = await supabase
+      .from("inv_owner_draws")
+      .update(payload)
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select("id")
+      .single();
+    if (error) return { error: "This draw no longer exists or has been deleted." };
+
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath("/");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not update this draw's status." };
   }
-  if (status === "paid") {
-    if (!(Number(draw.amount_paid) > 0)) payload.amount_paid = draw.amount_requested;
-    if (draw.status !== "paid") payload.date_paid = today;
-  }
-  if (status === "approved" && draw.status !== "approved" && draw.status !== "paid") {
-    payload.date_approved = today;
-    if (!(Number(draw.amount_approved) > 0)) payload.amount_approved = draw.amount_requested;
-  }
-
-  const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", id);
-  if (error) throw error;
-
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath("/");
 }
 
 export async function deleteDraw(id: string, projectId: string) {

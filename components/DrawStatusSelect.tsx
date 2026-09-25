@@ -29,7 +29,11 @@ export default function DrawStatusSelect({
     }
     startTransition(async () => {
       try {
-        await withScrollPreserved(() => updateDrawStatus(drawId, projectId, next));
+        const result = await withScrollPreserved(() => updateDrawStatus(drawId, projectId, next));
+        if (result?.error) {
+          e.target.value = status;
+          alert(result.error);
+        }
       } catch (err) {
         e.target.value = status;
         alert(err instanceof Error ? err.message : "Could not update draw status.");

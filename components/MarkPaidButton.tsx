@@ -12,6 +12,7 @@ export default function MarkPaidButton({
   drawNumber,
   amountRequested,
   amountPaid,
+  excludedAllocated = 0,
   className,
 }: {
   drawId: string;
@@ -19,10 +20,17 @@ export default function MarkPaidButton({
   drawNumber: number;
   amountRequested: number;
   amountPaid: number;
+  // Owner-paid, non-HTA scope already billed against this draw — netted
+  // out so the default here matches openBalance() (the shared "what's
+  // still actually collectible by HTA" calculation used everywhere else).
+  // The server independently recomputes this on save regardless of what's
+  // submitted here, so this only affects what the field starts pre-filled
+  // with, not what's actually recorded.
+  excludedAllocated?: number;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const outstanding = Math.max(0, (amountRequested ?? 0) - (amountPaid ?? 0));
+  const outstanding = Math.max(0, (amountRequested ?? 0) - (excludedAllocated ?? 0) - (amountPaid ?? 0));
   const [amount, setAmount] = useState(String(outstanding));
   const [datePaid, setDatePaid] = useState(new Date().toISOString().slice(0, 10));
   const [isPending, startTransition] = useTransition();
@@ -39,7 +47,13 @@ export default function MarkPaidButton({
     if (!(received > 0)) return;
     startTransition(async () => {
       try {
-        await withScrollPreserved(() => markDrawPaid(drawId, projectId, received, datePaid || undefined));
+        const result = await withScrollPreserved(() =>
+          markDrawPaid(drawId, projectId, received, datePaid || undefined)
+        );
+        if (result?.error) {
+          alert(result.error);
+          return;
+        }
         setOpen(false);
       } catch (err) {
         alert(err instanceof Error ? err.message : "Could not mark paid.");
@@ -65,6 +79,7 @@ export default function MarkPaidButton({
         <form onSubmit={handleSubmit} className="space-y-3">
           <p className="text-xs text-muted-foreground">
             Requested {formatCurrency(amountRequested)}
+            {(excludedAllocated ?? 0) > 0 ? ` · owner-paid scope ${formatCurrency(excludedAllocated)}` : ""}
             {(amountPaid ?? 0) > 0 ? ` · already paid ${formatCurrency(amountPaid)}` : ""}
             {` · outstanding ${formatCurrency(outstanding)}`}
           </p>

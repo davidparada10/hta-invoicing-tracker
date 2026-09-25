@@ -217,6 +217,7 @@ export default function OpenDrawsSection({
                   drawNumber={d.draw_number}
                   amountRequested={d.amount_requested}
                   amountPaid={d.amount_paid}
+                  excludedAllocated={d.excluded_allocated}
                 />
               </div>
             </div>
@@ -293,6 +294,7 @@ export default function OpenDrawsSection({
                       drawNumber={d.draw_number}
                       amountRequested={d.amount_requested}
                       amountPaid={d.amount_paid}
+                      excludedAllocated={d.excluded_allocated}
                     />
                   </td>
                 </tr>

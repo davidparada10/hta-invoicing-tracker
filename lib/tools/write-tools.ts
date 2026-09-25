@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getLiveDraw, remainingBalanceForDraw } from "@/lib/data";
 import { resolveProject } from "./shared";
 
 export const createDrawTool = tool({
@@ -64,18 +65,16 @@ export const markDrawPaidTool = tool({
     if ("error" in resolved) return { error: resolved.error };
 
     const supabase = createServerSupabaseClient();
-    const { data: draw, error: fetchError } = await supabase
-      .from("inv_owner_draws")
-      .select("id, amount_requested, amount_paid")
-      .eq("project_id", resolved.project.id)
-      .eq("draw_number", drawNumber)
-      .maybeSingle();
-    if (fetchError) return { error: fetchError.message };
+    const draw = await getLiveDraw(supabase, { projectId: resolved.project.id, drawNumber });
     if (!draw) return { error: `Draw #${drawNumber} not found for ${resolved.project.name}.` };
 
     const alreadyPaid = Number(draw.amount_paid) || 0;
-    const outstanding = Math.max(0, (Number(draw.amount_requested) || 0) - alreadyPaid);
-    const received = amountReceived ?? outstanding;
+    // Nets out owner-paid, non-HTA scope already billed against this draw
+    // (excluded_allocated) — the same "remaining collectible balance" used
+    // by the ordinary Mark Paid button, so the AI can't record that scope
+    // as HTA's own cash received just because it wasn't told to exclude it.
+    const { remaining } = await remainingBalanceForDraw(supabase, draw);
+    const received = amountReceived ?? remaining;
     if (!(received > 0)) {
       return { error: `Draw #${drawNumber} has no outstanding balance.` };
     }
@@ -87,8 +86,11 @@ export const markDrawPaidTool = tool({
         amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
         date_paid: datePaid || new Date().toISOString().slice(0, 10),
       })
-      .eq("id", draw.id);
-    if (error) return { error: error.message };
+      .eq("id", draw.id)
+      .is("deleted_at", null)
+      .select("id")
+      .single();
+    if (error) return { error: `Draw #${drawNumber} no longer exists or has been deleted.` };
 
     revalidatePath(`/projects/${resolved.project.id}`);
     revalidatePath("/");
@@ -122,13 +124,10 @@ export const updateDrawTool = tool({
     if ("error" in resolved) return { error: resolved.error };
 
     const supabase = createServerSupabaseClient();
-    const { data: draw, error: fetchError } = await supabase
-      .from("inv_owner_draws")
-      .select("id, amount_requested, amount_approved, date_approved")
-      .eq("project_id", resolved.project.id)
-      .eq("draw_number", input.drawNumber)
-      .maybeSingle();
-    if (fetchError) return { error: fetchError.message };
+    const draw = await getLiveDraw(supabase, {
+      projectId: resolved.project.id,
+      drawNumber: input.drawNumber,
+    });
     if (!draw) return { error: `Draw #${input.drawNumber} not found for ${resolved.project.name}.` };
 
     const payload: Record<string, unknown> = {};
@@ -158,8 +157,14 @@ export const updateDrawTool = tool({
       return { error: "No fields provided to update." };
     }
 
-    const { error } = await supabase.from("inv_owner_draws").update(payload).eq("id", draw.id);
-    if (error) return { error: error.message };
+    const { error } = await supabase
+      .from("inv_owner_draws")
+      .update(payload)
+      .eq("id", draw.id)
+      .is("deleted_at", null)
+      .select("id")
+      .single();
+    if (error) return { error: `Draw #${input.drawNumber} no longer exists or has been deleted.` };
 
     revalidatePath(`/projects/${resolved.project.id}`);
     revalidatePath("/");

@@ -135,15 +135,16 @@ export const getAgingSummaryTool = tool({
 
 export const getBillingSummaryTool = tool({
   description:
-    "Get YTD/QTD billed-vs-received totals, average days to pay, and average days to approve (submitted to date_approved — the owner/lender's own turnaround, separate from days to pay), portfolio-wide by quarter and broken down by project, for a given calendar year — matches the Billing Summary page. Defaults to the current year if omitted.",
+    "Get YTD/QTD billed-vs-received totals, average days to pay, and average days to approve (submitted to date_approved — the owner/lender's own turnaround, separate from days to pay), portfolio-wide by quarter and broken down by project, for a given calendar year — matches the Billing Summary page. Also returns currentOutstanding, the actual current outstanding balance (per-draw collectible balances, portfolio-wide, as of today, not scoped to the requested year). ytdRequested minus ytdReceived is NOT the outstanding balance — it's that year's billed-vs-received activity difference, which can be negative (e.g. a December draw paid in January) even when nothing is actually still owed; use currentOutstanding for 'how much is still owed' questions. Defaults to the current year if omitted.",
   inputSchema: z.object({
     year: z.number().int().optional().describe("Calendar year, e.g. 2026. Defaults to the current year."),
   }),
   execute: async ({ year }) => {
     const targetYear = year ?? new Date().getFullYear();
-    const [report, byProject] = await Promise.all([
+    const [report, byProject, dashboard] = await Promise.all([
       getBillingReport(targetYear),
       getProjectBillingBreakdown(targetYear),
+      getDashboardData(),
     ]);
 
     return {
@@ -152,6 +153,7 @@ export const getBillingSummaryTool = tool({
       ytdReceived: report.ytdReceived,
       ytdAvgDaysToPay: report.ytdAvgDaysToPay,
       ytdAvgDaysToApprove: report.ytdAvgDaysToApprove,
+      currentOutstanding: dashboard.totals.totalOpenToOwner,
       quarters: report.quarters,
       byProject: byProject.map((p) => ({
         project: p.projectName,

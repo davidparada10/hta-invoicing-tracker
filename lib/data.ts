@@ -215,6 +215,64 @@ function withExcludedAllocated(draws: OwnerDraw[], excludedMap: Map<string, numb
   return draws.map((d) => ({ ...d, excluded_allocated: excludedMap.get(d.id) ?? 0 }));
 }
 
+// Single-draw version of excludedAllocationByDraw's inputs, for the
+// payment/status write paths (markDrawPaid, updateDrawStatus, and their AI
+// equivalents) that only ever touch one draw at a time and don't already
+// have the project's full budget lines + allocations in scope.
+export async function getExcludedAllocatedForDraw(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  drawId: string,
+  projectId: string
+): Promise<number> {
+  const [budgetLines, allocationRows] = await Promise.all([
+    fetchAllRows<BudgetLine>(supabase, "inv_project_budget_lines", "*", (q) =>
+      q.eq("project_id", projectId).is("deleted_at", null)
+    ),
+    fetchAllRows<{ draw_id: string; budget_line_id: string; amount: number }>(
+      supabase,
+      "inv_draw_line_allocations",
+      "draw_id, budget_line_id, amount",
+      (q) => q.eq("draw_id", drawId)
+    ),
+  ]);
+  return excludedAllocationByDraw(allocationRows, budgetLines).get(drawId) ?? 0;
+}
+
+// The actual cash still collectible by HTA on a draw — requested minus
+// owner-paid scope minus what's already been paid, floored at zero. This
+// is openBalance() for a single draw the caller doesn't already have
+// excluded_allocated decoration for (the write paths select their own
+// narrow column set, not the full decorated OwnerDraw the read paths use).
+export async function remainingBalanceForDraw(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  draw: Pick<OwnerDraw, "id" | "project_id" | "status" | "amount_requested" | "amount_paid">
+): Promise<{ excludedAllocated: number; remaining: number }> {
+  const excludedAllocated = await getExcludedAllocatedForDraw(supabase, draw.id, draw.project_id);
+  const remaining = openBalance({ ...draw, excluded_allocated: excludedAllocated } as OwnerDraw);
+  return { excludedAllocated, remaining };
+}
+
+// The single source of truth for "is this draw safe to look up and
+// mutate": excludes soft-deleted rows so an ordinary edit or an AI action
+// can never silently touch something sitting in the Trash, or (via an
+// update that doesn't itself check deleted_at) un-delete it as a side
+// effect. Matches by id, or by project + draw number for the AI tools,
+// which resolve a project by name rather than by id and shouldn't be able
+// to reach across into a different project's draw.
+export async function getLiveDraw(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  match: { id: string } | { projectId: string; drawNumber: number }
+): Promise<OwnerDraw | null> {
+  let query = supabase.from("inv_owner_draws").select("*").is("deleted_at", null);
+  query =
+    "id" in match
+      ? query.eq("id", match.id)
+      : query.eq("project_id", match.projectId).eq("draw_number", match.drawNumber);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data as OwnerDraw | null;
+}
+
 // A Schedule of Values sometimes carries owner-paid items (architect fees,
 // permit/plan-check fees) alongside HTA's own scope, uploaded as one sheet —
 // those lines are flagged excluded_from_contract so every "Contract Value"
@@ -308,7 +366,12 @@ export async function getDashboardData(): Promise<{
 
     const totalRequested = sum(projectDraws.map((d) => d.amount_requested));
     const totalApproved = sum(projectDraws.map((d) => d.amount_approved));
-    const totalDrawRetainage = sum(projectDraws.map((d) => d.retainage_held));
+    // A draft hasn't actually been submitted or certified yet, so nothing's
+    // really been withheld from it — preparing or editing a draft must not
+    // move posted retainage or reduce Balance to complete.
+    const totalDrawRetainage = sum(
+      projectDraws.filter((d) => d.status !== "draft").map((d) => d.retainage_held)
+    );
 
     const totalPaidToOwner = sum(
       projectDraws.filter((d) => d.status !== "draft").map((d) => d.amount_paid)

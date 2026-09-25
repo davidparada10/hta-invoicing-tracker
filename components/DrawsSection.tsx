@@ -192,6 +192,7 @@ export default function DrawsSection({
                   drawNumber={d.draw_number}
                   amountRequested={d.amount_requested}
                   amountPaid={d.amount_paid}
+                  excludedAllocated={d.excluded_allocated}
                   className="text-paid hover:opacity-70 text-xs font-medium disabled:opacity-50"
                 />
               )}
@@ -268,6 +269,7 @@ export default function DrawsSection({
                       drawNumber={d.draw_number}
                       amountRequested={d.amount_requested}
                       amountPaid={d.amount_paid}
+                      excludedAllocated={d.excluded_allocated}
                       className="text-paid hover:opacity-70 text-xs font-medium mr-3 disabled:opacity-50"
                     />
                   )}

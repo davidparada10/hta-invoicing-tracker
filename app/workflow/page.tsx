@@ -160,8 +160,8 @@ export default function WorkflowPage() {
           steps={[
             { icon: "📝", title: "Draw created", detail: "status: draft or submitted", category: "ui", edgeLabel: "edit status" },
             { icon: "🔄", title: "submitted / approved", detail: "Quick status dropdown or Edit Draw modal — either path stamps date_submitted/date_approved to today on the actual transition into that status (not just \"if empty\"), since a still-draft draw can already carry a parser-guessed date that isn't a real submission/approval date. A date typed directly into the Edit Draw form is respected instead.", category: "decision", edgeLabel: "or" },
-            { icon: "👤", title: "Mark Paid click", detail: "Opens a modal — amount received + date paid, defaults to full outstanding balance today", category: "trigger", edgeLabel: "calls" },
-            { icon: "⚡", title: "markDrawPaid", detail: "amount_paid += received (accumulates); status always → paid", category: "server", edgeLabel: "writes" },
+            { icon: "👤", title: "Mark Paid click", detail: "Opens a modal — amount received + date paid, defaults to the draw's remaining collectible balance today (requested − excluded_allocated − paid, not the raw requested-minus-paid), computed server-side", category: "trigger", edgeLabel: "calls" },
+            { icon: "⚡", title: "markDrawPaid", detail: "app/draws/actions.ts — re-resolves excluded_allocated itself rather than trusting the client; amount_paid += received (accumulates); status always → paid; rejects (soft-deleted or cross-project) draws instead of silently writing; returns { error } rather than throwing, since Next.js strips thrown Server Action error messages in production", category: "server", edgeLabel: "writes" },
             { icon: "🗄️", title: "inv_owner_draws", detail: "status paid, but a short payment still counts as open", category: "data", edgeLabel: "checked by" },
             { icon: "✅", title: "openBalance()", detail: "lib/data.ts — max(0, requested − excluded_allocated − paid); underpaid draws stay in Open Draws. excluded_allocated nets out billing against excluded_from_contract budget lines, so owner-paid or written-off amounts stop reading as outstanding", category: "output" },
             { icon: "🎨", title: "hasMeaningfulOpenBalance()", detail: "lib/data.ts — true only if some individual draw's openBalance() clears MIN_MEANINGFUL_OPEN_BALANCE; a project's summed \"Currently Invoiced\" can be pure fee noise (several draws each under the line), so the alarm-red color follows this, not the raw total", category: "output" },
@@ -204,7 +204,7 @@ export default function WorkflowPage() {
             { icon: "🤖", title: "htaAgent (ToolLoopAgent)", detail: "lib/agents/hta-agent.ts · Claude via direct Anthropic API", category: "ai", edgeLabel: "picks a tool" },
             { icon: "🔍", title: "Read tool", detail: "listProjects / getOpenDraws / getProjectDetails / getRecentPayments / getAgingSummary / getBillingSummary / getScheduleOfValues / getDrawScheduleStatus — auto-runs", category: "server", edgeLabel: "or" },
             { icon: "✋", title: "Write tool proposed", detail: "createDraw / updateDraw / markDrawPaid (partial pay) / createBudgetLine", category: "decision", edgeLabel: "Confirm" },
-            { icon: "🗄️", title: "Supabase write", detail: "Same tables as the manual forms use", category: "data", edgeLabel: "streams back" },
+            { icon: "🗄️", title: "Supabase write", detail: "Same tables as the manual forms use, same guards too — updateDraw/markDrawPaid resolve the draw via getLiveDraw() (soft-deleted or wrong-project rows are rejected, not silently touched) and net excluded_allocated out of a default payment the same way the manual Mark Paid button does", category: "data", edgeLabel: "streams back" },
             { icon: "✅", title: "Chat reply", detail: "Plain-language summary of what happened", category: "output" },
           ]}
         />
