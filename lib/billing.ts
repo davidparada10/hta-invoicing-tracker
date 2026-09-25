@@ -4,6 +4,7 @@
 
 import { daysOpen } from "@/lib/aging";
 import { parseLocalDate } from "@/lib/format";
+import { billedDate as resolveBilledDate, paidDate as resolvePaidDate } from "@/lib/billingDates";
 
 export interface DrawForBilling {
   project_id: string;
@@ -102,7 +103,7 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
   for (const d of draws) {
     if (d.status === "draft") continue;
 
-    const requestedDate = d.date_submitted ?? d.created_at;
+    const requestedDate = resolveBilledDate(d);
     const requested = yearAndQuarterOf(requestedDate);
     if (requested.year === year) {
       quarters[requested.quarter - 1].requested += (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0);
@@ -110,8 +111,7 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
 
     const amountPaid = d.amount_paid ?? 0;
     if (amountPaid > 0) {
-      const paidDate = d.date_paid ?? requestedDate;
-      const received = yearAndQuarterOf(paidDate);
+      const received = yearAndQuarterOf(resolvePaidDate(d));
       if (received.year === year) {
         quarters[received.quarter - 1].received += amountPaid;
       }
@@ -187,7 +187,7 @@ export function buildProjectBillingBreakdown(
   for (const d of draws) {
     if (d.status === "draft") continue;
 
-    const requestedDate = d.date_submitted ?? d.created_at;
+    const requestedDate = resolveBilledDate(d);
     const requested = yearAndQuarterOf(requestedDate);
     if (requested.year === year) {
       rowFor(d.project_id).requested += (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0);
@@ -195,8 +195,7 @@ export function buildProjectBillingBreakdown(
 
     const amountPaid = d.amount_paid ?? 0;
     if (amountPaid > 0) {
-      const paidDate = d.date_paid ?? requestedDate;
-      const received = yearAndQuarterOf(paidDate);
+      const received = yearAndQuarterOf(resolvePaidDate(d));
       if (received.year === year) {
         rowFor(d.project_id).received += amountPaid;
       }

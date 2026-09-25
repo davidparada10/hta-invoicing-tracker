@@ -9,58 +9,10 @@ import {
   getExcludedAllocatedForDraw,
   MIN_MEANINGFUL_OPEN_BALANCE,
 } from "@/lib/data";
-import type { createServerSupabaseClient } from "@/lib/supabase/server";
+import { createFakeSupabase } from "@/lib/testUtils/fakeSupabase";
 import { OwnerDraw, BudgetLine } from "@/lib/types";
 
-type SupabaseClient = ReturnType<typeof createServerSupabaseClient>;
-
-// A minimal in-memory fake of the subset of the Supabase query builder this
-// module's DB-touching helpers actually use (select/eq/is/order/range/
-// maybeSingle/single) — enough to exercise getLiveDraw, remainingBalanceFor
-// Draw, and getExcludedAllocatedForDraw against synthetic fixtures without a
-// real database.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function fakeSupabase(tables: Record<string, any[]>): SupabaseClient {
-  return {
-    from(table: string) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let rows: any[] = tables[table] ?? [];
-      const builder = {
-        select() {
-          return builder;
-        },
-        eq(col: string, val: unknown) {
-          rows = rows.filter((r) => r[col] === val);
-          return builder;
-        },
-        is(col: string, val: unknown) {
-          rows = rows.filter((r) => r[col] === val);
-          return builder;
-        },
-        order() {
-          return builder;
-        },
-        range() {
-          return Promise.resolve({ data: rows, error: null });
-        },
-        maybeSingle() {
-          return Promise.resolve({ data: rows[0] ?? null, error: null });
-        },
-        single() {
-          if (rows.length === 0) {
-            return Promise.resolve({
-              data: null,
-              error: { code: "PGRST116", message: "no rows returned" },
-            });
-          }
-          return Promise.resolve({ data: rows[0], error: null });
-        },
-      };
-      return builder;
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
-}
+const fakeSupabase = createFakeSupabase;
 
 function draw(overrides: Partial<OwnerDraw> = {}): OwnerDraw {
   return {

@@ -286,13 +286,14 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
 
     let drawId = id;
     if (id) {
-      const { data: existing, error: fetchError } = await supabase
-        .from("inv_owner_draws")
-        .select("status, date_submitted, date_approved, date_paid")
-        .eq("id", id)
-        .is("deleted_at", null)
-        .single();
-      if (fetchError) return { error: "This draw no longer exists or has been deleted." };
+      const existing = await getLiveDraw(supabase, { id });
+      // Scoped by project, not just id, so an ordinary edit can never move
+      // a draw between projects — the form always submits the project it
+      // was opened from, and a mismatch here means the row it's trying to
+      // touch isn't actually the one the user is looking at.
+      if (!existing || existing.project_id !== projectId) {
+        return { error: "This draw no longer exists, has been deleted, or belongs to a different project." };
+      }
 
       // Stamp today on the actual transition into a status, same rule as the
       // quick status dropdown (updateDrawStatus) — but only when the date
@@ -326,6 +327,7 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
         .from("inv_owner_draws")
         .update(payload)
         .eq("id", id)
+        .eq("project_id", projectId)
         .is("deleted_at", null)
         .select("id")
         .single();
@@ -333,7 +335,7 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
         return {
           error:
             error.code === "PGRST116"
-              ? "This draw no longer exists or has been deleted."
+              ? "This draw no longer exists, has been deleted, or belongs to a different project."
               : normalizeDrawSaveError(error, payload.draw_number).message,
         };
       }

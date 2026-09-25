@@ -17,9 +17,9 @@ export default function ProjectSummaryCard({ draws }: { draws: OwnerDraw[] }) {
       <div className="flex items-baseline justify-between mb-1">
         <span
           className="text-xs text-muted-foreground"
-          title="Paid vs. HTA's own billed total — excludes draft draws and owner-paid (non-HTA) scope"
+          title="Settled vs. HTA's own billed total — excludes draft draws and owner-paid (non-HTA) scope. Each draw's own overpayment doesn't count toward a different, still-unpaid draw."
         >
-          Paid of HTA&rsquo;s billed total
+          Settled of HTA&rsquo;s billed total
         </span>
         <span className="text-sm font-medium text-foreground">{paidPct.toFixed(0)}%</span>
       </div>

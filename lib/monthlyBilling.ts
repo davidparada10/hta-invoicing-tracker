@@ -3,6 +3,7 @@
 // same pattern as lib/drawAllocations.ts.
 
 import { OwnerDraw } from "@/lib/types";
+import { billedDate, paidDate } from "@/lib/billingDates";
 
 export interface MonthBucket {
   key: string;
@@ -28,18 +29,17 @@ function getBucket(byMonth: Map<string, MonthBucket>, key: string): MonthBucket 
 
 type ChartDraw = Pick<
   OwnerDraw,
-  "status" | "amount_requested" | "amount_paid" | "excluded_allocated" | "date_submitted" | "date_paid" | "period_end" | "created_at"
+  "status" | "amount_requested" | "amount_paid" | "excluded_allocated" | "date_submitted" | "date_paid" | "created_at"
 >;
 
 // Drafts haven't actually been billed yet — including them would show
 // "invoiced" money that was never really requested. Invoiced amounts are
-// grouped by when the invoice was actually submitted (falling back to the
-// billing period, then created_at, for a draw with no submission date
-// yet); paid amounts by when the cash actually came in — the two can land
-// in different months (a draw submitted in August but paid in September),
-// and lumping them into one date understated one side or the other.
-// Owner-paid, non-HTA scope (excluded_allocated) is netted out of
-// invoiced, matching every other "billed" figure in the app.
+// grouped by when the invoice was actually submitted, paid amounts by when
+// the cash actually came in (see lib/billingDates.ts for the shared
+// fallback rules — the same ones lib/billing.ts's quarterly/annual report
+// uses, so a draw lands in the same period in both places). Owner-paid,
+// non-HTA scope (excluded_allocated) is netted out of invoiced, matching
+// every other "billed" figure in the app.
 export function buildMonthlyBillingBuckets(draws: ChartDraw[]): MonthBucket[] {
   const byMonth = new Map<string, MonthBucket>();
 
@@ -47,15 +47,13 @@ export function buildMonthlyBillingBuckets(draws: ChartDraw[]): MonthBucket[] {
     if (d.status === "draft") continue;
 
     const invoicedNet = (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0);
-    const invoicedDate = d.date_submitted ?? d.period_end ?? d.created_at;
-    if (invoicedDate && invoicedNet !== 0) {
-      getBucket(byMonth, monthKey(invoicedDate)).invoiced += invoicedNet;
+    if (invoicedNet !== 0) {
+      getBucket(byMonth, monthKey(billedDate(d))).invoiced += invoicedNet;
     }
 
     const paid = d.amount_paid ?? 0;
-    const paidDate = d.date_paid ?? d.date_submitted ?? d.period_end ?? d.created_at;
-    if (paidDate && paid !== 0) {
-      getBucket(byMonth, monthKey(paidDate)).paid += paid;
+    if (paid !== 0) {
+      getBucket(byMonth, monthKey(paidDate(d))).paid += paid;
     }
   }
 

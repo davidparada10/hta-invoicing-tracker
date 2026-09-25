@@ -35,7 +35,16 @@ export function computeProjectSummary(draws: OwnerDraw[]): ProjectSummary {
   const totalOpenToOwner = sum(draws.map(openBalance));
   const retainageHeld = sum(nonDraftDraws.map((d) => d.retainage_held));
 
-  const paidPctRaw = totalRequested > 0 ? Math.min(100, (totalPaidToOwner / totalRequested) * 100) : 0;
+  // Settled progress caps each draw's own contribution at what it was
+  // actually billed for — an overpayment on one draw (e.g. $150k paid on
+  // a $100k draw) can't count toward paying off a completely different,
+  // still-unpaid draw just because the raw totals happen to net out.
+  const settled = sum(
+    nonDraftDraws.map((d) =>
+      Math.min((d.amount_requested ?? 0) - (d.excluded_allocated ?? 0), d.amount_paid ?? 0)
+    )
+  );
+  const paidPctRaw = totalRequested > 0 ? Math.min(100, (settled / totalRequested) * 100) : 0;
   // Round down short of 100% so the label can't claim "100%" while a balance is still open.
   const paidPct = paidPctRaw >= 100 ? 100 : Math.floor(paidPctRaw);
 

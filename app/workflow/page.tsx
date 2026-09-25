@@ -133,8 +133,8 @@ export default function WorkflowPage() {
             { icon: "📄", title: "parseG702FromXlsx/Pdf or parseLenderDrawFromPdf", detail: "lib/g702-parser.ts (AIA) or lib/lender-portal-parser.ts (Conventus/SwiftDraws)", category: "server", edgeLabel: "fills" },
             { icon: "⚠️", title: "SoV mismatch check", detail: "Warns if schedule-of-values total ≠ amount requested + retainage held", category: "decision", edgeLabel: "confirm to override" },
             { icon: "📝", title: "Draw form", detail: "Controlled fields — user reviews", category: "ui", edgeLabel: "on Save" },
-            { icon: "⚡", title: "upsertDraw", detail: "app/draws/actions.ts (Server Action)", category: "server", edgeLabel: "writes" },
-            { icon: "🗄️", title: "inv_owner_draws", detail: "Supabase — insert or update by id", category: "data", edgeLabel: "revalidates" },
+            { icon: "⚡", title: "upsertDraw", detail: "app/draws/actions.ts (Server Action) — an edit is scoped by id + the submitted project_id + deleted_at IS NULL, on both the lookup and the write, so it can't silently move a draw to a different project or touch a soft-deleted one; returns { error } instead of throwing", category: "server", edgeLabel: "writes" },
+            { icon: "🗄️", title: "inv_owner_draws", detail: "Supabase — insert, or update by id scoped to its own project", category: "data", edgeLabel: "revalidates" },
             { icon: "✅", title: "Page refreshed", detail: "Draws table + dashboard totals", category: "output" },
           ]}
         />

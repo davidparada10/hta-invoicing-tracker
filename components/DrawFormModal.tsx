@@ -5,6 +5,7 @@ import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/typ
 import { formatCurrency } from "@/lib/format";
 import Modal from "@/components/Modal";
 import { parseG702Upload, upsertDraw } from "@/app/draws/actions";
+import { computeRetentionRelease, isImplausibleRetainage } from "@/lib/retentionRelease";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
 const MAX_G702_UPLOAD_BYTES = 20 * 1024 * 1024; // keep in sync with app/draws/actions.ts
@@ -91,6 +92,7 @@ export default function DrawFormModal({
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsedFileName, setParsedFileName] = useState<string | null>(null);
   const [parsedAllocationsCount, setParsedAllocationsCount] = useState<number | null>(null);
+  const [retainageCaution, setRetainageCaution] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [lineAmounts, setLineAmounts] = useState<Record<string, string>>({});
   const [retentionMode, setRetentionMode] = useState<"manual" | "0" | "5" | "10" | "release">("manual");
@@ -105,6 +107,7 @@ export default function DrawFormModal({
     setParseError(null);
     setParsedFileName(null);
     setParsedAllocationsCount(null);
+    setRetainageCaution(null);
   }, [open, editing, allocations]);
 
   const previousByLine = useMemo(() => {
@@ -131,19 +134,16 @@ export default function DrawFormModal({
     allocationsTotal > 0 &&
     Math.abs(allocationsTotal - (requestedAmount + retainageHeldAmount)) > 0.01;
 
-  // Retention held on every OTHER draw of this project — the balance this
-  // draw would release in full, since each draw's own retainage_held is an
-  // incremental amount (added this period) rather than a running total.
-  const retentionHeldToDate = useMemo(() => {
-    const total = draws
-      .filter((d) => d.id !== editing?.id)
-      .reduce((acc, d) => acc + (d.retainage_held ?? 0), 0);
-    return Math.round(total * 100) / 100;
-  }, [draws, editing]);
+  // See lib/retentionRelease.ts — retention held on every other POSTED
+  // draw of this project (drafts excluded, prior releases netted in).
+  const { retentionHeldToDate, releaseAmount, isInconsistent } = useMemo(
+    () => computeRetentionRelease(draws, editing?.id),
+    [draws, editing]
+  );
 
   const computedRetention = useMemo(() => {
     if (retentionMode === "manual") return null;
-    if (retentionMode === "release") return -retentionHeldToDate;
+    if (retentionMode === "release") return releaseAmount;
     const rate = Number(retentionMode) / 100;
     const total = budgetLines.reduce((acc, line) => {
       if (line.retention_exempt) return acc;
@@ -154,7 +154,7 @@ export default function DrawFormModal({
       return acc + (Number(lineAmounts[line.id]) || 0) * lineRate;
     }, 0);
     return Math.round(total * 100) / 100;
-  }, [retentionMode, budgetLines, lineAmounts, retentionHeldToDate]);
+  }, [retentionMode, budgetLines, lineAmounts, releaseAmount]);
 
   useEffect(() => {
     if (computedRetention === null) return;
@@ -220,6 +220,7 @@ export default function DrawFormModal({
     setParseError(null);
     setParsedFileName(null);
     setParsedAllocationsCount(null);
+    setRetainageCaution(null);
 
     if (file.size > MAX_G702_UPLOAD_BYTES) {
       setParseError(
@@ -258,6 +259,19 @@ export default function DrawFormModal({
           return next;
         });
         setParsedAllocationsCount(parsed.allocationsMatched);
+      }
+
+      // A G702's "Total Retainage" cell is normally cumulative-to-date per
+      // the AIA form standard, but this app treats retainage_held as
+      // incremental (this draw's own withholding) — see
+      // lib/retentionRelease.ts's isImplausibleRetainage. Advisory only:
+      // doesn't block the save or change the parsed value.
+      if (parsed.retainage_held !== undefined && parsed.amount_requested !== undefined) {
+        if (isImplausibleRetainage(parsed.retainage_held, parsed.amount_requested)) {
+          setRetainageCaution(
+            `This retainage (${formatCurrency(parsed.retainage_held)}) looks high for a single draw — confirm it isn't a cumulative total before saving.`
+          );
+        }
       }
 
       setParsedFileName(file.name);
@@ -344,6 +358,9 @@ export default function DrawFormModal({
                 : ""}{" "}
               Review the fields below before saving.
             </p>
+          )}
+          {retainageCaution && !parsing && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{retainageCaution}</p>
           )}
         </div>
 
@@ -432,10 +449,17 @@ export default function DrawFormModal({
               className={`input ${retentionMode !== "manual" ? "bg-muted text-muted-foreground" : ""}`}
             />
             {retentionMode === "release" ? (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Releases the {formatCurrency(retentionHeldToDate)} held across this project&rsquo;s
-                other draws.
-              </p>
+              isInconsistent ? (
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                  Prior draws show negative retainage on record ({formatCurrency(retentionHeldToDate)}) —
+                  resolve that before releasing again. No release amount has been filled in.
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Releases the {formatCurrency(retentionHeldToDate)} held across this project&rsquo;s
+                  other posted draws.
+                </p>
+              )
             ) : retentionMode !== "manual" ? (
               <p className="text-[11px] text-muted-foreground mt-1">
                 Computed from {retentionMode}% retention on the schedule of values below.

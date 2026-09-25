@@ -42,10 +42,15 @@ describe("buildMonthlyBillingBuckets", () => {
     expect(sep?.invoiced ?? 0).toBe(0);
   });
 
-  it("falls back to period_end then created_at when date_submitted is missing", () => {
-    const d = draw({ date_submitted: null, period_end: "2026-05-15", amount_requested: 20000 });
+  it("falls back to created_at (not period_end) when date_submitted is missing — matches lib/billing.ts", () => {
+    const d = draw({
+      date_submitted: null,
+      period_end: "2025-12-20", // deliberately a different month than created_at
+      created_at: "2026-01-03T00:00:00Z",
+      amount_requested: 20000,
+    });
     const buckets = buildMonthlyBillingBuckets([d]);
-    expect(buckets[0].key).toBe("2026-05");
+    expect(buckets[0].key).toBe("2026-01");
   });
 
   it("sums multiple draws landing in the same month", () => {
