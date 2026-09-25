@@ -2,7 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getLiveDraw, remainingBalanceForDraw } from "@/lib/data";
+import { getLiveDraw, normalizeDrawSaveError, remainingBalanceForDraw } from "@/lib/data";
 import { resolveProject } from "./shared";
 
 export const createDrawTool = tool({
@@ -39,7 +39,7 @@ export const createDrawTool = tool({
       status: input.status,
       notes: input.notes ?? null,
     });
-    if (error) return { error: error.message };
+    if (error) return { error: normalizeDrawSaveError(error, input.drawNumber).message };
 
     revalidatePath(`/projects/${resolved.project.id}`);
     revalidatePath("/");

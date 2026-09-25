@@ -8,6 +8,7 @@ import {
   getBudgetLinesForProject,
   getDrawsForProject,
   getLiveDraw,
+  normalizeDrawSaveError,
   remainingBalanceForDraw,
 } from "@/lib/data";
 import {
@@ -241,26 +242,6 @@ async function saveAllocations(
       .in("id", staleIds);
     if (deleteError) throw deleteError;
   }
-}
-
-// Normalizes a Supabase/Postgres error into a real Error with a readable
-// message — a raw PostgrestError (a plain object, not an Error instance)
-// thrown from a Server Action doesn't serialize cleanly back to the client,
-// which surfaces as an opaque React error instead of the actual problem
-// (seen live: a retainage_held check-constraint violation crashed the Add
-// Draw modal instead of showing why the save failed). Known cases get a
-// specific message; anything else still becomes a proper Error so it always
-// degrades to a normal, readable alert.
-function normalizeDrawSaveError(error: { code?: string; message?: string }, drawNumber: number): Error {
-  if (error.code === "23505") {
-    return new Error(`Draw #${drawNumber} already exists on this project. Choose a different draw number.`);
-  }
-  if (error.code === "23514") {
-    return new Error(
-      "One of this draw's amounts violates a data rule (e.g. a negative value where one isn't allowed). Double-check the fields before saving."
-    );
-  }
-  return error instanceof Error ? error : new Error(error.message ?? "Could not save this draw.");
 }
 
 // Returns { error } instead of throwing. Next.js strips the .message off
