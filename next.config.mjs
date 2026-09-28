@@ -15,6 +15,15 @@ const nextConfig = {
   outputFileTracingIncludes: {
     "/**": ["./node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs"],
   },
+  // Server Actions default to a 1MB request body, silently rejecting (413)
+  // any G702 upload above that — real files routinely run several MB (scans,
+  // embedded images). Raise it to match MAX_G702_UPLOAD_BYTES, the limit the
+  // upload form and app/draws/actions.ts already enforce and advertise.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "20mb",
+    },
+  },
 };
 
 export default nextConfig;
