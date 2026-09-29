@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/format";
 import DashboardTable from "@/components/DashboardTable";
 import OpenDrawsSection from "@/components/OpenDrawsSection";
 import AddProjectModal from "@/components/AddProjectModal";
+import AddDrawModal from "@/components/AddDrawModal";
 import AgingAlertBanner from "@/components/AgingAlertBanner";
 import DrawsDueAlertBanner from "@/components/DrawsDueAlertBanner";
 
@@ -50,7 +51,10 @@ export default async function DashboardPage(
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-24 sm:pb-8">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h1 className="text-2xl font-semibold text-foreground">Overview</h1>
-          <AddProjectModal />
+          <div className="flex gap-2">
+            <AddDrawModal projects={rollups.map((r) => r.project)} />
+            <AddProjectModal />
+          </div>
         </div>
         <p className="text-sm text-foreground mb-6">
           Draws across all active projects.
