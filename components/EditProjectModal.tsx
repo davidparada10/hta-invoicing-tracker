@@ -121,6 +121,23 @@ export default function EditProjectModal({ project }: { project: Project }) {
             )}
           </div>
 
+          {dueType && (
+            <Field label="Skip reminder for a specific month (optional)">
+              <div className="flex items-center gap-2">
+                <input
+                  type="month"
+                  name="draw_skip_month"
+                  defaultValue={project.draw_skip_month?.slice(0, 7) ?? ""}
+                  className="input"
+                />
+              </div>
+              <span className="block text-xs text-muted-foreground mt-1">
+                Silences the overdue/urgent reminder for that one month only — clear the field to
+                stop skipping.
+              </span>
+            </Field>
+          )}
+
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
           <div className="flex justify-end gap-2 pt-2">

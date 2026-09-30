@@ -11,6 +11,17 @@ import ProjectStatusSelect from "@/components/ProjectStatusSelect";
 // name — an empty string, not null/undefined, so it sorts predictably.
 const UNASSIGNED_GROUP = "Unassigned";
 
+function sumGroup(rows: ProjectRollup[]) {
+  return {
+    totalOpenToOwner: rows.reduce((acc, r) => acc + r.totalOpenToOwner, 0),
+    totalPaidToOwner: rows.reduce((acc, r) => acc + r.totalPaidToOwner, 0),
+    totalBudget: rows.reduce((acc, r) => acc + r.totalBudget, 0),
+    balanceToComplete: rows.reduce((acc, r) => acc + r.balanceToComplete, 0),
+    totalDrawRetainage: rows.reduce((acc, r) => acc + r.totalDrawRetainage, 0),
+    hasMeaningfulOpenBalance: rows.some((r) => r.hasMeaningfulOpenBalance),
+  };
+}
+
 export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
@@ -47,7 +58,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
         if (b === UNASSIGNED_GROUP) return -1;
         return a.localeCompare(b);
       })
-      .map(([developer, rows]) => ({ developer, rows }));
+      .map(([developer, rows]) => ({ developer, rows, totals: sumGroup(rows) }));
   }, [filtered, groupByDeveloper]);
 
   return (
@@ -96,7 +107,18 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           <div key={group.developer ?? "all"}>
             {group.developer && (
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
-                {group.developer}
+                {group.developer !== UNASSIGNED_GROUP ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch(group.developer!)}
+                    className="hover:text-foreground hover:underline"
+                    title={`Show only ${group.developer}`}
+                  >
+                    {group.developer}
+                  </button>
+                ) : (
+                  group.developer
+                )}
               </p>
             )}
             <div className="space-y-3">
@@ -104,6 +126,42 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 <MobileProjectCard key={r.project.id} r={r} />
               ))}
             </div>
+            {group.developer && group.rows.length > 1 && (
+              <div className="rounded-xl border border-border bg-muted p-4 mt-3">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">
+                  {group.developer} total ({group.rows.length} projects)
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Currently Invoiced</p>
+                    <p
+                      className={`font-medium ${
+                        group.totals.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
+                      }`}
+                    >
+                      {formatCurrency(group.totals.totalOpenToOwner)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Paid to Date</p>
+                    <p className="font-medium text-paid">
+                      {formatCurrency(group.totals.totalPaidToOwner)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contract Value</p>
+                    <p>{formatCurrency(group.totals.totalBudget)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Balance to Complete</p>
+                    <p>{formatCurrency(group.totals.balanceToComplete)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      +{formatCurrency(group.totals.totalDrawRetainage)} retainage
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         {filtered.length === 0 && (
@@ -136,13 +194,54 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                       colSpan={7}
                       className="px-4 pt-4 pb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-card"
                     >
-                      {group.developer}
+                      {group.developer !== UNASSIGNED_GROUP ? (
+                        <button
+                          type="button"
+                          onClick={() => setSearch(group.developer!)}
+                          className="hover:text-foreground hover:underline"
+                          title={`Show only ${group.developer}`}
+                        >
+                          {group.developer}
+                        </button>
+                      ) : (
+                        group.developer
+                      )}
                     </td>
                   </tr>
                 )}
                 {group.rows.map((r) => (
                   <DesktopProjectRow key={r.project.id} r={r} />
                 ))}
+                {group.developer && group.rows.length > 1 && (
+                  <tr className="bg-muted font-medium">
+                    <td className="px-4 py-2 sticky left-0 z-10 bg-muted text-foreground">
+                      {group.developer} total ({group.rows.length})
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-right ${
+                        group.totals.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
+                      }`}
+                    >
+                      {formatCurrency(group.totals.totalOpenToOwner)}
+                    </td>
+                    <td className="px-4 py-2 text-right text-paid">
+                      {formatCurrency(group.totals.totalPaidToOwner)}
+                    </td>
+                    <td className="px-4 py-2 text-right text-foreground">
+                      {formatCurrency(group.totals.totalBudget)}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <div className="text-foreground">
+                        {formatCurrency(group.totals.balanceToComplete)}
+                      </div>
+                      <div className="text-xs text-muted-foreground font-normal">
+                        +{formatCurrency(group.totals.totalDrawRetainage)} retainage
+                      </div>
+                    </td>
+                    <td className="px-4 py-2" />
+                    <td className="px-4 py-2" />
+                  </tr>
+                )}
               </Fragment>
             ))}
             {filtered.length === 0 && (

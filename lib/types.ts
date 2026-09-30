@@ -21,6 +21,10 @@ export interface Project {
   // JS Date.getDay() convention: 0=Sunday..6=Saturday (e.g. 4=Thursday).
   draw_due_type: DrawDueType | null;
   draw_due_day: number | null;
+  // One-off: silences the overdue/urgent reminder for just this single
+  // calendar month (stored as that month's first day, e.g. "2026-10-01"),
+  // not a recurring pause — see lib/drawSchedule.ts's isSkippedCycle.
+  draw_skip_month: string | null;
 }
 
 export interface OwnerDraw {

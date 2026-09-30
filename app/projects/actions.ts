@@ -17,6 +17,13 @@ function toNullableInt(value: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// <input type="month"> gives "YYYY-MM"; stored as that month's first day so
+// it's an ordinary date column, not a separate year/month pair.
+function toNullableMonth(value: FormDataEntryValue | null): string | null {
+  const s = (value ?? "").toString().trim();
+  return /^\d{4}-\d{2}$/.test(s) ? `${s}-01` : null;
+}
+
 // Shared by createProject/updateProject. The Edit/Add Project forms already
 // constrain draw_due_day via <select>/min/max, but that's client-side only —
 // validate again here rather than trusting it, since a bad value doesn't
@@ -74,6 +81,7 @@ export async function updateProject(formData: FormData) {
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
     developer: toNullableString(formData.get("developer")),
+    draw_skip_month: toNullableMonth(formData.get("draw_skip_month")),
     status: formData.get("status") as string,
     ...resolveDrawDueFields(formData),
   };

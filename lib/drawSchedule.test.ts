@@ -187,4 +187,23 @@ describe("isDrawOverdue / isDrawUrgent — cycle matching by period_end", () => 
     expect(isDrawUrgent(noCadence, [], referenceDate)).toBe(false);
     expect(daysUntilDrawDue(noCadence, referenceDate)).toBeNull();
   });
+
+  describe("draw_skip_month — a one-off silenced reminder for a single calendar month", () => {
+    it("suppresses overdue/urgent for the skipped month even with no covering draw", () => {
+      const skipped = { ...project, draw_skip_month: "2026-09-01" };
+      expect(isDrawOverdue(skipped, [], referenceDate)).toBe(false);
+      expect(isDrawUrgent(skipped, [], referenceDate)).toBe(false);
+    });
+
+    it("does not suppress a different month", () => {
+      const skipped = { ...project, draw_skip_month: "2026-10-01" };
+      expect(isDrawOverdue(skipped, [], referenceDate)).toBe(true);
+    });
+
+    it("drawDueLabel marks the skipped month", () => {
+      const skipped = { ...project, draw_skip_month: "2026-09-01" };
+      expect(drawDueLabel(skipped, referenceDate)).toBe("Due Sep 7 (skipped)");
+      expect(drawDueLabel(project, referenceDate)).toBe("Due Sep 7");
+    });
+  });
 });

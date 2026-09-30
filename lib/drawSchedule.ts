@@ -25,7 +25,12 @@
 
 import { DrawDueType, Project, OwnerDraw } from "@/lib/types";
 
-type ScheduleFields = Pick<Project, "draw_due_type" | "draw_due_day">;
+// draw_skip_month is optional here (not a strict Pick) so every existing
+// caller that doesn't know about it yet keeps compiling — treated as "no
+// skip set" when omitted, same as it always was before this field existed.
+type ScheduleFields = Pick<Project, "draw_due_type" | "draw_due_day"> & {
+  draw_skip_month?: Project["draw_skip_month"];
+};
 type CycleFields = Pick<OwnerDraw, "period_end" | "date_submitted" | "created_at" | "status">;
 
 /**
@@ -91,6 +96,8 @@ export function getDrawDueDate(
  * Human label for this cycle's actual due date, e.g. "Due Sep 25" — a
  * "last weekday" cadence resolves to the real calendar date rather than a
  * generic "Due last Thursday" the reader would have to work out themselves.
+ * Shows "Skipped" instead when this cycle's month has been explicitly
+ * skipped (see isSkippedCycle) — the date's still real, just not expected.
  */
 export function drawDueLabel(
   project: ScheduleFields,
@@ -98,7 +105,8 @@ export function drawDueLabel(
 ): string | null {
   const dueDate = getDrawDueDate(project, referenceDate);
   if (!dueDate) return null;
-  return `Due ${dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  const label = `Due ${dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  return isSkippedCycle(project, referenceDate) ? `${label} (skipped)` : label;
 }
 
 // period_end/date_submitted are bare "YYYY-MM-DD" with no timezone — parsed
@@ -107,6 +115,21 @@ export function drawDueLabel(
 // already a full timestamp with its own offset, so leave it alone.
 function parseDateOnly(value: string): Date {
   return new Date(value.length <= 10 ? `${value}T00:00:00` : value);
+}
+
+// A one-off, manually-set month (e.g. known no draw is coming, work
+// paused) to silence the overdue/urgent reminder for — not a recurring
+// setting, just the single next cycle it's set to, cleared by whoever set
+// it once it's served its purpose. Compared by calendar month against
+// referenceDate directly (not the cadence bucket), since the point is "I
+// don't want to hear about THIS calendar month," not a cycle abstraction.
+function isSkippedCycle(project: ScheduleFields, referenceDate: Date): boolean {
+  if (!project.draw_skip_month) return false;
+  const skip = parseDateOnly(project.draw_skip_month);
+  return (
+    skip.getFullYear() === referenceDate.getFullYear() &&
+    skip.getMonth() === referenceDate.getMonth()
+  );
 }
 
 // Which cadence cycle a date belongs to: on or before that calendar
@@ -170,13 +193,15 @@ export function daysUntilDrawDue(
 /**
  * True once this cycle's due date has passed with no draw actually
  * submitted (or beyond) for the current calendar month yet — a draft
- * doesn't count.
+ * doesn't count. Always false for a month explicitly skipped (see
+ * isSkippedCycle).
  */
 export function isDrawOverdue(
   project: ScheduleFields,
   projectDraws: CycleFields[],
   referenceDate: Date = new Date()
 ): boolean {
+  if (isSkippedCycle(project, referenceDate)) return false;
   const daysUntil = daysUntilDrawDue(project, referenceDate);
   if (daysUntil === null || daysUntil > 0) return false;
   return !hasDrawForCycle(project, projectDraws, referenceDate);
@@ -186,7 +211,8 @@ export function isDrawOverdue(
  * True from `warnDaysBefore` days ahead of the due date through overdue,
  * as long as no draw has been submitted for this cycle yet (a draft alone
  * doesn't clear it) — the "act now" window shown as a stronger visual
- * warning than the plain due-date label.
+ * warning than the plain due-date label. Always false for a month
+ * explicitly skipped (see isSkippedCycle).
  */
 export function isDrawUrgent(
   project: ScheduleFields,
@@ -194,6 +220,7 @@ export function isDrawUrgent(
   referenceDate: Date = new Date(),
   warnDaysBefore: number = 5
 ): boolean {
+  if (isSkippedCycle(project, referenceDate)) return false;
   const daysUntil = daysUntilDrawDue(project, referenceDate);
   if (daysUntil === null || daysUntil > warnDaysBefore) return false;
   return !hasDrawForCycle(project, projectDraws, referenceDate);
