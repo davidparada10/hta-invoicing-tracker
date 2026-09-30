@@ -2,9 +2,9 @@
 //
 // A project's cadence is either a fixed day-of-month or the last occurrence
 // of a weekday in the month. "Overdue" means the cycle's due date has
-// passed and no draw (any status) covers the current calendar month yet —
-// the bar is just "does a draft/draw exist for this period," not that it's
-// been submitted.
+// passed and no draw has actually been SUBMITTED for the current calendar
+// month yet — a draft alone doesn't clear it, since nothing's gone to the
+// lender yet and the reminder's whole point is to get that draw out.
 //
 // A draw's date_submitted decides which cycle it belongs to — NOT when the
 // record was created, and not the billing period it covers on its own.
@@ -26,7 +26,7 @@
 import { DrawDueType, Project, OwnerDraw } from "@/lib/types";
 
 type ScheduleFields = Pick<Project, "draw_due_type" | "draw_due_day">;
-type CycleFields = Pick<OwnerDraw, "period_end" | "date_submitted" | "created_at">;
+type CycleFields = Pick<OwnerDraw, "period_end" | "date_submitted" | "created_at" | "status">;
 
 /**
  * Server-side guard for draw_due_day — the Edit/Add Project forms already
@@ -148,6 +148,7 @@ function hasDrawForCycle(
   const year = referenceDate.getFullYear();
   const month = referenceDate.getMonth();
   return projectDraws.some((d) => {
+    if (d.status === "draft") return false;
     const date = drawCycleDate(project, d);
     return date.getFullYear() === year && date.getMonth() === month;
   });
@@ -167,8 +168,9 @@ export function daysUntilDrawDue(
 }
 
 /**
- * True once this cycle's due date has passed with no draw (any status)
- * covering the current calendar month yet.
+ * True once this cycle's due date has passed with no draw actually
+ * submitted (or beyond) for the current calendar month yet — a draft
+ * doesn't count.
  */
 export function isDrawOverdue(
   project: ScheduleFields,
@@ -182,8 +184,9 @@ export function isDrawOverdue(
 
 /**
  * True from `warnDaysBefore` days ahead of the due date through overdue,
- * as long as no draw covers this cycle yet — the "act now" window shown as
- * a stronger visual warning than the plain due-date label.
+ * as long as no draw has been submitted for this cycle yet (a draft alone
+ * doesn't clear it) — the "act now" window shown as a stronger visual
+ * warning than the plain due-date label.
  */
 export function isDrawUrgent(
   project: ScheduleFields,

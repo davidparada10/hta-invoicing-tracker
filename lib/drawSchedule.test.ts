@@ -96,12 +96,16 @@ describe("isDrawOverdue / isDrawUrgent — cycle matching by period_end", () => 
   // month it satisfies.
 
   it("is overdue when no draw's period_end falls in the current month", () => {
-    const draws = [{ period_end: "2026-08-25", date_submitted: null, created_at: "2026-08-26T00:00:00Z" }];
+    const draws = [
+      { period_end: "2026-08-25", date_submitted: null, created_at: "2026-08-26T00:00:00Z", status: "submitted" as const },
+    ];
     expect(isDrawOverdue(project, draws, referenceDate)).toBe(true);
   });
 
   it("is not overdue once a draw's period_end falls in the current month", () => {
-    const draws = [{ period_end: "2026-09-05", date_submitted: null, created_at: "2026-08-26T00:00:00Z" }];
+    const draws = [
+      { period_end: "2026-09-05", date_submitted: null, created_at: "2026-08-26T00:00:00Z", status: "submitted" as const },
+    ];
     expect(isDrawOverdue(project, draws, referenceDate)).toBe(false);
   });
 
@@ -111,7 +115,7 @@ describe("isDrawOverdue / isDrawUrgent — cycle matching by period_end", () => 
     // due date) also lands in September's cycle. Same cycle both ways, so
     // the actual submission date decides, and it satisfies September.
     const draws = [
-      { period_end: "2026-08-25", date_submitted: "2026-09-03", created_at: "2026-08-26T22:14:29Z" },
+      { period_end: "2026-08-25", date_submitted: "2026-09-03", created_at: "2026-08-26T22:14:29Z", status: "submitted" as const },
     ];
     expect(isDrawOverdue(project, draws, referenceDate)).toBe(false);
   });
@@ -126,7 +130,7 @@ describe("isDrawOverdue / isDrawUrgent — cycle matching by period_end", () => 
     const victoria = { draw_due_type: "day_of_month" as const, draw_due_day: 25 };
     const afterSeptDue = new Date(2026, 8, 26); // Sep 26, one day past due
     const draws = [
-      { period_end: "2026-08-25", date_submitted: "2026-09-03", created_at: "2026-08-26T22:14:29Z" },
+      { period_end: "2026-08-25", date_submitted: "2026-09-03", created_at: "2026-08-26T22:14:29Z", status: "submitted" as const },
     ];
     expect(isDrawOverdue(victoria, draws, afterSeptDue)).toBe(true);
   });
@@ -141,7 +145,7 @@ describe("isDrawOverdue / isDrawUrgent — cycle matching by period_end", () => 
     const gilmore = { draw_due_type: "day_of_month" as const, draw_due_day: 15 };
     const lateSept = new Date(2026, 8, 24); // Sep 24
     const draws = [
-      { period_end: "2026-08-26", date_submitted: "2026-09-21", created_at: "2026-08-26T22:14:29Z" },
+      { period_end: "2026-08-26", date_submitted: "2026-09-21", created_at: "2026-08-26T22:14:29Z", status: "submitted" as const },
     ];
     expect(isDrawOverdue(gilmore, draws, lateSept)).toBe(false);
   });
@@ -154,7 +158,25 @@ describe("isDrawOverdue / isDrawUrgent — cycle matching by period_end", () => 
   });
 
   it("neither fires once a covering draw exists", () => {
-    const draws = [{ period_end: "2026-09-01", date_submitted: null, created_at: "2026-09-01T00:00:00Z" }];
+    const draws = [
+      { period_end: "2026-09-01", date_submitted: null, created_at: "2026-09-01T00:00:00Z", status: "submitted" as const },
+    ];
+    expect(isDrawOverdue(project, draws, referenceDate)).toBe(false);
+    expect(isDrawUrgent(project, draws, referenceDate)).toBe(false);
+  });
+
+  it("a draft alone does not clear overdue/urgent — nothing's actually gone to the lender yet", () => {
+    const draws = [
+      { period_end: "2026-09-01", date_submitted: "2026-09-01", created_at: "2026-09-01T00:00:00Z", status: "draft" as const },
+    ];
+    expect(isDrawOverdue(project, draws, referenceDate)).toBe(true);
+    expect(isDrawUrgent(project, draws, referenceDate)).toBe(true);
+  });
+
+  it("clears once that same draft is actually submitted", () => {
+    const draws = [
+      { period_end: "2026-09-01", date_submitted: "2026-09-01", created_at: "2026-09-01T00:00:00Z", status: "submitted" as const },
+    ];
     expect(isDrawOverdue(project, draws, referenceDate)).toBe(false);
     expect(isDrawUrgent(project, draws, referenceDate)).toBe(false);
   });
