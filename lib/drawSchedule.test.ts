@@ -6,6 +6,7 @@ import {
   isDrawOverdue,
   isDrawUrgent,
   isValidDrawDueDay,
+  wasDrawSubmittedOnTime,
 } from "@/lib/drawSchedule";
 
 describe("getDrawDueDate", () => {
@@ -205,5 +206,29 @@ describe("isDrawOverdue / isDrawUrgent — cycle matching by period_end", () => 
       expect(drawDueLabel(skipped, referenceDate)).toBe("Due Sep 7 (skipped)");
       expect(drawDueLabel(project, referenceDate)).toBe("Due Sep 7");
     });
+  });
+});
+
+describe("wasDrawSubmittedOnTime", () => {
+  const dueThe25th = { draw_due_type: "day_of_month" as const, draw_due_day: 25 };
+
+  it("is true when submitted on or before that month's due date", () => {
+    expect(wasDrawSubmittedOnTime(dueThe25th, "2026-09-25")).toBe(true);
+    expect(wasDrawSubmittedOnTime(dueThe25th, "2026-09-01")).toBe(true);
+  });
+
+  it("is false once submitted after that month's due date", () => {
+    expect(wasDrawSubmittedOnTime(dueThe25th, "2026-09-26")).toBe(false);
+  });
+
+  it("is judged against whichever month the submission actually landed in", () => {
+    // Filed Oct 3 — measured against October's own 25th, not September's,
+    // even though the work being billed might be from an earlier period.
+    expect(wasDrawSubmittedOnTime(dueThe25th, "2026-10-03")).toBe(true);
+  });
+
+  it("is null with no cadence configured — nothing to measure against", () => {
+    const noCadence = { draw_due_type: null, draw_due_day: null };
+    expect(wasDrawSubmittedOnTime(noCadence, "2026-09-25")).toBeNull();
   });
 });

@@ -1,14 +1,18 @@
-import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import {
   getBillingReport,
   getProjectBillingBreakdown,
+  getDeveloperBillingBreakdown,
+  getLenderBillingBreakdown,
+  getShortPaymentSummary,
   getDashboardData,
   MIN_MEANINGFUL_OPEN_BALANCE,
 } from "@/lib/data";
 import { currentQuarter } from "@/lib/billing";
 import { formatCurrency, formatDaysToPay } from "@/lib/format";
 import ExportCsvButton from "@/components/ExportCsvButton";
+import BillingBreakdownTable from "@/components/BillingBreakdownTable";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +35,12 @@ export default async function BillingPage(
   const isCurrentYear = year === thisYear;
   const activeQuarter = isCurrentYear ? currentQuarter(now) : null;
 
-  const [report, projectRows, dashboard] = await Promise.all([
+  const [report, projectRows, developerRows, lenderRows, shortPayments, dashboard] = await Promise.all([
     getBillingReport(year),
     getProjectBillingBreakdown(year),
+    getDeveloperBillingBreakdown(year),
+    getLenderBillingBreakdown(year),
+    getShortPaymentSummary(year),
     getDashboardData(),
   ]);
   // Billed minus received *within a period* — not the same thing as what's
@@ -80,8 +87,20 @@ export default async function BillingPage(
                   rows: [[currentOutstanding]],
                 },
                 {
+                  title: `Short-paid draws (${year})`,
+                  headers: ["Draws paid short of approved", "Total gap (positive = underpaid)"],
+                  rows: [[shortPayments.count, shortPayments.totalGap]],
+                },
+                {
                   title: `By Quarter (${year})`,
-                  headers: ["Quarter", "Billed", "Received", "Billed − received", "Avg Days to Pay"],
+                  headers: [
+                    "Quarter",
+                    "Billed",
+                    "Received",
+                    "Billed − received",
+                    "Avg Days to Pay",
+                    "Avg Days to Approve",
+                  ],
                   rows: [
                     ...report.quarters.map((q) => [
                       QUARTER_LABEL[q.quarter],
@@ -89,6 +108,7 @@ export default async function BillingPage(
                       q.received,
                       q.requested - q.received,
                       formatDaysToPay(q.avgDaysToPay),
+                      formatDaysToPay(q.avgDaysToApprove),
                     ]),
                     [
                       `Total (${year})`,
@@ -96,20 +116,37 @@ export default async function BillingPage(
                       report.ytdReceived,
                       activityDiffYtd,
                       formatDaysToPay(report.ytdAvgDaysToPay),
+                      formatDaysToPay(report.ytdAvgDaysToApprove),
                     ],
                   ],
                 },
-                {
-                  title: `By Project (${year})`,
-                  headers: ["Project", "Billed", "Received", "Billed − received", "Avg Days to Pay"],
-                  rows: projectRows.map((p) => [
-                    p.projectName,
-                    p.requested,
-                    p.received,
-                    p.requested - p.received,
-                    formatDaysToPay(p.avgDaysToPay),
+                ...[
+                  { title: "By Project", rows: projectRows },
+                  { title: "By Developer", rows: developerRows },
+                  { title: "By Lender", rows: lenderRows },
+                ].map(({ title, rows }) => ({
+                  title: `${title} (${year})`,
+                  headers: [
+                    title.replace("By ", ""),
+                    "Billed",
+                    "Received",
+                    "Billed − received",
+                    "Avg Days to Pay",
+                    "Avg Days to Approve",
+                    "On time",
+                    "Late",
+                  ],
+                  rows: rows.map((r) => [
+                    r.groupName,
+                    r.requested,
+                    r.received,
+                    r.requested - r.received,
+                    formatDaysToPay(r.avgDaysToPay),
+                    formatDaysToPay(r.avgDaysToApprove),
+                    r.onTimeCount,
+                    r.lateCount,
                   ]),
-                },
+                })),
               ]}
             />
           </div>
@@ -138,7 +175,7 @@ export default async function BillingPage(
         <div className="border-t border-foreground/70 border-b-[3px] border-b-foreground mt-3 mb-6" />
 
         <div className="border-t border-border mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-4 border-b border-border">
+          <div className="grid grid-cols-2 lg:grid-cols-6 border-b border-border">
             <div className="py-3">
               <p className="text-xs text-muted-foreground mb-1">
                 Billed {isCurrentYear ? "YTD" : year}
@@ -147,7 +184,7 @@ export default async function BillingPage(
                 {formatCurrency(report.ytdRequested)}
               </p>
             </div>
-            <div className="py-3 sm:pl-4 sm:border-l border-border">
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
               <p className="text-xs text-muted-foreground mb-1">
                 Received {isCurrentYear ? "YTD" : year}
               </p>
@@ -155,7 +192,7 @@ export default async function BillingPage(
                 {formatCurrency(report.ytdReceived)}
               </p>
             </div>
-            <div className="py-3 sm:pl-4 sm:border-l border-border">
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
               <p className="text-xs text-muted-foreground mb-1" title="Billed minus received within this year — not the same as current outstanding. A draw billed in December and paid in January makes that period's figure negative even though the draw itself is fully paid.">
                 Billed − received {isCurrentYear ? "YTD" : year}
               </p>
@@ -163,10 +200,42 @@ export default async function BillingPage(
                 {formatCurrency(activityDiffYtd)}
               </p>
             </div>
-            <div className="py-3 sm:pl-4 sm:border-l border-border">
-              <p className="text-xs text-muted-foreground mb-1">Avg days to pay</p>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p className="text-xs text-muted-foreground mb-1" title="Time from submitted to paid.">
+                Avg days to pay
+              </p>
               <p className="text-xl font-semibold text-foreground">
                 {formatDaysToPay(report.ytdAvgDaysToPay)}
+              </p>
+            </div>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p
+                className="text-xs text-muted-foreground mb-1"
+                title="Time from submitted to approved — the owner/lender's own turnaround, separate from how long it then takes to actually get paid."
+              >
+                Avg days to approve
+              </p>
+              <p className="text-xl font-semibold text-foreground">
+                {formatDaysToPay(report.ytdAvgDaysToApprove)}
+              </p>
+            </div>
+            <div className="py-3 lg:pl-4 lg:border-l border-border">
+              <p
+                className="text-xs mb-1"
+                title="A 'paid' draw whose amount_paid doesn't match what was approved — permanent, not a normal pending balance, so easy to miss once the status reads paid."
+              >
+                <span className={shortPayments.count > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"}>
+                  Short-paid {isCurrentYear ? "YTD" : year}
+                </span>
+              </p>
+              <p
+                className={`text-xl font-semibold ${
+                  shortPayments.count > 0 ? "text-amber-700 dark:text-amber-300" : "text-foreground"
+                }`}
+              >
+                {shortPayments.count === 0
+                  ? "None"
+                  : `${formatCurrency(Math.abs(shortPayments.totalGap))} (${shortPayments.count})`}
               </p>
             </div>
           </div>
@@ -210,6 +279,10 @@ export default async function BillingPage(
                     <p className="text-xs text-muted-foreground">Avg days to pay</p>
                     <p>{formatDaysToPay(q.avgDaysToPay)}</p>
                   </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Avg days to approve</p>
+                    <p>{formatDaysToPay(q.avgDaysToApprove)}</p>
+                  </div>
                 </div>
               </div>
             );
@@ -235,6 +308,10 @@ export default async function BillingPage(
                 <p className="text-xs text-muted-foreground font-normal">Avg days to pay</p>
                 <p>{formatDaysToPay(report.ytdAvgDaysToPay)}</p>
               </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-normal">Avg days to approve</p>
+                <p>{formatDaysToPay(report.ytdAvgDaysToApprove)}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -249,6 +326,7 @@ export default async function BillingPage(
                 <th className="text-right px-4 py-2">Received</th>
                 <th className="text-right px-4 py-2">Billed − received</th>
                 <th className="text-right px-4 py-2">Avg days to pay</th>
+                <th className="text-right px-4 py-2">Avg days to approve</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -282,6 +360,9 @@ export default async function BillingPage(
                     <td className="px-4 py-2 text-right">
                       {formatDaysToPay(q.avgDaysToPay)}
                     </td>
+                    <td className="px-4 py-2 text-right">
+                      {formatDaysToPay(q.avgDaysToApprove)}
+                    </td>
                   </tr>
                 );
               })}
@@ -303,140 +384,35 @@ export default async function BillingPage(
                 <td className="px-4 py-2 text-right">
                   {formatDaysToPay(report.ytdAvgDaysToPay)}
                 </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        <h2 className="text-lg font-semibold text-foreground mt-8 mb-3">By Project ({year})</h2>
-
-        {/* Mobile: one card per project */}
-        <div className="sm:hidden space-y-3">
-          {projectRows.map((p) => (
-            <div key={p.projectId} className="rounded-xl border border-border bg-card p-4">
-              <Link href={`/projects/${p.projectId}`} className="font-medium text-foreground hover:underline">
-                {p.projectName}
-              </Link>
-              <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">Billed</p>
-                  <p>{formatCurrency(p.requested)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Received</p>
-                  <p className="text-paid">{formatCurrency(p.received)}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Billed − received</p>
-                  <p className={p.requested - p.received > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
-                    {formatCurrency(p.requested - p.received)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Avg days to pay</p>
-                  <p>{formatDaysToPay(p.avgDaysToPay)}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-          {projectRows.length === 0 && (
-            <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
-              No billing activity for {year}.
-            </div>
-          )}
-          <div className="rounded-xl border border-border bg-muted p-4 font-semibold">
-            <p className="text-foreground">Total ({year})</p>
-            <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground font-normal">Billed</p>
-                <p>{formatCurrency(report.ytdRequested)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-normal">Received</p>
-                <p className="text-paid">{formatCurrency(report.ytdReceived)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-normal">Billed − received</p>
-                <p className={activityDiffYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""}>
-                  {formatCurrency(activityDiffYtd)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-normal">Avg days to pay</p>
-                <p>{formatDaysToPay(report.ytdAvgDaysToPay)}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Desktop/tablet: full table */}
-        <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
-          <table className="min-w-full text-sm">
-            <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
-              <tr>
-                <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Project</th>
-                <th className="text-right px-4 py-2">Billed</th>
-                <th className="text-right px-4 py-2">Received</th>
-                <th className="text-right px-4 py-2">Billed − received</th>
-                <th className="text-right px-4 py-2">Avg days to pay</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {projectRows.map((p) => (
-                <tr key={p.projectId} className="group hover:bg-muted">
-                  <td className="px-4 py-2 sticky left-0 z-10 bg-card group-hover:bg-muted">
-                    <Link
-                      href={`/projects/${p.projectId}`}
-                      className="font-medium text-foreground hover:underline"
-                    >
-                      {p.projectName}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2 text-right">{formatCurrency(p.requested)}</td>
-                  <td className="px-4 py-2 text-right text-paid">
-                    {formatCurrency(p.received)}
-                  </td>
-                  <td
-                    className={`px-4 py-2 text-right ${
-                      p.requested - p.received > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
-                    }`}
-                  >
-                    {formatCurrency(p.requested - p.received)}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    {formatDaysToPay(p.avgDaysToPay)}
-                  </td>
-                </tr>
-              ))}
-              {projectRows.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
-                    No billing activity for {year}.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-border font-semibold text-foreground">
-                <td className="px-4 py-2 sticky left-0 z-10 bg-card">Total ({year})</td>
-                <td className="px-4 py-2 text-right">{formatCurrency(report.ytdRequested)}</td>
-                <td className="px-4 py-2 text-right text-paid">
-                  {formatCurrency(report.ytdReceived)}
-                </td>
-                <td
-                  className={`px-4 py-2 text-right ${
-                    activityDiffYtd > MIN_MEANINGFUL_OPEN_BALANCE ? "text-invoiced" : ""
-                  }`}
-                >
-                  {formatCurrency(activityDiffYtd)}
-                </td>
                 <td className="px-4 py-2 text-right">
-                  {formatDaysToPay(report.ytdAvgDaysToPay)}
+                  {formatDaysToPay(report.ytdAvgDaysToApprove)}
                 </td>
               </tr>
             </tfoot>
           </table>
         </div>
+
+        <BillingBreakdownTable
+          title="By Project"
+          year={year}
+          rows={projectRows.map((p) => ({ ...p, groupId: p.projectId, groupName: p.projectName }))}
+          hrefFor={(id) => `/projects/${id}`}
+          emptyLabel={`No billing activity for ${year}.`}
+        />
+
+        <BillingBreakdownTable
+          title="By Developer"
+          year={year}
+          rows={developerRows}
+          emptyLabel={`No billing activity for ${year}.`}
+        />
+
+        <BillingBreakdownTable
+          title="By Lender"
+          year={year}
+          rows={lenderRows}
+          emptyLabel={`No billing activity for ${year}.`}
+        />
       </main>
     </div>
   );

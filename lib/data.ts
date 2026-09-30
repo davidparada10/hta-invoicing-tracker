@@ -1,6 +1,15 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
-import { BillingReport, ProjectBillingRow, buildBillingReport, buildProjectBillingBreakdown } from "@/lib/billing";
+import {
+  BillingReport,
+  GroupedBillingRow,
+  ProjectBillingRow,
+  ShortPaymentSummary,
+  buildBillingReport,
+  buildLabelBillingBreakdown,
+  buildProjectBillingBreakdown,
+  buildShortPaymentSummary,
+} from "@/lib/billing";
 import { drawDueLabel, isDrawOverdue, isDrawUrgent } from "@/lib/drawSchedule";
 import { MIN_MEANINGFUL_OPEN_BALANCE } from "@/lib/aging";
 
@@ -171,6 +180,31 @@ export async function getProjectBillingBreakdown(year: number): Promise<ProjectB
     getPortfolioExcludedMap(),
   ]);
   return buildProjectBillingBreakdown(withExcludedAllocated(draws, excludedMap), projects, year);
+}
+
+export async function getDeveloperBillingBreakdown(year: number): Promise<GroupedBillingRow[]> {
+  const [draws, projects, excludedMap] = await Promise.all([
+    getAllDraws(),
+    getProjects(),
+    getPortfolioExcludedMap(),
+  ]);
+  const withLabel = projects.map((p) => ({ ...p, label: p.developer }));
+  return buildLabelBillingBreakdown(withExcludedAllocated(draws, excludedMap), withLabel, year, "Unassigned");
+}
+
+export async function getLenderBillingBreakdown(year: number): Promise<GroupedBillingRow[]> {
+  const [draws, projects, excludedMap] = await Promise.all([
+    getAllDraws(),
+    getProjects(),
+    getPortfolioExcludedMap(),
+  ]);
+  const withLabel = projects.map((p) => ({ ...p, label: p.lender }));
+  return buildLabelBillingBreakdown(withExcludedAllocated(draws, excludedMap), withLabel, year, "Unassigned");
+}
+
+export async function getShortPaymentSummary(year: number): Promise<ShortPaymentSummary> {
+  const draws = await getAllDraws();
+  return buildShortPaymentSummary(draws, year);
 }
 
 // A draw's outstanding balance: what's been billed but not yet actually

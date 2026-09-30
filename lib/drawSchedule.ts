@@ -132,6 +132,23 @@ function isSkippedCycle(project: ScheduleFields, referenceDate: Date): boolean {
   );
 }
 
+// Was a draw actually submitted by the due date of the calendar month it
+// landed in? Deliberately simpler than drawCycleDate's cross-cycle
+// resolution (which answers "which month's requirement does this draw
+// satisfy") — this answers a different question, "was the filer on time,"
+// judged against the due date of whichever month they actually filed in.
+// Null (not false) with no cadence configured, since "on time" is
+// meaningless without a due date to measure against.
+export function wasDrawSubmittedOnTime(
+  project: ScheduleFields,
+  dateSubmitted: string
+): boolean | null {
+  const submitted = parseDateOnly(dateSubmitted);
+  const due = getDrawDueDate(project, submitted);
+  if (!due) return null;
+  return startOfDay(submitted).getTime() <= startOfDay(due).getTime();
+}
+
 // Which cadence cycle a date belongs to: on or before that calendar
 // month's own due date, it's that month's cycle; after it, the due date
 // has already passed so it rolls into the next month's cycle instead. With

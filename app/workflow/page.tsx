@@ -188,8 +188,8 @@ export default function WorkflowPage() {
           steps={[
             { icon: "👤", title: "Visit /billing", detail: "Optional ?year= query param, defaults to current year", category: "trigger", edgeLabel: "fetches" },
             { icon: "🗄️", title: "getAllDraws()", detail: "Same paginated helper the dashboard uses", category: "data", edgeLabel: "feeds" },
-            { icon: "⚡", title: "buildBillingReport / buildProjectBillingBreakdown", detail: "lib/billing.ts — pure calc, no new tables", category: "server", edgeLabel: "returns" },
-            { icon: "✅", title: "YTD/QTD by quarter + by project", detail: "Billed vs. received vs. outstanding, avg days to pay", category: "output" },
+            { icon: "⚡", title: "buildBillingReport / buildGroupedBillingBreakdown / buildShortPaymentSummary", detail: "lib/billing.ts — pure calc, no new tables; one grouped accumulator powers project/developer/lender breakdowns", category: "server", edgeLabel: "returns" },
+            { icon: "✅", title: "YTD/QTD by quarter, project, developer, lender", detail: "Billed vs. received vs. outstanding, avg days to pay/approve, on-time submission rate (vs. each project's draw_due_type/day), short-paid draw tracker", category: "output" },
           ]}
         />
 
