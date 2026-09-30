@@ -54,19 +54,23 @@ export default function EditProjectModal({ project }: { project: Project }) {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Developer">
+              <input name="developer" defaultValue={project.developer ?? ""} className="input" />
+            </Field>
             <Field label="Lender">
               <input name="lender" defaultValue={project.lender ?? ""} className="input" />
             </Field>
-            <Field label="Status">
-              <select name="status" defaultValue={project.status} className="input">
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </Field>
           </div>
+
+          <Field label="Status">
+            <select name="status" defaultValue={project.status} className="input">
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Draw cadence">

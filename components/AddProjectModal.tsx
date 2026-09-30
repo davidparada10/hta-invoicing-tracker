@@ -87,19 +87,23 @@ export default function AddProjectModal() {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Developer">
+              <input name="developer" className="input" />
+            </Field>
             <Field label="Lender">
               <input name="lender" className="input" />
             </Field>
-            <Field label="Status">
-              <select name="status" defaultValue="active" className="input">
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </Field>
           </div>
+
+          <Field label="Status">
+            <select name="status" defaultValue="active" className="input">
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Draw cadence">

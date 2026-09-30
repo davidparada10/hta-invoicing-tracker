@@ -49,6 +49,7 @@ export async function createProject(formData: FormData): Promise<{ id: string }>
     project_number: crypto.randomUUID(),
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
+    developer: toNullableString(formData.get("developer")),
     status: (formData.get("status") as string) || "active",
     ...resolveDrawDueFields(formData),
   };
@@ -72,6 +73,7 @@ export async function updateProject(formData: FormData) {
     name: (formData.get("name") as string) ?? "",
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
+    developer: toNullableString(formData.get("developer")),
     status: formData.get("status") as string,
     ...resolveDrawDueFields(formData),
   };

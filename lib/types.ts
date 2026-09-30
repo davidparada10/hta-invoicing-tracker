@@ -8,6 +8,11 @@ export interface Project {
   project_number: string;
   address: string | null;
   lender: string | null;
+  // The developer/ownership group commissioning this project — distinct
+  // from the per-project legal owner entity in a G702's "OWNER:" field,
+  // which is usually a different single-purpose LLC for every project even
+  // when the same developer is behind several of them.
+  developer: string | null;
   status: ProjectStatus;
   created_at: string;
   // Recurring draw cadence. draw_due_type null means no fixed schedule is
