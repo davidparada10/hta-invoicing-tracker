@@ -210,7 +210,49 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               const isExpanded = !group.developer || expandedDevelopers.has(group.developer);
               return (
               <Fragment key={group.developer ?? "all"}>
-                {group.developer && (
+                {group.developer && (!isExpanded && group.rows.length > 1 ? (
+                  // Collapsed with more than one project: fold the heading and
+                  // its totals into a single row instead of a label row sitting
+                  // right above an otherwise-identical totals row.
+                  <tr className={`bg-card font-semibold ${i > 0 ? "border-t-2 border-divider-strong" : ""}`}>
+                    <td className="px-4 py-2 sticky left-0 z-10 bg-card whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(group.developer!)}
+                        className="flex items-center gap-1.5 -ml-1 px-1 py-0.5 rounded-sm hover:bg-muted text-sm font-semibold text-foreground"
+                        aria-expanded={isExpanded}
+                      >
+                        <ChevronIcon expanded={isExpanded} />
+                        {group.developer}
+                        <span className="text-muted-foreground font-normal">
+                          {" "}
+                          · {group.rows.length} projects
+                        </span>
+                      </button>
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-right tabular-nums ${
+                        group.totals.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
+                      }`}
+                    >
+                      {formatCurrency(group.totals.totalOpenToOwner)}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-paid">
+                      {formatCurrency(group.totals.totalPaidToOwner)}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-foreground">
+                      {formatCurrency(group.totals.totalBudget)}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <div className="text-foreground tabular-nums">
+                        {formatCurrency(group.totals.balanceToComplete)}
+                      </div>
+                      <RetainageLine amount={group.totals.totalDrawRetainage} className="font-normal" />
+                    </td>
+                    <td className="px-4 py-2" />
+                    {showStatusColumn && <td className="px-4 py-2" />}
+                  </tr>
+                ) : (
                   <tr>
                     <td
                       colSpan={columnCount}
@@ -231,13 +273,13 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                       </button>
                     </td>
                   </tr>
-                )}
+                ))}
                 {isExpanded &&
                   group.rows.map((r) => (
                     <DesktopProjectRow key={r.project.id} r={r} showStatus={showStatusColumn} />
                   ))}
-                {group.developer && group.rows.length > 1 && (
-                  <tr className={`font-semibold ${isExpanded ? "border-t-2 border-border" : ""}`}>
+                {group.developer && group.rows.length > 1 && isExpanded && (
+                  <tr className="border-t-2 border-border font-semibold">
                     <td className="px-4 py-2 sticky left-0 z-10 bg-card text-foreground">
                       {group.developer} total ({group.rows.length})
                     </td>
