@@ -8,6 +8,10 @@
   --foreground: #0f172a;
   --card: #ffffff;
   --border: #e2e8f0;
+  /* A clearly heavier rule than --border, for a real section break (e.g.
+     between developer groups on the dashboard) rather than an ordinary
+     hairline — the two need to read as different weights side by side. */
+  --divider-strong: #94a3b8;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
   --primary: #0f172a;
@@ -24,6 +28,7 @@
   --foreground: #f4f4f5;
   --card: #18181b;
   --border: #3f3f46;
+  --divider-strong: #71717a;
   --muted: #27272a;
   --muted-foreground: #a1a1aa;
   --primary: #f4f4f5;
@@ -71,6 +76,9 @@ body {
   }
   .border-border {
     border-color: var(--border);
+  }
+  .border-divider-strong {
+    border-color: var(--divider-strong);
   }
   .divide-border > :not([hidden]) ~ :not([hidden]) {
     border-color: var(--border);

@@ -107,7 +107,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
       {/* Mobile: one card per project — avoids horizontal scrolling through 6 columns */}
       <div className="sm:hidden space-y-4">
         {groups.map((group, i) => (
-          <div key={group.developer ?? "all"} className={i > 0 ? "pt-4 border-t-2 border-border" : undefined}>
+          <div key={group.developer ?? "all"} className={i > 0 ? "pt-6 mt-2 border-t-2 border-divider-strong" : undefined}>
             {group.developer && (
               <p className="text-sm font-semibold text-foreground mb-2">
                 {group.developer !== UNASSIGNED_GROUP ? (
@@ -216,8 +216,8 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                   <tr>
                     <td
                       colSpan={columnCount}
-                      className={`px-4 pt-4 pb-1.5 text-sm font-semibold text-foreground bg-card ${
-                        i > 0 ? "border-t-2 border-border" : ""
+                      className={`px-4 pb-1.5 text-sm font-semibold text-foreground bg-card ${
+                        i > 0 ? "pt-6 border-t-2 border-divider-strong" : "pt-4"
                       }`}
                     >
                       {group.developer !== UNASSIGNED_GROUP ? (
