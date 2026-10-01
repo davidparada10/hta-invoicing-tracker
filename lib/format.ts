@@ -7,6 +7,17 @@ export function formatCurrency(value: number | null | undefined): string {
   }).format(value ?? 0);
 }
 
+// Whole-dollar, sign-preserving — for a compact subline where exact cents
+// would just be noise (the precise figure stays available via a tooltip or
+// the project detail page).
+export function formatCurrencyRounded(value: number | null | undefined): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value ?? 0);
+}
+
 export function formatCurrencyCompact(value: number | null | undefined): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

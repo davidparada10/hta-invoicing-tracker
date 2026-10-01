@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCurrency, formatDate, parseLocalDate } from "@/lib/format";
+import { formatCurrency, formatCurrencyRounded, formatDate, parseLocalDate } from "@/lib/format";
 
 describe("parseLocalDate", () => {
   // Regression test: this exact bug (plain `new Date("YYYY-MM-DD")` parses
@@ -46,5 +46,20 @@ describe("formatCurrency", () => {
   it("treats null/undefined as zero", () => {
     expect(formatCurrency(null)).toBe("$0.00");
     expect(formatCurrency(undefined)).toBe("$0.00");
+  });
+});
+
+describe("formatCurrencyRounded", () => {
+  it("rounds to whole dollars", () => {
+    expect(formatCurrencyRounded(43538.4)).toBe("$43,538");
+  });
+
+  it("preserves a negative sign", () => {
+    expect(formatCurrencyRounded(-1200)).toBe("-$1,200");
+  });
+
+  it("treats null/undefined as zero", () => {
+    expect(formatCurrencyRounded(null)).toBe("$0");
+    expect(formatCurrencyRounded(undefined)).toBe("$0");
   });
 });

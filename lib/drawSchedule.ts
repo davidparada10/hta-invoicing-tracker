@@ -194,6 +194,23 @@ function hasDrawForCycle(
   });
 }
 
+/**
+ * True once a non-draft draw has actually landed in this cycle — the exact
+ * condition isDrawOverdue/isDrawUrgent already require to clear (they both
+ * check `!hasDrawForCycle`), just exposed directly so the UI can say the
+ * cycle is satisfied instead of only saying it isn't overdue/urgent yet.
+ * Always false with no cadence configured, since there's no cycle to have
+ * satisfied.
+ */
+export function isDrawCycleSatisfied(
+  project: ScheduleFields,
+  projectDraws: CycleFields[],
+  referenceDate: Date = new Date()
+): boolean {
+  if (!project.draw_due_type || project.draw_due_day == null) return false;
+  return hasDrawForCycle(project, projectDraws, referenceDate);
+}
+
 /** Days until this cycle's due date (negative once past it), or null with no cadence. */
 export function daysUntilDrawDue(
   project: ScheduleFields,

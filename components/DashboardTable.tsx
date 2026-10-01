@@ -3,7 +3,8 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { ProjectRollup } from "@/lib/types";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatCurrencyRounded } from "@/lib/format";
+import { dashboardAddressLine } from "@/lib/address";
 import ProjectStatusSelect from "@/components/ProjectStatusSelect";
 
 // No-developer-set projects sort after every named group, but still need a
@@ -26,6 +27,8 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
   const [groupByDeveloper, setGroupByDeveloper] = useState(true);
+  const showStatusColumn = statusFilter === "all";
+  const columnCount = showStatusColumn ? 7 : 6;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -103,15 +106,15 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
 
       {/* Mobile: one card per project — avoids horizontal scrolling through 6 columns */}
       <div className="sm:hidden space-y-4">
-        {groups.map((group) => (
-          <div key={group.developer ?? "all"}>
+        {groups.map((group, i) => (
+          <div key={group.developer ?? "all"} className={i > 0 ? "pt-4 border-t-2 border-border" : undefined}>
             {group.developer && (
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+              <p className="text-sm font-semibold text-foreground mb-2">
                 {group.developer !== UNASSIGNED_GROUP ? (
                   <button
                     type="button"
                     onClick={() => setSearch(group.developer!)}
-                    className="hover:text-foreground hover:underline"
+                    className="hover:underline"
                     title={`Show only ${group.developer}`}
                   >
                     {group.developer}
@@ -119,23 +122,24 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 ) : (
                   group.developer
                 )}
+                <span className="text-muted-foreground font-normal"> · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}</span>
               </p>
             )}
             <div className="space-y-3">
               {group.rows.map((r) => (
-                <MobileProjectCard key={r.project.id} r={r} />
+                <MobileProjectCard key={r.project.id} r={r} showStatus={showStatusColumn} />
               ))}
             </div>
             {group.developer && group.rows.length > 1 && (
-              <div className="rounded-xl border border-border bg-muted p-4 mt-3">
-                <p className="text-xs font-semibold text-muted-foreground mb-2">
-                  {group.developer} total ({group.rows.length} projects)
+              <div className="rounded-xl border border-border bg-card border-t-2 p-4 mt-3">
+                <p className="text-xs font-semibold text-foreground mb-2">
+                  {group.developer} total ({group.rows.length})
                 </p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
                     <p className="text-xs text-muted-foreground">Currently Invoiced</p>
                     <p
-                      className={`font-medium ${
+                      className={`font-semibold tabular-nums ${
                         group.totals.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
                       }`}
                     >
@@ -144,20 +148,18 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Paid to Date</p>
-                    <p className="font-medium text-paid">
+                    <p className="font-semibold tabular-nums text-paid">
                       {formatCurrency(group.totals.totalPaidToOwner)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Contract Value</p>
-                    <p>{formatCurrency(group.totals.totalBudget)}</p>
+                    <p className="tabular-nums">{formatCurrency(group.totals.totalBudget)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Balance to Complete</p>
-                    <p>{formatCurrency(group.totals.balanceToComplete)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      +{formatCurrency(group.totals.totalDrawRetainage)} retainage
-                    </p>
+                    <p className="tabular-nums">{formatCurrency(group.totals.balanceToComplete)}</p>
+                    <RetainageLine amount={group.totals.totalDrawRetainage} />
                   </div>
                 </div>
               </div>
@@ -171,34 +173,58 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
         )}
       </div>
 
-      {/* Desktop/tablet: full table */}
-      <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
+      {/* Desktop/tablet: full table. overflow-auto (not just overflow-x) is
+          deliberate — CSS computes overflow-y to "auto" the moment
+          overflow-x isn't "visible" regardless, which silently makes this
+          div (not the window) the positioning context for the sticky
+          header below; without a bounded height here, that context never
+          actually scrolls, so the header doesn't stick. Bounding it makes
+          this one div the real scroll region for the table, for both axes. */}
+      <div className="hidden sm:block overflow-auto max-h-[75vh] rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Project</th>
-              <th className="text-right px-4 py-2">Currently Invoiced</th>
-              <th className="text-right px-4 py-2">Paid to Date</th>
-              <th className="text-right px-4 py-2">Contract Value</th>
-              <th className="text-right px-4 py-2">Balance to Complete</th>
-              <th className="text-left px-4 py-2">Next Draw</th>
-              <th className="text-left px-4 py-2">Status</th>
+              <th className="text-left px-4 py-2 sticky top-0 left-0 z-30 bg-muted border-b border-border">
+                Project
+              </th>
+              <th className="text-right px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
+                Currently Invoiced
+              </th>
+              <th className="text-right px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
+                Paid to Date
+              </th>
+              <th className="text-right px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
+                Contract Value
+              </th>
+              <th className="text-right px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
+                Balance to Complete
+              </th>
+              <th className="text-left px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
+                Next Draw
+              </th>
+              {showStatusColumn && (
+                <th className="text-left px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
+                  Status
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {groups.map((group) => (
+            {groups.map((group, i) => (
               <Fragment key={group.developer ?? "all"}>
                 {group.developer && (
                   <tr>
                     <td
-                      colSpan={7}
-                      className="px-4 pt-4 pb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-card"
+                      colSpan={columnCount}
+                      className={`px-4 pt-4 pb-1.5 text-sm font-semibold text-foreground bg-card ${
+                        i > 0 ? "border-t-2 border-border" : ""
+                      }`}
                     >
                       {group.developer !== UNASSIGNED_GROUP ? (
                         <button
                           type="button"
                           onClick={() => setSearch(group.developer!)}
-                          className="hover:text-foreground hover:underline"
+                          className="hover:underline"
                           title={`Show only ${group.developer}`}
                         >
                           {group.developer}
@@ -206,47 +232,49 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                       ) : (
                         group.developer
                       )}
+                      <span className="text-muted-foreground font-normal">
+                        {" "}
+                        · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}
+                      </span>
                     </td>
                   </tr>
                 )}
                 {group.rows.map((r) => (
-                  <DesktopProjectRow key={r.project.id} r={r} />
+                  <DesktopProjectRow key={r.project.id} r={r} showStatus={showStatusColumn} />
                 ))}
                 {group.developer && group.rows.length > 1 && (
-                  <tr className="bg-muted font-medium">
-                    <td className="px-4 py-2 sticky left-0 z-10 bg-muted text-foreground">
+                  <tr className="border-t-2 border-border font-semibold">
+                    <td className="px-4 py-2 sticky left-0 z-10 bg-card text-foreground">
                       {group.developer} total ({group.rows.length})
                     </td>
                     <td
-                      className={`px-4 py-2 text-right ${
+                      className={`px-4 py-2 text-right tabular-nums ${
                         group.totals.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
                       }`}
                     >
                       {formatCurrency(group.totals.totalOpenToOwner)}
                     </td>
-                    <td className="px-4 py-2 text-right text-paid">
+                    <td className="px-4 py-2 text-right tabular-nums text-paid">
                       {formatCurrency(group.totals.totalPaidToOwner)}
                     </td>
-                    <td className="px-4 py-2 text-right text-foreground">
+                    <td className="px-4 py-2 text-right tabular-nums text-foreground">
                       {formatCurrency(group.totals.totalBudget)}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <div className="text-foreground">
+                      <div className="text-foreground tabular-nums">
                         {formatCurrency(group.totals.balanceToComplete)}
                       </div>
-                      <div className="text-xs text-muted-foreground font-normal">
-                        +{formatCurrency(group.totals.totalDrawRetainage)} retainage
-                      </div>
+                      <RetainageLine amount={group.totals.totalDrawRetainage} className="font-normal" />
                     </td>
                     <td className="px-4 py-2" />
-                    <td className="px-4 py-2" />
+                    {showStatusColumn && <td className="px-4 py-2" />}
                   </tr>
                 )}
               </Fragment>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={columnCount} className="px-4 py-6 text-center text-muted-foreground">
                   No {statusFilter === "active" && !search.trim() ? "active " : ""}projects found.
                 </td>
               </tr>
@@ -258,34 +286,77 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
   );
 }
 
-function MobileProjectCard({ r }: { r: ProjectRollup }) {
+function RetainageLine({ amount, className = "" }: { amount: number; className?: string }) {
+  if (amount === 0) return null;
+  return (
+    <p
+      className={`text-xs text-muted-foreground tabular-nums ${className}`}
+      title={`Retainage: ${formatCurrency(amount)}`}
+    >
+      Retainage {formatCurrencyRounded(amount)}
+    </p>
+  );
+}
+
+function NextDrawLines({ r }: { r: ProjectRollup }) {
+  if (r.isDrawOverdue) {
+    return (
+      <>
+        <p className="text-muted-foreground">{r.nextDrawLabel}</p>
+        <p className="font-semibold text-red-600 dark:text-red-400">
+          {r.drawOverdueDays} day{r.drawOverdueDays === 1 ? "" : "s"} overdue
+        </p>
+      </>
+    );
+  }
+  if (r.drawCycleSatisfiedLabel) {
+    return <p className="text-muted-foreground">{r.drawCycleSatisfiedLabel}</p>;
+  }
+  return (
+    <p className={r.isDrawUrgent ? "font-bold text-red-600 dark:text-red-400" : "text-muted-foreground"}>
+      {r.nextDrawLabel ?? "—"}
+    </p>
+  );
+}
+
+function ProjectIdentity({ r }: { r: ProjectRollup }) {
+  const secondaryAddress = dashboardAddressLine(r.project.name, r.project.address);
+  return (
+    <>
+      <span className="text-[15px] sm:text-base font-medium text-foreground hover:underline">
+        {r.project.name}
+      </span>
+      {secondaryAddress && (
+        <div className="text-xs text-muted-foreground truncate">{secondaryAddress}</div>
+      )}
+      {r.totalDraft > 0 && (
+        <div className="text-xs text-amber-700 dark:text-amber-300">
+          Draft {formatCurrency(r.totalDraft)}
+        </div>
+      )}
+    </>
+  );
+}
+
+function MobileProjectCard({ r, showStatus }: { r: ProjectRollup; showStatus: boolean }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-2">
         <Link href={`/projects/${r.project.id}`} className="min-w-0">
-          <span className="font-medium text-foreground hover:underline">{r.project.name}</span>
-          {(r.project.address || r.totalDraft > 0) && (
-            <div className="text-xs text-muted-foreground truncate">
-              {r.project.address}
-              {r.project.address && r.totalDraft > 0 && " · "}
-              {r.totalDraft > 0 && (
-                <span className="text-amber-700 dark:text-amber-300">
-                  {formatCurrency(r.totalDraft)} draft
-                </span>
-              )}
-            </div>
-          )}
+          <ProjectIdentity r={r} />
         </Link>
-        <div className="shrink-0">
-          <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
-        </div>
+        {showStatus && (
+          <div className="shrink-0">
+            <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2 mt-3 text-sm">
         <div>
           <p className="text-xs text-muted-foreground">Currently Invoiced</p>
           <p
-            className={`font-medium ${
+            className={`font-semibold tabular-nums ${
               r.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
             }`}
           >
@@ -294,82 +365,57 @@ function MobileProjectCard({ r }: { r: ProjectRollup }) {
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Paid to Date</p>
-          <p className="font-medium text-paid">{formatCurrency(r.totalPaidToOwner)}</p>
+          <p className="font-semibold tabular-nums text-paid">{formatCurrency(r.totalPaidToOwner)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Contract Value</p>
-          <p>{formatCurrency(r.totalBudget)}</p>
+          <p className="tabular-nums">{formatCurrency(r.totalBudget)}</p>
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Balance to Complete</p>
-          <p>{formatCurrency(r.balanceToComplete)}</p>
-          <p className="text-xs text-muted-foreground">
-            +{formatCurrency(r.totalDrawRetainage)} retainage
-          </p>
+          <p className="tabular-nums">{formatCurrency(r.balanceToComplete)}</p>
+          <RetainageLine amount={r.totalDrawRetainage} />
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Next Draw</p>
-          <p
-            className={
-              r.isDrawUrgent ? "font-bold text-red-600 dark:text-red-400" : "text-muted-foreground"
-            }
-          >
-            {r.nextDrawLabel ?? "—"}
-            {r.isDrawOverdue && " · Overdue"}
-          </p>
+          <NextDrawLines r={r} />
         </div>
       </div>
     </div>
   );
 }
 
-function DesktopProjectRow({ r }: { r: ProjectRollup }) {
+function DesktopProjectRow({ r, showStatus }: { r: ProjectRollup; showStatus: boolean }) {
   return (
     <tr className="group hover:bg-muted">
       <td className="px-4 py-2 sticky left-0 z-10 bg-card group-hover:bg-muted">
         <Link href={`/projects/${r.project.id}`} className="block -mx-4 -my-2 px-4 py-2">
-          <span className="font-medium text-foreground hover:underline">{r.project.name}</span>
-          {(r.project.address || r.totalDraft > 0) && (
-            <div className="text-xs text-muted-foreground">
-              {r.project.address}
-              {r.project.address && r.totalDraft > 0 && " · "}
-              {r.totalDraft > 0 && (
-                <span className="text-amber-700 dark:text-amber-300">
-                  {formatCurrency(r.totalDraft)} draft
-                </span>
-              )}
-            </div>
-          )}
+          <ProjectIdentity r={r} />
         </Link>
       </td>
       <td
-        className={`px-4 py-2 text-right font-medium ${
+        className={`px-4 py-2 text-right font-semibold tabular-nums ${
           r.hasMeaningfulOpenBalance ? "text-invoiced" : "text-foreground"
         }`}
       >
         {formatCurrency(r.totalOpenToOwner)}
       </td>
-      <td className="px-4 py-2 text-right font-medium text-paid">
+      <td className="px-4 py-2 text-right font-semibold tabular-nums text-paid">
         {formatCurrency(r.totalPaidToOwner)}
       </td>
-      <td className="px-4 py-2 text-right text-foreground">{formatCurrency(r.totalBudget)}</td>
+      <td className="px-4 py-2 text-right tabular-nums text-foreground">{formatCurrency(r.totalBudget)}</td>
       <td className="px-4 py-2 text-right">
-        <div className="text-foreground">{formatCurrency(r.balanceToComplete)}</div>
-        <div className="text-xs text-muted-foreground">
-          +{formatCurrency(r.totalDrawRetainage)} retainage
-        </div>
+        <div className="text-foreground tabular-nums">{formatCurrency(r.balanceToComplete)}</div>
+        <RetainageLine amount={r.totalDrawRetainage} />
       </td>
-      <td
-        className={`px-4 py-2 whitespace-nowrap ${
-          r.isDrawUrgent ? "font-bold text-red-600 dark:text-red-400" : "text-muted-foreground"
-        }`}
-      >
-        {r.nextDrawLabel ?? "—"}
-        {r.isDrawOverdue && " · Overdue"}
+      <td className="px-4 py-2 whitespace-nowrap">
+        <NextDrawLines r={r} />
       </td>
-      <td className="px-4 py-2">
-        <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
-      </td>
+      {showStatus && (
+        <td className="px-4 py-2">
+          <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
+        </td>
+      )}
     </tr>
   );
 }

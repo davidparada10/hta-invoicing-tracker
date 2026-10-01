@@ -104,4 +104,10 @@ export interface ProjectRollup {
   isDrawOverdue: boolean;
   isDrawUrgent: boolean;
   nextDrawLabel: string | null;
+  // Only set when isDrawOverdue — how many days past the cycle's due date.
+  drawOverdueDays: number | null;
+  // Set when a non-draft draw has already landed in the current cycle,
+  // e.g. "September submitted" — mutually exclusive with isDrawOverdue/
+  // isDrawUrgent by construction (see lib/drawSchedule.ts).
+  drawCycleSatisfiedLabel: string | null;
 }

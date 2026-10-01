@@ -3,6 +3,7 @@ import {
   daysUntilDrawDue,
   drawDueLabel,
   getDrawDueDate,
+  isDrawCycleSatisfied,
   isDrawOverdue,
   isDrawUrgent,
   isValidDrawDueDay,
@@ -230,5 +231,36 @@ describe("wasDrawSubmittedOnTime", () => {
   it("is null with no cadence configured — nothing to measure against", () => {
     const noCadence = { draw_due_type: null, draw_due_day: null };
     expect(wasDrawSubmittedOnTime(noCadence, "2026-09-25")).toBeNull();
+  });
+});
+
+describe("isDrawCycleSatisfied", () => {
+  const project = { draw_due_type: "day_of_month" as const, draw_due_day: 7 };
+  const referenceDate = new Date(2026, 8, 8); // Sep 8
+
+  it("is true once a non-draft draw lands in the current cycle", () => {
+    const draws = [
+      { period_end: "2026-09-01", date_submitted: null, created_at: "2026-09-01T00:00:00Z", status: "submitted" as const },
+    ];
+    expect(isDrawCycleSatisfied(project, draws, referenceDate)).toBe(true);
+  });
+
+  it("is false when the only draw for this cycle is still a draft", () => {
+    const draws = [
+      { period_end: "2026-09-01", date_submitted: "2026-09-01", created_at: "2026-09-01T00:00:00Z", status: "draft" as const },
+    ];
+    expect(isDrawCycleSatisfied(project, draws, referenceDate)).toBe(false);
+  });
+
+  it("is false with no covering draw at all", () => {
+    expect(isDrawCycleSatisfied(project, [], referenceDate)).toBe(false);
+  });
+
+  it("is false with no cadence configured", () => {
+    const noCadence = { draw_due_type: null, draw_due_day: null };
+    const draws = [
+      { period_end: "2026-09-01", date_submitted: null, created_at: "2026-09-01T00:00:00Z", status: "submitted" as const },
+    ];
+    expect(isDrawCycleSatisfied(noCadence, draws, referenceDate)).toBe(false);
   });
 });

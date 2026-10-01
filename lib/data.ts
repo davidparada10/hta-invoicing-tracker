@@ -10,7 +10,13 @@ import {
   buildProjectBillingBreakdown,
   buildShortPaymentSummary,
 } from "@/lib/billing";
-import { drawDueLabel, isDrawOverdue, isDrawUrgent } from "@/lib/drawSchedule";
+import {
+  daysUntilDrawDue,
+  drawDueLabel,
+  isDrawCycleSatisfied,
+  isDrawOverdue,
+  isDrawUrgent,
+} from "@/lib/drawSchedule";
 import { MIN_MEANINGFUL_OPEN_BALANCE } from "@/lib/aging";
 
 export { MIN_MEANINGFUL_OPEN_BALANCE };
@@ -449,6 +455,10 @@ export async function getDashboardData(): Promise<{
     // just net.
     const balanceToComplete = totalBudget - totalPaidToOwner - totalOpenToOwner - totalDrawRetainage;
 
+    const drawOverdue = project.status === "active" && isDrawOverdue(project, projectDraws, now);
+    const drawCycleSatisfied =
+      project.status === "active" && isDrawCycleSatisfied(project, projectDraws, now);
+
     return {
       project,
       totalRequested,
@@ -462,9 +472,13 @@ export async function getDashboardData(): Promise<{
       balanceToComplete,
       // A closed project shouldn't keep nagging about a cadence set while it
       // was still active — no more draws are expected from it.
-      isDrawOverdue: project.status === "active" && isDrawOverdue(project, projectDraws, now),
+      isDrawOverdue: drawOverdue,
       isDrawUrgent: project.status === "active" && isDrawUrgent(project, projectDraws, now),
       nextDrawLabel: project.status === "active" ? drawDueLabel(project, now) : null,
+      drawOverdueDays: drawOverdue ? Math.abs(daysUntilDrawDue(project, now) ?? 0) : null,
+      drawCycleSatisfiedLabel: drawCycleSatisfied
+        ? `${now.toLocaleDateString("en-US", { month: "long" })} submitted`
+        : null,
     };
   });
 

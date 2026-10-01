@@ -218,7 +218,7 @@ export default function WorkflowPage() {
             { icon: "🗄️", title: "inv_projects", detail: "draw_due_type / draw_due_day (null = no cadence) · draw_skip_month silences one calendar month", category: "data", edgeLabel: "read every load" },
             { icon: "⚡", title: "lib/drawSchedule.ts", detail: "Resolves this cycle's real due date; a weekend day-of-month rolls back to the prior Friday; pure, no stored date", category: "server", edgeLabel: "checks" },
             { icon: "❓", title: "Draw actually submitted for this cycle?", detail: "Matched by the draw's period_end/date_submitted (not when the record was created); a draft alone doesn't count", category: "decision", edgeLabel: "no, due soon" },
-            { icon: "🔔", title: "Alert banner + Next Draw column", detail: "Amber from 5 days out, through overdue; clears active-only", category: "output", edgeLabel: "also feeds" },
+            { icon: "🔔", title: "Alert banner + Next Draw column", detail: "Amber from 5 days out, through overdue (shown as days-overdue once past due); once a draw actually lands in the cycle, reads \"{Month} submitted\" instead; clears active-only", category: "output", edgeLabel: "also feeds" },
             { icon: "🤖", title: "getDrawScheduleStatus", detail: "Same status folded into the AI assistant's 'what needs work' answers", category: "ai" },
           ]}
         />
