@@ -237,7 +237,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                     <DesktopProjectRow key={r.project.id} r={r} showStatus={showStatusColumn} />
                   ))}
                 {group.developer && group.rows.length > 1 && (
-                  <tr className="border-t-2 border-border font-semibold">
+                  <tr className={`font-semibold ${isExpanded ? "border-t-2 border-border" : ""}`}>
                     <td className="px-4 py-2 sticky left-0 z-10 bg-card text-foreground">
                       {group.developer} total ({group.rows.length})
                     </td>
