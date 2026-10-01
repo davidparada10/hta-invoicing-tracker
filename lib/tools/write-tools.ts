@@ -3,6 +3,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getLiveDraw, normalizeDrawSaveError, remainingBalanceForDraw } from "@/lib/data";
+import { businessTodayISO } from "@/lib/format";
 import { resolveProject } from "./shared";
 
 export const createDrawTool = tool({
@@ -84,7 +85,7 @@ export const markDrawPaidTool = tool({
       .update({
         status: "paid",
         amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
-        date_paid: datePaid || new Date().toISOString().slice(0, 10),
+        date_paid: datePaid || businessTodayISO(),
       })
       .eq("id", draw.id)
       .is("deleted_at", null)
@@ -149,7 +150,7 @@ export const updateDrawTool = tool({
         payload.amount_approved = draw.amount_requested;
       }
       if (payload.date_approved === undefined && !draw.date_approved) {
-        payload.date_approved = new Date().toISOString().slice(0, 10);
+        payload.date_approved = businessTodayISO();
       }
     }
 

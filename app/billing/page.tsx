@@ -9,7 +9,7 @@ import {
   MIN_MEANINGFUL_OPEN_BALANCE,
 } from "@/lib/data";
 import { currentQuarter } from "@/lib/billing";
-import { formatCurrency, formatDaysToPay } from "@/lib/format";
+import { businessToday, formatCurrency, formatDaysToPay } from "@/lib/format";
 import ExportCsvButton from "@/components/ExportCsvButton";
 import BillingBreakdownTable from "@/components/BillingBreakdownTable";
 import Link from "next/link";
@@ -29,7 +29,7 @@ export default async function BillingPage(
   }
 ) {
   const searchParams = await props.searchParams;
-  const now = new Date();
+  const now = businessToday();
   const thisYear = now.getFullYear();
   const year = Number(searchParams.year) || thisYear;
   const isCurrentYear = year === thisYear;

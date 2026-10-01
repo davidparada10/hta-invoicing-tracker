@@ -18,6 +18,7 @@ import {
   isDrawUrgent,
 } from "@/lib/drawSchedule";
 import { MIN_MEANINGFUL_OPEN_BALANCE } from "@/lib/aging";
+import { businessToday } from "@/lib/format";
 
 export { MIN_MEANINGFUL_OPEN_BALANCE };
 
@@ -421,7 +422,7 @@ export async function getDashboardData(): Promise<{
   ]);
   const excludedMap = excludedAllocationByDraw(allocationRows, budgetLines);
 
-  const now = new Date();
+  const now = businessToday();
   const rollups: ProjectRollup[] = projects.map((project) => {
     const projectDraws = withExcludedAllocated(
       draws.filter((d) => d.project_id === project.id),

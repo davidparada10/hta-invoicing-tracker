@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { formatCurrency, formatCurrencyRounded, formatDate, parseLocalDate } from "@/lib/format";
+import {
+  businessToday,
+  businessTodayISO,
+  formatCurrency,
+  formatCurrencyRounded,
+  formatDate,
+  parseLocalDate,
+} from "@/lib/format";
 
 describe("parseLocalDate", () => {
   // Regression test: this exact bug (plain `new Date("YYYY-MM-DD")` parses
@@ -61,5 +68,31 @@ describe("formatCurrencyRounded", () => {
   it("treats null/undefined as zero", () => {
     expect(formatCurrencyRounded(null)).toBe("$0");
     expect(formatCurrencyRounded(undefined)).toBe("$0");
+  });
+});
+
+describe("businessTodayISO / businessToday", () => {
+  // Regression test for a real production incident: a draw marked
+  // submitted at ~6pm Pacific on Sep 30 was stamped date_submitted =
+  // "2026-10-01" because the server (UTC) had already rolled to October,
+  // several hours before it actually was October in HTA's own timezone.
+  it("reads the Pacific calendar date, not the UTC one, for an evening Pacific instant", () => {
+    // 2026-10-01T01:00:00Z = 2026-09-30 18:00 PDT (UTC-7) — already
+    // "tomorrow" in UTC, still "today" on the US west coast.
+    const eveningPacific = new Date("2026-10-01T01:00:00Z");
+    expect(businessTodayISO(eveningPacific)).toBe("2026-09-30");
+  });
+
+  it("agrees with the UTC date once it's actually morning in the US", () => {
+    const morningPacific = new Date("2026-09-30T15:00:00Z"); // 8am PDT
+    expect(businessTodayISO(morningPacific)).toBe("2026-09-30");
+  });
+
+  it("businessToday returns a local-midnight Date for the same calendar day", () => {
+    const eveningPacific = new Date("2026-10-01T01:00:00Z");
+    const d = businessToday(eveningPacific);
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(8); // September
+    expect(d.getDate()).toBe(30);
   });
 });

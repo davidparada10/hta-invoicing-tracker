@@ -3,7 +3,7 @@
 // reusable and independently testable.
 
 import { daysOpen } from "@/lib/aging";
-import { parseLocalDate } from "@/lib/format";
+import { businessToday, parseLocalDate } from "@/lib/format";
 import { billedDate as resolveBilledDate, paidDate as resolvePaidDate } from "@/lib/billingDates";
 import { DrawDueType } from "@/lib/types";
 import { wasDrawSubmittedOnTime } from "@/lib/drawSchedule";
@@ -75,7 +75,7 @@ function yearAndQuarterOf(dateISO: string): { year: number; quarter: 1 | 2 | 3 |
   return { year: d.getFullYear(), quarter: (Math.floor(d.getMonth() / 3) + 1) as 1 | 2 | 3 | 4 };
 }
 
-export function currentQuarter(now: Date = new Date()): 1 | 2 | 3 | 4 {
+export function currentQuarter(now: Date = businessToday()): 1 | 2 | 3 | 4 {
   return (Math.floor(now.getMonth() / 3) + 1) as 1 | 2 | 3 | 4;
 }
 

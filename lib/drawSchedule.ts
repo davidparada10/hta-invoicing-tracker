@@ -24,6 +24,7 @@
 // back to created_at for the rare row with neither date at all.
 
 import { DrawDueType, Project, OwnerDraw } from "@/lib/types";
+import { businessToday } from "@/lib/format";
 
 // draw_skip_month is optional here (not a strict Pick) so every existing
 // caller that doesn't know about it yet keeps compiling — treated as "no
@@ -80,7 +81,7 @@ function addDays(d: Date, n: number): Date {
 /** This cycle's (current calendar month) draw due date, or null with no fixed cadence. */
 export function getDrawDueDate(
   project: ScheduleFields,
-  referenceDate: Date = new Date()
+  referenceDate: Date = businessToday()
 ): Date | null {
   if (!project.draw_due_type || project.draw_due_day == null) return null;
   const year = referenceDate.getFullYear();
@@ -101,7 +102,7 @@ export function getDrawDueDate(
  */
 export function drawDueLabel(
   project: ScheduleFields,
-  referenceDate: Date = new Date()
+  referenceDate: Date = businessToday()
 ): string | null {
   const dueDate = getDrawDueDate(project, referenceDate);
   if (!dueDate) return null;
@@ -205,7 +206,7 @@ function hasDrawForCycle(
 export function isDrawCycleSatisfied(
   project: ScheduleFields,
   projectDraws: CycleFields[],
-  referenceDate: Date = new Date()
+  referenceDate: Date = businessToday()
 ): boolean {
   if (!project.draw_due_type || project.draw_due_day == null) return false;
   return hasDrawForCycle(project, projectDraws, referenceDate);
@@ -214,7 +215,7 @@ export function isDrawCycleSatisfied(
 /** Days until this cycle's due date (negative once past it), or null with no cadence. */
 export function daysUntilDrawDue(
   project: ScheduleFields,
-  referenceDate: Date = new Date()
+  referenceDate: Date = businessToday()
 ): number | null {
   const dueDate = getDrawDueDate(project, referenceDate);
   if (!dueDate) return null;
@@ -233,7 +234,7 @@ export function daysUntilDrawDue(
 export function isDrawOverdue(
   project: ScheduleFields,
   projectDraws: CycleFields[],
-  referenceDate: Date = new Date()
+  referenceDate: Date = businessToday()
 ): boolean {
   if (isSkippedCycle(project, referenceDate)) return false;
   const daysUntil = daysUntilDrawDue(project, referenceDate);
@@ -251,7 +252,7 @@ export function isDrawOverdue(
 export function isDrawUrgent(
   project: ScheduleFields,
   projectDraws: CycleFields[],
-  referenceDate: Date = new Date(),
+  referenceDate: Date = businessToday(),
   warnDaysBefore: number = 5
 ): boolean {
   if (isSkippedCycle(project, referenceDate)) return false;

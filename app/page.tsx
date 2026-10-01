@@ -2,7 +2,7 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import { getBillingReport, getDashboardData, getOpenDraws } from "@/lib/data";
 import { daysOpen } from "@/lib/aging";
-import { formatCurrency } from "@/lib/format";
+import { businessToday, formatCurrency } from "@/lib/format";
 import DashboardTable from "@/components/DashboardTable";
 import OpenDrawsSection from "@/components/OpenDrawsSection";
 import AddProjectModal from "@/components/AddProjectModal";
@@ -18,7 +18,7 @@ export default async function DashboardPage(
   }
 ) {
   const searchParams = await props.searchParams;
-  const currentYear = new Date().getFullYear();
+  const currentYear = businessToday().getFullYear();
   const [{ rollups, totals }, openDraws, billingYtd] = await Promise.all([
     getDashboardData(),
     getOpenDraws(),

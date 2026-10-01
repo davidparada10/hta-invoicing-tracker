@@ -15,7 +15,7 @@ import {
   openBalance,
 } from "@/lib/data";
 import { AGING_BUCKETS, agingBucket, daysOpen } from "@/lib/aging";
-import { parseLocalDate } from "@/lib/format";
+import { businessToday, businessTodayISO, parseLocalDate } from "@/lib/format";
 import { resolveProject } from "./shared";
 import { OwnerDraw } from "@/lib/types";
 
@@ -85,7 +85,7 @@ export const getRecentPaymentsTool = tool({
       ),
   }),
   execute: async ({ date }) => {
-    const targetDate = date ?? new Date().toISOString().slice(0, 10);
+    const targetDate = date ?? businessTodayISO();
     const [draws, projects] = await Promise.all([getAllDraws(), getProjects()]);
     const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
 
@@ -140,7 +140,7 @@ export const getBillingSummaryTool = tool({
     year: z.number().int().optional().describe("Calendar year, e.g. 2026. Defaults to the current year."),
   }),
   execute: async ({ year }) => {
-    const targetYear = year ?? new Date().getFullYear();
+    const targetYear = year ?? businessToday().getFullYear();
     const [report, byProject, dashboard] = await Promise.all([
       getBillingReport(targetYear),
       getProjectBillingBreakdown(targetYear),

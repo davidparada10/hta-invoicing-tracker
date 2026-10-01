@@ -20,6 +20,7 @@ import {
 } from "@/lib/g702-parser";
 import { isLenderPortalPdfText, parseLenderDrawFromPdf } from "@/lib/lender-portal-parser";
 import { diffAllocations } from "@/lib/drawAllocations";
+import { businessTodayISO } from "@/lib/format";
 
 function normalizeMatchKey(s: string): string {
   return s
@@ -299,7 +300,7 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
       // quick status dropdown (updateDrawStatus) — but only when the date
       // field wasn't itself deliberately edited in this save, so a real
       // backdated submission date typed here is still respected.
-      const today = new Date().toISOString().slice(0, 10);
+      const today = businessTodayISO();
       if (
         payload.status === "submitted" &&
         existing.status !== "submitted" &&
@@ -391,7 +392,7 @@ export async function markDrawPaid(
       .update({
         status: "paid",
         amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
-        date_paid: datePaid || new Date().toISOString().slice(0, 10),
+        date_paid: datePaid || businessTodayISO(),
       })
       .eq("id", id)
       .is("deleted_at", null)
@@ -414,7 +415,7 @@ export async function updateDrawStatus(
 ): Promise<{ error?: string }> {
   try {
     const supabase = createServerSupabaseClient();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = businessTodayISO();
 
     const draw = await getLiveDraw(supabase, { id });
     if (!draw || draw.project_id !== projectId) {

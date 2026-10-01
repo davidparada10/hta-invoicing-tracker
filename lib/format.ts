@@ -49,3 +49,27 @@ export function formatDaysToPay(days: number | null | undefined): string {
   if (days == null) return "—";
   return `${days} day${days === 1 ? "" : "s"}`;
 }
+
+// HTA's own business timezone — draw cadences, "today" stamps, and
+// aging/billing year/quarter boundaries all need to agree on HTA's actual
+// wall-clock date. The server process's own timezone can't be trusted for
+// this: Vercel's Node runtime defaults to UTC, which is already "tomorrow"
+// for several hours every Pacific evening — confirmed live: a draw marked
+// submitted at 6pm PT on Sep 30 got stamped date_submitted = 2026-10-01
+// because `new Date().toISOString()` read the UTC calendar date instead.
+const BUSINESS_TIMEZONE = "America/Los_Angeles";
+
+/** "YYYY-MM-DD" for the given instant (default: now) in HTA's own timezone. */
+export function businessTodayISO(instant: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instant);
+}
+
+/** Local-midnight Date for the given instant's business-timezone calendar day. */
+export function businessToday(instant: Date = new Date()): Date {
+  return parseLocalDate(businessTodayISO(instant));
+}
