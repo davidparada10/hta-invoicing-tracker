@@ -27,8 +27,21 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
   const [groupByDeveloper, setGroupByDeveloper] = useState(true);
+  // Every developer group starts collapsed — this tracks which ones have
+  // been explicitly expanded, by developer name, so each toggles
+  // independently and clicking several opens all of them at once.
+  const [expandedDevelopers, setExpandedDevelopers] = useState<Set<string>>(new Set());
   const showStatusColumn = statusFilter === "all";
   const columnCount = showStatusColumn ? 7 : 6;
+
+  function toggleExpanded(developer: string) {
+    setExpandedDevelopers((prev) => {
+      const next = new Set(prev);
+      if (next.has(developer)) next.delete(developer);
+      else next.add(developer);
+      return next;
+    });
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -106,30 +119,29 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
 
       {/* Mobile: one card per project — avoids horizontal scrolling through 6 columns */}
       <div className="sm:hidden space-y-4">
-        {groups.map((group, i) => (
+        {groups.map((group, i) => {
+          const isExpanded = !group.developer || expandedDevelopers.has(group.developer);
+          return (
           <div key={group.developer ?? "all"} className={i > 0 ? "pt-6 mt-2 border-t-2 border-divider-strong" : undefined}>
             {group.developer && (
-              <p className="text-sm font-semibold text-foreground mb-2">
-                {group.developer !== UNASSIGNED_GROUP ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearch(group.developer!)}
-                    className="hover:underline"
-                    title={`Show only ${group.developer}`}
-                  >
-                    {group.developer}
-                  </button>
-                ) : (
-                  group.developer
-                )}
+              <button
+                type="button"
+                onClick={() => toggleExpanded(group.developer!)}
+                className="flex w-full items-center gap-1.5 text-sm font-semibold text-foreground py-1.5 mb-1 rounded-md active:bg-muted"
+                aria-expanded={isExpanded}
+              >
+                <ChevronIcon expanded={isExpanded} />
+                {group.developer}
                 <span className="text-muted-foreground font-normal"> · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}</span>
-              </p>
+              </button>
             )}
-            <div className="space-y-3">
-              {group.rows.map((r) => (
-                <MobileProjectCard key={r.project.id} r={r} showStatus={showStatusColumn} />
-              ))}
-            </div>
+            {isExpanded && (
+              <div className="space-y-3">
+                {group.rows.map((r) => (
+                  <MobileProjectCard key={r.project.id} r={r} showStatus={showStatusColumn} />
+                ))}
+              </div>
+            )}
             {group.developer && group.rows.length > 1 && (
               <div className="rounded-xl border border-border bg-card border-t-2 p-4 mt-3">
                 <p className="text-xs font-semibold text-foreground mb-2">
@@ -165,7 +177,8 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
         {filtered.length === 0 && (
           <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
             No {statusFilter === "active" && !search.trim() ? "active " : ""}projects found.
@@ -173,75 +186,56 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
         )}
       </div>
 
-      {/* Desktop/tablet: full table. overflow-auto (not just overflow-x) is
-          deliberate — CSS computes overflow-y to "auto" the moment
-          overflow-x isn't "visible" regardless, which silently makes this
-          div (not the window) the positioning context for the sticky
-          header below; without a bounded height here, that context never
-          actually scrolls, so the header doesn't stick. Bounding it makes
-          this one div the real scroll region for the table, for both axes. */}
-      <div className="hidden sm:block overflow-auto max-h-[75vh] rounded-xl border border-border bg-card">
+      {/* Desktop/tablet: full table. A genuinely sticky header here would
+          require either a bounded, independently-scrolling region (its own
+          scrollbar, which reads as an odd nested-scroll affordance on this
+          page) or a JS-synced floating header — not worth either tradeoff
+          for this table, so the header scrolls with the page like the rest
+          of it, same as before. */}
+      <div className="hidden sm:block overflow-x-auto rounded-xl border border-border bg-card">
         <table className="min-w-full text-sm">
           <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2 sticky top-0 left-0 z-30 bg-muted border-b border-border">
-                Project
-              </th>
-              <th className="text-right px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
-                Currently Invoiced
-              </th>
-              <th className="text-right px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
-                Paid to Date
-              </th>
-              <th className="text-right px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
-                Contract Value
-              </th>
-              <th className="text-right px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
-                Balance to Complete
-              </th>
-              <th className="text-left px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
-                Next Draw
-              </th>
-              {showStatusColumn && (
-                <th className="text-left px-4 py-2 sticky top-0 z-20 bg-muted border-b border-border">
-                  Status
-                </th>
-              )}
+              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Project</th>
+              <th className="text-right px-4 py-2">Currently Invoiced</th>
+              <th className="text-right px-4 py-2">Paid to Date</th>
+              <th className="text-right px-4 py-2">Contract Value</th>
+              <th className="text-right px-4 py-2">Balance to Complete</th>
+              <th className="text-left px-4 py-2">Next Draw</th>
+              {showStatusColumn && <th className="text-left px-4 py-2">Status</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {groups.map((group, i) => (
+            {groups.map((group, i) => {
+              const isExpanded = !group.developer || expandedDevelopers.has(group.developer);
+              return (
               <Fragment key={group.developer ?? "all"}>
                 {group.developer && (
                   <tr>
                     <td
                       colSpan={columnCount}
-                      className={`px-4 pb-1.5 text-sm font-semibold text-foreground bg-card ${
-                        i > 0 ? "pt-6 border-t-2 border-divider-strong" : "pt-4"
-                      }`}
+                      className={`bg-card ${i > 0 ? "pt-6 border-t-2 border-divider-strong" : "pt-4"}`}
                     >
-                      {group.developer !== UNASSIGNED_GROUP ? (
-                        <button
-                          type="button"
-                          onClick={() => setSearch(group.developer!)}
-                          className="hover:underline"
-                          title={`Show only ${group.developer}`}
-                        >
-                          {group.developer}
-                        </button>
-                      ) : (
-                        group.developer
-                      )}
-                      <span className="text-muted-foreground font-normal">
-                        {" "}
-                        · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(group.developer!)}
+                        className="flex w-full items-center gap-1.5 px-4 pb-1.5 text-sm font-semibold text-foreground hover:bg-muted rounded-sm"
+                        aria-expanded={isExpanded}
+                      >
+                        <ChevronIcon expanded={isExpanded} />
+                        {group.developer}
+                        <span className="text-muted-foreground font-normal">
+                          {" "}
+                          · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}
+                        </span>
+                      </button>
                     </td>
                   </tr>
                 )}
-                {group.rows.map((r) => (
-                  <DesktopProjectRow key={r.project.id} r={r} showStatus={showStatusColumn} />
-                ))}
+                {isExpanded &&
+                  group.rows.map((r) => (
+                    <DesktopProjectRow key={r.project.id} r={r} showStatus={showStatusColumn} />
+                  ))}
                 {group.developer && group.rows.length > 1 && (
                   <tr className="border-t-2 border-border font-semibold">
                     <td className="px-4 py-2 sticky left-0 z-10 bg-card text-foreground">
@@ -271,7 +265,8 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                   </tr>
                 )}
               </Fragment>
-            ))}
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={columnCount} className="px-4 py-6 text-center text-muted-foreground">
@@ -283,6 +278,22 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
         </table>
       </div>
     </div>
+  );
+}
+
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={`shrink-0 text-muted-foreground transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
+    >
+      <path d="M4 2l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
