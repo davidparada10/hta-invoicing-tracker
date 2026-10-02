@@ -134,6 +134,28 @@ describe("markDrawPaid — same invariants, exercised as the actual mutation fun
     expect(tables.inv_owner_draws[0].amount_paid).toBe(100000);
     expect(tables.inv_owner_draws[0].status).toBe("paid");
   });
+
+  // Regression: 18 production draws were found paid with amount_approved = 0
+  // because a draw moved straight to paid never passed through "approved".
+  it("defaults amount_approved to requested when the draw was never approved", async () => {
+    tables.inv_owner_draws.push(
+      draw({ id: "d1", project_id: "proj-A", amount_requested: 100000, amount_approved: 0, status: "submitted" })
+    );
+
+    await markDrawPaid("d1", "proj-A");
+
+    expect(tables.inv_owner_draws[0].amount_approved).toBe(100000);
+  });
+
+  it("leaves an existing approved amount alone (a partial approval stays a partial approval)", async () => {
+    tables.inv_owner_draws.push(
+      draw({ id: "d1", project_id: "proj-A", amount_requested: 100000, amount_approved: 90000 })
+    );
+
+    await markDrawPaid("d1", "proj-A");
+
+    expect(tables.inv_owner_draws[0].amount_approved).toBe(90000);
+  });
 });
 
 describe("updateDrawStatus — same invariants, exercised as the actual mutation function", () => {
@@ -159,5 +181,25 @@ describe("updateDrawStatus — same invariants, exercised as the actual mutation
 
     expect(result.error).toBeUndefined();
     expect(tables.inv_owner_draws[0].amount_paid).toBe(80000);
+  });
+
+  it("marking paid straight from submitted defaults amount_approved to requested", async () => {
+    tables.inv_owner_draws.push(
+      draw({ id: "d1", project_id: "proj-A", amount_requested: 100000, amount_approved: 0, status: "submitted" })
+    );
+
+    await updateDrawStatus("d1", "proj-A", "paid");
+
+    expect(tables.inv_owner_draws[0].amount_approved).toBe(100000);
+  });
+
+  it("marking paid leaves an existing approved amount alone", async () => {
+    tables.inv_owner_draws.push(
+      draw({ id: "d1", project_id: "proj-A", amount_requested: 100000, amount_approved: 90000, status: "approved" })
+    );
+
+    await updateDrawStatus("d1", "proj-A", "paid");
+
+    expect(tables.inv_owner_draws[0].amount_approved).toBe(90000);
   });
 });

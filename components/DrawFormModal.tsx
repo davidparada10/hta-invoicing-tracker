@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
-import { formatCurrency } from "@/lib/format";
+import { businessTodayISO, formatCurrency } from "@/lib/format";
 import Modal from "@/components/Modal";
 import { ParsedG702Upload, parseG702Upload, upsertDraw } from "@/app/draws/actions";
 import { applyParsedAllocations, LineAmounts } from "@/lib/drawAllocations";
@@ -280,7 +280,9 @@ export default function DrawFormModal({
         ...v,
         status,
         amount_paid: v.amount_requested,
-        date_paid: v.date_paid || new Date().toISOString().slice(0, 10),
+        // Same defaulting the server applies when a draw is marked paid.
+        amount_approved: (Number(v.amount_approved) || 0) > 0 ? v.amount_approved : v.amount_requested,
+        date_paid: v.date_paid || businessTodayISO(),
       };
     });
   }

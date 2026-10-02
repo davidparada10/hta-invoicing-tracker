@@ -86,6 +86,7 @@ export const markDrawPaidTool = tool({
         status: "paid",
         amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
         date_paid: datePaid || businessTodayISO(),
+        ...(Number(draw.amount_approved) > 0 ? {} : { amount_approved: draw.amount_requested }),
       })
       .eq("id", draw.id)
       .is("deleted_at", null)

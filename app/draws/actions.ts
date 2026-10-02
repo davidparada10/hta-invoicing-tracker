@@ -411,6 +411,10 @@ export async function markDrawPaid(
         status: "paid",
         amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
         date_paid: datePaid || businessTodayISO(),
+        // A draw can jump to paid without ever passing through "approved"
+        // — default the approved amount the same way that transition does,
+        // so paid draws never sit at amount_approved = 0.
+        ...(Number(draw.amount_approved) > 0 ? {} : { amount_approved: draw.amount_requested }),
       })
       .eq("id", id)
       .is("deleted_at", null)
@@ -461,6 +465,9 @@ export async function updateDrawStatus(
         payload.amount_paid = Math.max(0, (draw.amount_requested ?? 0) - excludedAllocated);
       }
       if (draw.status !== "paid") payload.date_paid = today;
+      // Same defaulting as the approved transition — a draw moved straight
+      // to paid never passes through it.
+      if (!(Number(draw.amount_approved) > 0)) payload.amount_approved = draw.amount_requested;
     }
     if (status === "approved" && draw.status !== "approved" && draw.status !== "paid") {
       payload.date_approved = today;

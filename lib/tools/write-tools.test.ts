@@ -107,6 +107,20 @@ describe("markDrawPaidTool / updateDrawTool — same project-ownership and delet
     expect(tables.inv_owner_draws[0].amount_paid).toBe(80000);
   });
 
+  it("markDrawPaidTool defaults amount_approved to requested when the draw was never approved", async () => {
+    tables.inv_projects.push(project({ id: "proj-A", name: "Project A" }));
+    tables.inv_owner_draws.push(
+      draw({ id: "d1", project_id: "proj-A", draw_number: 1, amount_requested: 100000, amount_approved: 0, status: "submitted" })
+    );
+
+    await markDrawPaidTool.execute!(
+      { projectName: "Project A", drawNumber: 1 },
+      { toolCallId: "t1", messages: [], context: undefined as never }
+    );
+
+    expect(tables.inv_owner_draws[0].amount_approved).toBe(100000);
+  });
+
   it("updateDrawTool rejects updates to a draw number that belongs to a different project", async () => {
     tables.inv_projects.push(project({ id: "proj-A", name: "Project A" }));
     tables.inv_owner_draws.push(draw({ id: "d1", project_id: "proj-B", draw_number: 1 }));
