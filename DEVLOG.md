@@ -12,6 +12,43 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-10-01 (8:49 PM–9:19 PM, 3 commits)
+- Fixed five reviewed gaps locally: (1) draw-form uploads now **replace**
+  allocations on a successful parse by default instead of silently merging
+  on top of the old set (a line dropped from a revised document used to
+  keep its stale dollar amount forever) — merge is an explicit checkbox,
+  and unmatched source rows get a review panel (Apply/Discard) instead of
+  vanishing with no trace. (2) Retention inference from prior draws is now
+  an Apply/Dismiss suggestion, not a silent override — the raw G702
+  retainage figure is never auto-applied either, since the document alone
+  can't say whether it's cumulative or incremental; a new "Document total
+  − held to date" mode makes that call explicit, and Save now prompts for
+  confirmation if retention hasn't been reviewed since the upload. (3)
+  Dashboard search now auto-expands any developer group it matches into
+  instead of leaving a match hidden inside a collapsed group — clears back
+  to whatever was manually expanded once the search is cleared. (4)
+  `lib/aging.ts`'s day-count divided raw milliseconds by 24h, which
+  undercounts a span crossing a DST transition in the runtime's own
+  timezone (real for local dev in `America/Los_Angeles`) — replaced with
+  UTC-anchored calendar-date arithmetic, which fixes three downstream call
+  sites for free since they already route through it.
+- The fifth gap — `amount_paid` accumulates but `date_paid` is a flat
+  overwrite, so a draw paid $30k in September and $20k in October reports
+  the full $50k in October everywhere `date_paid` is read — got a full
+  payment-history model (`lib/paymentHistory.ts`, unit-tested against
+  synthetic fixtures) and a migration proposal
+  (`supabase/migrations/20261001120000_add_draw_payments.sql`, **not
+  applied**), but is deliberately left unwired from the live write/report
+  paths: switching it over needs the real migration run and a production
+  backfill first, and a partial switch would make reports inconsistent
+  between draws. Exact follow-up call sites are listed in the migration
+  file's header.
+- 32 new regression tests (165 total, up from 133), `app/help/page.tsx`
+  updated for the new upload-review and retention-confirm behavior.
+  Typecheck, lint, and build all pass; the DST regression tests were
+  verified under both the default and `TZ=UTC`. No production data
+  touched — confirmed locally only, per the session's own instructions.
+
 ## 2026-09-30 (continued, uncommitted — pending review)
 - Redesigned the dashboard's project table presentation (8 changes, no calculation changes): heavier project-name/currency typography with tabular numerals; secondary address lines simplified to "City · ZIP" (new `lib/address.ts`) only when the project name already echoes the street, else the full address is kept rather than guessed at; stronger developer group headings (`"{developer} · N projects"`) with a real divider between groups and a quieter top-rule subtotal row instead of the old blue-gray fill; the Status column now hides itself in the Active filter (still editable from the project page) and reappears in All; draft amounts moved to their own line; overdue draws now show the due date plus a separate "N days overdue" line, and a cycle that already has a submitted draw reads "{Month} submitted" instead of a bare dash — both via a newly-exported `isDrawCycleSatisfied()` in `lib/drawSchedule.ts`, reusing the existing cycle-matching logic rather than adding new rules; the "+$X retainage" line is now hidden at exactly $0 and reads "Retainage $X" rounded to the dollar (exact cents in a tooltip) instead of an ambiguous leading plus sign; and the desktop table header is now genuinely sticky (needed turning the table's scroll wrapper into one bounded `overflow-auto` region, since `overflow-x-auto` alone silently computes `overflow-y` to `auto` too and breaks `position: sticky` against the window — documented inline).
 - Verified against real production data (not synthetic fixtures) across desktop, iPad portrait/landscape, and mobile, in both themes: Active/All, grouped/ungrouped, search, empty results, a project with an incomplete address, a project whose name doesn't echo its street, draft amounts, zero/nonzero retainage, and overdue/satisfied/upcoming draw states. 17 new regression tests (147 total): `lib/address.test.ts`, `formatCurrencyRounded` in `lib/format.test.ts`, `isDrawCycleSatisfied` in `lib/drawSchedule.test.ts`. Typecheck, lint, full test suite, and build all pass. Not committed, pushed, or deployed yet, per the task.
