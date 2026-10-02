@@ -142,7 +142,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                 ))}
               </div>
             )}
-            {group.developer && group.rows.length > 1 && (
+            {group.developer && (!isExpanded || group.rows.length > 1) && (
               <div className="rounded-xl border border-border bg-card border-t-2 p-4 mt-3">
                 <p className="text-xs font-semibold text-foreground mb-2">
                   {group.developer} total ({group.rows.length})
@@ -210,10 +210,11 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               const isExpanded = !group.developer || expandedDevelopers.has(group.developer);
               return (
               <Fragment key={group.developer ?? "all"}>
-                {group.developer && (!isExpanded && group.rows.length > 1 ? (
-                  // Collapsed with more than one project: fold the heading and
-                  // its totals into a single row instead of a label row sitting
-                  // right above an otherwise-identical totals row.
+                {group.developer && (!isExpanded ? (
+                  // Collapsed: fold the heading and its totals into a single
+                  // row instead of a label row sitting right above an
+                  // otherwise-identical totals row (or, for a one-project
+                  // group, a bare label row with every column blank).
                   <tr className={`bg-card font-semibold ${i > 0 ? "border-t-2 border-divider-strong" : ""}`}>
                     <td className="px-4 py-2 sticky left-0 z-10 bg-card whitespace-nowrap">
                       <button
@@ -226,7 +227,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                         {group.developer}
                         <span className="text-muted-foreground font-normal">
                           {" "}
-                          · {group.rows.length} projects
+                          · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}
                         </span>
                       </button>
                     </td>
