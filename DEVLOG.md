@@ -12,6 +12,10 @@ a commit-by-commit transcript.
 
 ---
 
+## 2026-10-02 (9:20 AM, 1 commit)
+- Closed the loop on the 18-draw `amount_approved = 0` data fix: found the root cause and fixed it in code. A draw moved straight to paid (Mark Paid, the status dropdown, the AI `markDrawPaid` tool, or the manual form's status switch) never passed through "approved", so `amount_approved` stayed at its default 0. All four paths now default it to the requested amount — the same rule the approved transition already used — and never overwrite an existing approved amount, so a genuine partial approval stays partial. 5 new regression tests (170 total).
+- **Still open (data, not applied):** 3751 Delmas - Early Start draws 1 and 2 (closed project, so my original `active`-only bulk fix skipped them) have the same `amount_approved = 0` pattern; the production UPDATE was denied by the auto-mode classifier and is left for review. 1723 Corinth draw 4 is a *different* case (approved $245,306.08 vs. paid $249,018.58 — paid exceeds approved by $3,712.50, no note explaining it) and 14118 Gilmore draws 1-9 are documented fee/write-off gaps — deliberately not touched.
+
 ## 2026-10-01 (8:49 PM–9:19 PM, 3 commits)
 - Fixed five reviewed gaps locally: (1) draw-form uploads now **replace**
   allocations on a successful parse by default instead of silently merging
