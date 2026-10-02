@@ -4,8 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
 import { formatCurrency } from "@/lib/format";
 import Modal from "@/components/Modal";
-import { parseG702Upload, upsertDraw } from "@/app/draws/actions";
-import { computeRetentionRelease, inferRetentionRate, isImplausibleRetainage } from "@/lib/retentionRelease";
+import { ParsedG702Upload, parseG702Upload, upsertDraw } from "@/app/draws/actions";
+import { applyParsedAllocations, LineAmounts } from "@/lib/drawAllocations";
+import {
+  computeDocumentCumulativeRetention,
+  computeRetentionRelease,
+  inferRetentionRate,
+  isImplausibleRetainage,
+} from "@/lib/retentionRelease";
+
+type RetentionMode = "manual" | "0" | "5" | "10" | "release" | "document_cumulative";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
 const MAX_G702_UPLOAD_BYTES = 20 * 1024 * 1024; // keep in sync with app/draws/actions.ts
@@ -91,12 +99,28 @@ export default function DrawFormModal({
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsedFileName, setParsedFileName] = useState<string | null>(null);
-  const [parsedAllocationsCount, setParsedAllocationsCount] = useState<number | null>(null);
+  const [noAllocationsInLastParse, setNoAllocationsInLastParse] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
-  const [lineAmounts, setLineAmounts] = useState<Record<string, string>>({});
-  const [retentionMode, setRetentionMode] = useState<"manual" | "0" | "5" | "10" | "release">("manual");
+  const [lineAmounts, setLineAmounts] = useState<LineAmounts>({});
+  const [retentionMode, setRetentionMode] = useState<RetentionMode>("manual");
   const [autoSelectedRetention, setAutoSelectedRetention] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // An upload's parsed allocations wait here for explicit review (replace
+  // vs. merge, any unmatched lines) instead of silently overwriting
+  // lineAmounts — see applyPendingParse/discardPendingParse below.
+  const [pendingParse, setPendingParse] = useState<{
+    parsed: ParsedG702Upload;
+    mode: "replace" | "merge";
+  } | null>(null);
+  // The raw parsed retainage figure, kept separate from retainage_held so
+  // it stays available for comparison no matter what retentionMode ends up
+  // computing — never written into the form automatically, since whether
+  // it's cumulative-to-date or this draw's own incremental amount can't be
+  // told from the document alone.
+  const [parsedRetainageFromDocument, setParsedRetainageFromDocument] = useState<number | null>(null);
+  const [suggestedRetentionRate, setSuggestedRetentionRate] = useState<"0" | "5" | "10" | null>(null);
+  const [retentionConfirmed, setRetentionConfirmed] = useState(false);
+  const [unmatchedLineCount, setUnmatchedLineCount] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -107,7 +131,12 @@ export default function DrawFormModal({
     setParsing(false);
     setParseError(null);
     setParsedFileName(null);
-    setParsedAllocationsCount(null);
+    setNoAllocationsInLastParse(false);
+    setPendingParse(null);
+    setParsedRetainageFromDocument(null);
+    setSuggestedRetentionRate(null);
+    setRetentionConfirmed(false);
+    setUnmatchedLineCount(0);
   }, [open, editing, allocations]);
 
   const previousByLine = useMemo(() => {
@@ -151,9 +180,19 @@ export default function DrawFormModal({
     [draws, editing]
   );
 
+  // Lines a parse couldn't match, or nothing entered yet post-upload — a %
+  // rate computed against this set would understate the real total, so
+  // that computation is flagged as unreliable rather than trusted silently.
+  const retentionComputationUnreliable =
+    parsedFileName !== null && (unmatchedLineCount > 0 || (budgetLines.length > 0 && allocationsTotal === 0));
+
   const computedRetention = useMemo(() => {
     if (retentionMode === "manual") return null;
     if (retentionMode === "release") return releaseAmount;
+    if (retentionMode === "document_cumulative") {
+      if (parsedRetainageFromDocument === null) return null;
+      return computeDocumentCumulativeRetention(parsedRetainageFromDocument, retentionHeldToDate);
+    }
     const rate = Number(retentionMode) / 100;
     const total = budgetLines.reduce((acc, line) => {
       if (line.retention_exempt) return acc;
@@ -164,15 +203,39 @@ export default function DrawFormModal({
       return acc + (Number(lineAmounts[line.id]) || 0) * lineRate;
     }, 0);
     return Math.round(total * 100) / 100;
-  }, [retentionMode, budgetLines, lineAmounts, releaseAmount]);
+  }, [retentionMode, budgetLines, lineAmounts, releaseAmount, parsedRetainageFromDocument, retentionHeldToDate]);
 
   useEffect(() => {
     if (computedRetention === null) return;
     setFormValues((v) => ({ ...v, retainage_held: String(computedRetention) }));
   }, [computedRetention]);
 
+  // A stale confirmation shouldn't carry forward once the figure it was
+  // given for could have changed — reset whenever the interpretation mode,
+  // the allocations it might be computed from, or the parsed file itself
+  // changes.
+  useEffect(() => {
+    setRetentionConfirmed(false);
+  }, [retentionMode, lineAmounts, parsedFileName]);
+
   async function handleSubmit(formData: FormData) {
     if (isSaving) return;
+    if (pendingParse) {
+      const ok = confirm(
+        `${pendingParse.parsed.allocationsMatched} parsed schedule-of-values line${
+          pendingParse.parsed.allocationsMatched === 1 ? "" : "s"
+        } from ${parsedFileName} ${
+          pendingParse.mode === "replace" ? "haven't replaced" : "haven't been merged into"
+        } this draw's allocations yet — Apply or Discard them above first. Save without applying them?`
+      );
+      if (!ok) return;
+    }
+    if (parsedFileName && !retentionConfirmed) {
+      const ok = confirm(
+        `Retention for this draw (${formatCurrency(retainageHeldAmount)}) hasn't been explicitly confirmed since the upload. Save anyway?`
+      );
+      if (!ok) return;
+    }
     if (allocationMismatch) {
       const diff = allocationsTotal - (requestedAmount + retainageHeldAmount);
       const ok = confirm(
@@ -229,7 +292,11 @@ export default function DrawFormModal({
   async function processFile(file: File) {
     setParseError(null);
     setParsedFileName(null);
-    setParsedAllocationsCount(null);
+    setNoAllocationsInLastParse(false);
+    setPendingParse(null);
+    setParsedRetainageFromDocument(null);
+    setSuggestedRetentionRate(null);
+    setUnmatchedLineCount(0);
 
     if (file.size > MAX_G702_UPLOAD_BYTES) {
       setParseError(
@@ -254,38 +321,35 @@ export default function DrawFormModal({
           parsed.amount_requested !== undefined ? String(parsed.amount_requested) : v.amount_requested,
         amount_approved:
           parsed.amount_approved !== undefined ? String(parsed.amount_approved) : v.amount_approved,
-        retainage_held:
-          parsed.retainage_held !== undefined ? String(parsed.retainage_held) : v.retainage_held,
+        // retainage_held is deliberately NOT auto-filled from the parse —
+        // a G702's "Total Retainage" cell is normally cumulative-to-date
+        // per the AIA form standard, while this app's retainage_held is
+        // incremental (this draw's own withholding), and nothing in the
+        // document itself says which one it is. parsedRetainageFromDocument
+        // below keeps the raw figure visible for comparison; which number
+        // actually lands in this field is now always an explicit choice
+        // via the Retention selector (manual entry, a %, "document total
+        // minus held to date", or release) rather than a guess.
         status: v.status === "draft" ? "submitted" : v.status,
       }));
 
-      if (parsed.allocations.length > 0) {
-        setLineAmounts((prev) => {
-          const next = { ...prev };
-          for (const a of parsed.allocations) {
-            next[a.budget_line_id] = String(a.amount);
-          }
-          return next;
-        });
-        setParsedAllocationsCount(parsed.allocationsMatched);
+      if (parsed.retainage_held !== undefined) {
+        setParsedRetainageFromDocument(parsed.retainage_held);
+      }
 
-        // A G702's "Total Retainage" cell is normally cumulative-to-date per
-        // the AIA form standard, but this app treats retainage_held as
-        // incremental (this draw's own withholding). Rather than trust that
-        // cell, prefer computing retention from the SOV lines above — same
-        // as manual entry, incremental by construction — at whatever rate
-        // this project has actually been withholding on its own posted
-        // history. Only kicks in when the user hasn't already picked a mode
-        // and the history unambiguously agrees on one rate; otherwise the
-        // parsed cell stays in place with the live caution below as a
-        // backstop (see lib/retentionRelease.ts's isImplausibleRetainage).
-        if (retentionMode === "manual") {
-          const inferredRate = inferRetentionRate(draws, editing?.id);
-          if (inferredRate !== null) {
-            setRetentionMode(inferredRate);
-            setAutoSelectedRetention(true);
-          }
-        }
+      if (parsed.allocations.length > 0 || parsed.unmatchedLines.length > 0) {
+        setPendingParse({ parsed, mode: "replace" });
+      } else {
+        setNoAllocationsInLastParse(true);
+      }
+
+      // Inference is now a suggestion, not an automatic switch — see
+      // applySuggestedRetentionRate/dismissSuggestedRetentionRate below.
+      // Only offered when the user hasn't already picked a mode, same as
+      // before.
+      if (retentionMode === "manual") {
+        const inferredRate = inferRetentionRate(draws, editing?.id);
+        if (inferredRate !== null) setSuggestedRetentionRate(inferredRate);
       }
 
       setParsedFileName(file.name);
@@ -294,6 +358,35 @@ export default function DrawFormModal({
     } finally {
       setParsing(false);
     }
+  }
+
+  // Commits a reviewed parse into lineAmounts — the only place a parse
+  // actually changes allocations, per the "surface before replacing"
+  // requirement. Discarding (below) leaves lineAmounts exactly as it was.
+  function applyPendingParse() {
+    if (!pendingParse) return;
+    setLineAmounts((prev) => applyParsedAllocations(prev, pendingParse.parsed.allocations, pendingParse.mode));
+    setUnmatchedLineCount(pendingParse.parsed.unmatchedLines.length);
+    setPendingParse(null);
+  }
+
+  function discardPendingParse() {
+    setPendingParse(null);
+  }
+
+  function setPendingParseMode(mode: "replace" | "merge") {
+    setPendingParse((p) => (p ? { ...p, mode } : p));
+  }
+
+  function applySuggestedRetentionRate() {
+    if (!suggestedRetentionRate) return;
+    setRetentionMode(suggestedRetentionRate);
+    setAutoSelectedRetention(true);
+    setSuggestedRetentionRate(null);
+  }
+
+  function dismissSuggestedRetentionRate() {
+    setSuggestedRetentionRate(null);
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -349,7 +442,8 @@ export default function DrawFormModal({
           {editing && (
             <p className="text-xs text-muted-foreground mb-2">
               Useful if the lender rejected this draw or the amounts changed — this replaces
-              the requested amount, retainage, and dates below with the new file&rsquo;s numbers.
+              the requested amount and dates below with the new file&rsquo;s numbers. Schedule-of-
+              values lines and retention are reviewed below before anything changes.
             </p>
           )}
           <input
@@ -364,19 +458,78 @@ export default function DrawFormModal({
           {parseError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{parseError}</p>}
           {parsedFileName && !parsing && !parseError && (
             <p className="text-xs text-paid mt-1">
-              Auto-filled from {parsedFileName}.
-              {parsedAllocationsCount
-                ? ` Also filled in ${parsedAllocationsCount} schedule-of-values line${
-                    parsedAllocationsCount === 1 ? "" : "s"
-                  } from the G703 sheet.`
-                : ""}{" "}
-              Review the fields below before saving.
+              Auto-filled from {parsedFileName}. Review the fields below before saving.
+            </p>
+          )}
+          {noAllocationsInLastParse && !parsing && (
+            <p className="text-xs text-muted-foreground mt-1">
+              No schedule-of-values lines found in that file — this draw&rsquo;s allocations are unchanged.
+            </p>
+          )}
+          {parsedRetainageFromDocument !== null && !parsing && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Document&rsquo;s raw retainage figure: {formatCurrency(parsedRetainageFromDocument)} — ambiguous
+              (could be cumulative-to-date rather than this draw&rsquo;s own amount). Pick how to interpret it
+              in Retention below; it&rsquo;s never applied automatically.
             </p>
           )}
           {retainageCaution && !parsing && (
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{retainageCaution}</p>
           )}
         </div>
+
+        {pendingParse && (
+          <div className="rounded-lg border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950/40 p-3 text-xs space-y-2">
+            <p className="font-medium text-sky-900 dark:text-sky-100">
+              {pendingParse.parsed.allocationsMatched} schedule-of-values line
+              {pendingParse.parsed.allocationsMatched === 1 ? "" : "s"} parsed from {parsedFileName}
+              {pendingParse.mode === "replace"
+                ? " will replace this draw's current allocations."
+                : " will be merged into this draw's current allocations."}
+            </p>
+            <label className="flex items-center gap-1.5 text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={pendingParse.mode === "merge"}
+                onChange={(e) => setPendingParseMode(e.target.checked ? "merge" : "replace")}
+              />
+              Merge into current allocations instead of replacing them
+            </label>
+            {pendingParse.parsed.unmatchedLines.length > 0 && (
+              <div>
+                <p className="text-amber-700 dark:text-amber-400">
+                  {pendingParse.parsed.unmatchedLines.length} line
+                  {pendingParse.parsed.unmatchedLines.length === 1 ? "" : "s"} couldn&rsquo;t be matched to a
+                  budget line and won&rsquo;t be applied:
+                </p>
+                <ul className="list-disc list-inside text-muted-foreground">
+                  {pendingParse.parsed.unmatchedLines.map((l, i) => (
+                    <li key={i}>
+                      {l.item_number ? `${l.item_number} — ` : ""}
+                      {l.description} ({formatCurrency(l.amount)})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={applyPendingParse}
+                className="rounded bg-primary text-background px-2 py-1 font-medium"
+              >
+                Apply
+              </button>
+              <button
+                type="button"
+                onClick={discardPendingParse}
+                className="rounded border border-border px-2 py-1"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Draw #">
@@ -474,15 +627,65 @@ export default function DrawFormModal({
                   other posted draws.
                 </p>
               )
-            ) : retentionMode !== "manual" ? (
+            ) : retentionMode === "document_cumulative" ? (
               <p className="text-[11px] text-muted-foreground mt-1">
-                Computed from {retentionMode}% retention on the schedule of values below.
-                {autoSelectedRetention &&
-                  " Auto-selected from this project's prior draws, overriding the raw retainage figure parsed from the file, which looked cumulative rather than incremental."}
+                Document total ({formatCurrency(parsedRetainageFromDocument ?? 0)}) minus{" "}
+                {formatCurrency(retentionHeldToDate)} already held on this project&rsquo;s other posted
+                draws.
               </p>
+            ) : retentionMode !== "manual" ? (
+              <>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Computed from {retentionMode}% retention on the schedule of values below.
+                  {autoSelectedRetention &&
+                    " Applied from this project's prior draws' own withholding rate."}
+                </p>
+                {retentionComputationUnreliable && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                    {unmatchedLineCount > 0
+                      ? `${unmatchedLineCount} line${unmatchedLineCount === 1 ? "" : "s"} from the uploaded file couldn't be matched — this computed figure may be short.`
+                      : "No schedule-of-values amounts are entered yet below — this computed figure is $0."}
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-[11px] text-muted-foreground mt-1">
                 Negative releases previously withheld retention (e.g. the final draw).
+              </p>
+            )}
+            {suggestedRetentionRate && (
+              <p className="text-[11px] bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded px-2 py-1 mt-1">
+                <span className="text-sky-900 dark:text-sky-100">
+                  Inferred {suggestedRetentionRate}% retention from this project&rsquo;s prior draws.
+                </span>{" "}
+                <button
+                  type="button"
+                  onClick={applySuggestedRetentionRate}
+                  className="underline font-medium text-sky-900 dark:text-sky-100"
+                >
+                  Apply
+                </button>{" "}
+                <button
+                  type="button"
+                  onClick={dismissSuggestedRetentionRate}
+                  className="underline text-muted-foreground"
+                >
+                  Dismiss
+                </button>
+              </p>
+            )}
+            {parsedFileName && !retentionConfirmed && (
+              <p className="text-[11px] mt-1">
+                <span className="text-amber-700 dark:text-amber-400">
+                  Retention not yet confirmed for this draw.
+                </span>{" "}
+                <button
+                  type="button"
+                  onClick={() => setRetentionConfirmed(true)}
+                  className="underline font-medium text-foreground"
+                >
+                  Confirm {formatCurrency(retainageHeldAmount)}
+                </button>
               </p>
             )}
           </Field>
@@ -547,9 +750,18 @@ export default function DrawFormModal({
                     className="rounded border border-border bg-card px-1.5 py-0.5 text-xs text-foreground"
                   >
                     <option value="manual">Manual</option>
-                    <option value="0">0%</option>
-                    <option value="5">5%</option>
-                    <option value="10">10%</option>
+                    <option value="0" disabled={retentionComputationUnreliable}>
+                      0%
+                    </option>
+                    <option value="5" disabled={retentionComputationUnreliable}>
+                      5%
+                    </option>
+                    <option value="10" disabled={retentionComputationUnreliable}>
+                      10%
+                    </option>
+                    <option value="document_cumulative" disabled={parsedRetainageFromDocument === null}>
+                      Document total − held to date
+                    </option>
                     <option value="release">Release retention</option>
                   </select>
                 </label>

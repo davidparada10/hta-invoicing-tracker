@@ -59,6 +59,19 @@ export function isImplausibleRetainage(retainageHeld: number, amountRequested: n
   return retainageHeld > amountRequested * 0.25;
 }
 
+// A parsed G702's "Total Retainage" cell is normally cumulative-to-date.
+// When the user explicitly confirms that reading (rather than this app's
+// default incremental assumption), this draw's own retainage is the
+// cumulative figure minus whatever's already been withheld on every other
+// posted draw — floored at 0, since a genuine decrease goes through
+// "release" instead, never through this subtraction going negative.
+export function computeDocumentCumulativeRetention(
+  parsedCumulative: number,
+  retentionHeldToDate: number
+): number {
+  return Math.max(0, Math.round((parsedCumulative - retentionHeldToDate) * 100) / 100);
+}
+
 type RateInferenceDraw = Pick<OwnerDraw, "id" | "status" | "amount_requested" | "retainage_held">;
 
 // The rate this project has actually been withholding, inferred from its

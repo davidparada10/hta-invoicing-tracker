@@ -5,6 +5,7 @@ import {
   excludedAllocationByDraw,
   contractValue,
   getLiveDraw,
+  getPaymentsForDraw,
   remainingBalanceForDraw,
   getExcludedAllocatedForDraw,
   MIN_MEANINGFUL_OPEN_BALANCE,
@@ -169,6 +170,30 @@ describe("getLiveDraw", () => {
     });
     const found = await getLiveDraw(supabase, { projectId: "proj-1", drawNumber: 3 });
     expect(found).toBeNull();
+  });
+});
+
+// Not wired into any live call site yet — see lib/paymentHistory.ts and
+// supabase/migrations/20261001120000_add_draw_payments.sql. Exercised here
+// against the same fake Supabase client the rest of this file uses, so the
+// data-access shape is proven correct ahead of that migration running.
+describe("getPaymentsForDraw", () => {
+  it("returns only live payments for the given draw", async () => {
+    const supabase = fakeSupabase({
+      inv_draw_payments: [
+        { id: "p1", draw_id: "d1", amount: 30000, date_received: "2026-09-20", deleted_at: null },
+        { id: "p2", draw_id: "d1", amount: 20000, date_received: "2026-10-05", deleted_at: null },
+        { id: "p3", draw_id: "d1", amount: 999, date_received: "2026-10-06", deleted_at: "2026-10-07T00:00:00Z" },
+        { id: "p4", draw_id: "d2", amount: 500, date_received: "2026-09-01", deleted_at: null },
+      ],
+    });
+    const payments = await getPaymentsForDraw(supabase, "d1");
+    expect(payments.map((p) => p.id).sort()).toEqual(["p1", "p2"]);
+  });
+
+  it("returns an empty array for a draw with no payments", async () => {
+    const supabase = fakeSupabase({ inv_draw_payments: [] });
+    expect(await getPaymentsForDraw(supabase, "d1")).toEqual([]);
   });
 });
 

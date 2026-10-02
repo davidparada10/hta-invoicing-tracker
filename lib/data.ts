@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
+import { DrawPayment } from "@/lib/paymentHistory";
 import {
   BillingReport,
   GroupedBillingRow,
@@ -152,6 +153,24 @@ export async function getAllocationsForProject(projectId: string): Promise<DrawL
       amount: row.amount,
       created_at: row.created_at,
     }));
+}
+
+// Reads the proposed inv_draw_payments table (see
+// supabase/migrations/20261001120000_add_draw_payments.sql) — this table
+// does not exist in production yet, so this is exercised only by
+// lib/data.test.ts's mocked Supabase client, not by any live call site.
+// Scaffolded alongside lib/paymentHistory.ts so the data-access shape is
+// reviewed now, ahead of the migration actually running; not dead code in
+// the usual sense (nothing calls it because nothing *can*, not because it
+// was abandoned) — see the migration file's header for what wiring this in
+// for real would involve.
+export async function getPaymentsForDraw(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  drawId: string
+): Promise<DrawPayment[]> {
+  return fetchAllRows<DrawPayment>(supabase, "inv_draw_payments", "*", (query) =>
+    query.eq("draw_id", drawId).is("deleted_at", null)
+  );
 }
 
 export async function getAllDraws(): Promise<OwnerDraw[]> {

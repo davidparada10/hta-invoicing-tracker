@@ -44,17 +44,31 @@ function buildUniqueMatchMap(pairs: [string, string][]): Map<string, string> {
   return map;
 }
 
+export interface UnmatchedAllocationLine {
+  item_number: string;
+  description: string;
+  amount: number;
+}
+
 export interface ParsedG702Upload extends ParsedG702Draw {
   allocations: { budget_line_id: string; amount: number }[];
   allocationsMatched: number;
   allocationsFound: number;
+  // Source rows that parsed fine but couldn't be matched to any budget
+  // line (ambiguous or no match at all) — surfaced so a review step can
+  // show exactly what got dropped instead of a bare count, per the
+  // "surface unmatched lines before replacing anything" requirement.
+  unmatchedLines: UnmatchedAllocationLine[];
 }
 
 async function matchAllocationsToBudgetLines(
   projectId: string,
   lines: { item_number: string; description: string; amount: number }[]
-): Promise<{ budget_line_id: string; amount: number }[]> {
-  if (lines.length === 0) return [];
+): Promise<{
+  matched: { budget_line_id: string; amount: number }[];
+  unmatched: UnmatchedAllocationLine[];
+}> {
+  if (lines.length === 0) return { matched: [], unmatched: [] };
 
   const supabase = createServerSupabaseClient();
   const { data: budgetLines, error } = await supabase
@@ -76,14 +90,16 @@ async function matchAllocationsToBudgetLines(
       .map((l) => [normalizeMatchKey(l.item_number!), l.id])
   );
 
-  return lines
-    .map((a) => {
-      const budgetLineId =
-        byDescription.get(normalizeMatchKey(a.description)) ??
-        byItemNumber.get(normalizeMatchKey(a.item_number));
-      return budgetLineId ? { budget_line_id: budgetLineId, amount: a.amount } : null;
-    })
-    .filter((a): a is { budget_line_id: string; amount: number } => a !== null);
+  const matched: { budget_line_id: string; amount: number }[] = [];
+  const unmatched: UnmatchedAllocationLine[] = [];
+  for (const a of lines) {
+    const budgetLineId =
+      byDescription.get(normalizeMatchKey(a.description)) ??
+      byItemNumber.get(normalizeMatchKey(a.item_number));
+    if (budgetLineId) matched.push({ budget_line_id: budgetLineId, amount: a.amount });
+    else unmatched.push(a);
+  }
+  return { matched, unmatched };
 }
 
 const MAX_G702_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB — real G702/G703 files are a few MB at most
@@ -119,9 +135,9 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
         description: a.description,
         amount: a.approved_value,
       }));
-      const allocations = projectId
+      const { matched, unmatched } = projectId
         ? await matchAllocationsToBudgetLines(projectId, allocationLines)
-        : [];
+        : { matched: [], unmatched: [] };
       return {
         draw_number: parsed.draw_number,
         period_end: parsed.period_end,
@@ -134,14 +150,15 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
         amount_requested: parsed.amount_approved,
         amount_approved: parsed.amount_approved,
         retainage_held: parsed.retainage_held,
-        allocations,
-        allocationsMatched: allocations.length,
+        allocations: matched,
+        allocationsMatched: matched.length,
         allocationsFound: allocationLines.length,
+        unmatchedLines: unmatched,
       };
     }
 
     const parsed = await parseG702FromPdf(buffer);
-    return { ...parsed, allocations: [], allocationsMatched: 0, allocationsFound: 0 };
+    return { ...parsed, allocations: [], allocationsMatched: 0, allocationsFound: 0, unmatchedLines: [] };
   }
 
   if (
@@ -156,15 +173,16 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
       description: a.description,
       amount: a.amount_this_period,
     }));
-    const allocations = projectId
+    const { matched, unmatched } = projectId
       ? await matchAllocationsToBudgetLines(projectId, allocationLines)
-      : [];
+      : { matched: [], unmatched: [] };
 
     return {
       ...parsed,
-      allocations,
-      allocationsMatched: allocations.length,
+      allocations: matched,
+      allocationsMatched: matched.length,
       allocationsFound: allocationLines.length,
+      unmatchedLines: unmatched,
     };
   }
 

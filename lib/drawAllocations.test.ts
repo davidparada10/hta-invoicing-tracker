@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diffAllocations } from "@/lib/drawAllocations";
+import { applyParsedAllocations, diffAllocations } from "@/lib/drawAllocations";
 
 describe("diffAllocations", () => {
   // This is the exact scenario that crashed production on 2026-09-08:
@@ -45,5 +45,42 @@ describe("diffAllocations", () => {
   it("has nothing stale when there was nothing existing", () => {
     const { staleIds } = diffAllocations([], [{ budget_line_id: "line-a", amount: 100 }]);
     expect(staleIds).toEqual([]);
+  });
+});
+
+describe("applyParsedAllocations", () => {
+  // The bug this fixes: a revised document that drops a previously billed
+  // line must not leave that line's old dollar amount sitting in the form.
+  it("replace mode clears a line absent from the new parse", () => {
+    const prev = { "line-a": "1000", "line-b": "500" };
+    const parsed = [{ budget_line_id: "line-a", amount: 1200 }]; // line-b dropped
+    expect(applyParsedAllocations(prev, parsed, "replace")).toEqual({ "line-a": "1200" });
+  });
+
+  it("replace mode with an empty parse clears everything", () => {
+    const prev = { "line-a": "1000" };
+    expect(applyParsedAllocations(prev, [], "replace")).toEqual({});
+  });
+
+  it("merge mode overlays the new parse on top of what's already there (previous default behavior)", () => {
+    const prev = { "line-a": "1000", "line-b": "500" };
+    const parsed = [{ budget_line_id: "line-a", amount: 1200 }];
+    expect(applyParsedAllocations(prev, parsed, "merge")).toEqual({
+      "line-a": "1200",
+      "line-b": "500",
+    });
+  });
+
+  it("merge mode with an empty parse leaves prior amounts untouched", () => {
+    const prev = { "line-a": "1000" };
+    expect(applyParsedAllocations(prev, [], "merge")).toEqual({ "line-a": "1000" });
+  });
+
+  it("both modes agree when every prior line is present in the new parse", () => {
+    const prev = { "line-a": "1000" };
+    const parsed = [{ budget_line_id: "line-a", amount: 1200 }];
+    expect(applyParsedAllocations(prev, parsed, "replace")).toEqual(
+      applyParsedAllocations(prev, parsed, "merge")
+    );
   });
 });

@@ -34,3 +34,23 @@ export function diffAllocations(
   const staleIds = existing.filter((r) => !newBudgetLineIds.has(r.budget_line_id)).map((r) => r.id);
   return { toUpsert: newAllocations, staleIds };
 }
+
+// The draw form's in-progress line-amount state — budget_line_id → amount
+// as a string (how the amount input renders), not yet saved.
+export type LineAmounts = Record<string, string>;
+
+// How a parsed upload's allocations combine into the form's in-progress
+// line amounts. "replace" is the default/intended behavior for a revised
+// document: a budget line the new file doesn't mention is cleared, not left
+// at its old value. "merge" is the previous (accidental-default) overlay
+// behavior, kept as an explicit opt-in for the rare case someone genuinely
+// wants to layer a partial document on top of what's already entered.
+export function applyParsedAllocations(
+  prev: LineAmounts,
+  parsed: NewAllocation[],
+  mode: "replace" | "merge"
+): LineAmounts {
+  const next = mode === "merge" ? { ...prev } : {};
+  for (const a of parsed) next[a.budget_line_id] = String(a.amount);
+  return next;
+}

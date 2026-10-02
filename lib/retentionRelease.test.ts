@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { computeRetentionRelease, inferRetentionRate, isImplausibleRetainage } from "@/lib/retentionRelease";
+import {
+  computeDocumentCumulativeRetention,
+  computeRetentionRelease,
+  inferRetentionRate,
+  isImplausibleRetainage,
+} from "@/lib/retentionRelease";
 
 function draw(id: string, retainage: number, status: "draft" | "submitted" | "approved" | "paid" = "paid") {
   return { id, status, retainage_held: retainage };
@@ -121,5 +126,23 @@ describe("inferRetentionRate", () => {
   it("returns null when an implied rate doesn't land near any standard bucket", () => {
     const draws = [rateDraw("d1", 90000, 10000), rateDraw("d2", 85000, 30000)];
     expect(inferRetentionRate(draws)).toBeNull();
+  });
+});
+
+describe("computeDocumentCumulativeRetention", () => {
+  it("subtracts retention already held on other draws from the document's cumulative figure", () => {
+    expect(computeDocumentCumulativeRetention(15000, 10000)).toBe(5000);
+  });
+
+  it("floors at 0 instead of going negative when held-to-date exceeds the document figure", () => {
+    expect(computeDocumentCumulativeRetention(5000, 10000)).toBe(0);
+  });
+
+  it("returns the full figure when nothing has been held yet (first draw)", () => {
+    expect(computeDocumentCumulativeRetention(8000, 0)).toBe(8000);
+  });
+
+  it("rounds to the cent", () => {
+    expect(computeDocumentCumulativeRetention(1000.004, 0)).toBe(1000);
   });
 });

@@ -35,7 +35,7 @@ export default function HelpPage() {
           <svg
             viewBox="0 0 1040 748"
             role="img"
-            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form which moves through draft, submitted, approved and paid status via a Mark Paid modal (amount received and date paid, defaulting to the full outstanding balance, with partial payments supported) and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk schedule-of-values import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
+            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form's draw number, dates, and amount requested, with schedule-of-values lines and retention reviewed and explicitly applied rather than auto-filled, then the draw moves through draft, submitted, approved and paid status via a Mark Paid modal (amount received and date paid, defaulting to the full outstanding balance, with partial payments supported) and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk schedule-of-values import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
             className="mx-auto min-w-[720px]"
           >
             <defs>
@@ -78,8 +78,8 @@ export default function HelpPage() {
 
             <rect x="110" y="248" width="340" height="64" rx="10" fill={SURFACE} stroke={DRAW_COLOR} strokeWidth={1.4} />
             <text x="280" y="270" textAnchor="middle" fontWeight="600" fontSize="12.5" fill={INK}>Owner Draws tab — Add/Edit Draw</text>
-            <text x="280" y="286" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill={MUTED_INK}>fills draw #, dates, requested $,</text>
-            <text x="280" y="299" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill={MUTED_INK}>retainage — you review before saving</text>
+            <text x="280" y="286" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill={MUTED_INK}>fills draw #, dates, requested $ —</text>
+            <text x="280" y="299" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fill={MUTED_INK}>SoV lines &amp; retention reviewed below</text>
 
             <rect x="610" y="248" width="340" height="64" rx="10" fill={SURFACE} stroke={BUDGET_COLOR} strokeWidth={1.4} />
             <text x="780" y="270" textAnchor="middle" fontWeight="600" fontSize="12.5" fill={INK}>Schedule of Values — Import from G702/G703</text>
@@ -124,8 +124,8 @@ export default function HelpPage() {
 
             <path d="M 202 366 C 60 320, 60 300, 108 275" fill="none" stroke={MUTED_INK} strokeWidth={1.3} strokeDasharray="3 3" markerEnd="url(#arrowNeutral)" />
             <text x="10" y="330" fontFamily="ui-monospace, monospace" fontSize="10" fill={MUTED_INK}>lender rejects →</text>
-            <text x="10" y="343" fontFamily="ui-monospace, monospace" fontSize="10" fill={MUTED_INK}>re-upload G702,</text>
-            <text x="10" y="356" fontFamily="ui-monospace, monospace" fontSize="10" fill={MUTED_INK}>numbers overwrite</text>
+            <text x="10" y="343" fontFamily="ui-monospace, monospace" fontSize="10" fill={MUTED_INK}>re-upload G702 —</text>
+            <text x="10" y="356" fontFamily="ui-monospace, monospace" fontSize="10" fill={MUTED_INK}>SoV lines reviewed, not silent</text>
 
             <line x1="280" y1="392" x2="280" y2="462" stroke={DRAW_COLOR} strokeWidth={1.6} markerEnd="url(#arrowDraw)" />
             <rect x="110" y="464" width="340" height="48" rx="10" fill={SURFACE} stroke={BORDER} />
@@ -151,6 +151,14 @@ export default function HelpPage() {
             adds/updates matching line items — it never deletes, even if a line is missing from
             the file, since a periodic draw&rsquo;s G703 isn&rsquo;t the master schedule. A line
             genuinely retired from the contract is removed by hand instead.
+          </p>
+          <p className="text-xs text-muted-foreground mt-3 max-w-2xl mx-auto">
+            A G702&rsquo;s schedule-of-values lines parsed on the Owner Draws tab also wait for
+            review: by default they <strong className="text-foreground">replace</strong> this
+            draw&rsquo;s current line amounts (so a line dropped from a revised document doesn&rsquo;t
+            keep its old value) — a checkbox switches to merging them in instead. Any source line
+            that couldn&rsquo;t be matched to a budget line is listed before you apply or discard
+            the parse; nothing changes until you do.
           </p>
         </div>
 
@@ -184,17 +192,21 @@ export default function HelpPage() {
               <Row label="PERIOD TO" cell="M5" field="period_end" />
               <Row label="APPLICATION DATE" cell="M4" field="date_submitted" />
               <Row label="CURRENT PAYMENT DUE" cell="G36" field="amount_requested" />
-              <Row label="Total Retainage" cell="G28" field="retainage_held" />
+              <Row label="Total Retainage" cell="G28" field="shown for reference only" />
             </tbody>
           </table>
         </div>
         <p className="text-xs text-muted-foreground mb-8 -mt-6">
           The AIA form&rsquo;s Total Retainage cell is normally cumulative-to-date, not this
-          draw&rsquo;s own withholding. If this project&rsquo;s prior posted draws agree on a
-          single rate (0/5/10%), the draw form auto-switches Retainage held to compute from the
-          schedule of values at that rate instead of trusting the raw cell — you&rsquo;ll see a
-          note when that happens. Otherwise the parsed cell is used as-is, with a warning if it
-          looks implausibly large for a single draw.
+          draw&rsquo;s own withholding — nothing in the document itself says which one it is, so
+          it&rsquo;s never applied automatically. The parsed figure stays visible for comparison,
+          and the Retention selector on the draw form requires an explicit choice for how to
+          interpret it: a % rate computed from the schedule of values below, &ldquo;Document
+          total − held to date&rdquo; (treats the parsed cell as cumulative and backs out what
+          this draw actually withheld), manual entry, or release. If this project&rsquo;s prior
+          posted draws agree on a single rate, that rate is offered as a one-click suggestion —
+          Apply or Dismiss — never switched to on its own. Saving prompts for confirmation if the
+          figure hasn&rsquo;t been explicitly reviewed since the upload.
         </p>
 
         <h2 className="text-sm font-semibold text-foreground mb-1">What gets read from the G703 sheet</h2>

@@ -33,6 +33,11 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
   const [expandedDevelopers, setExpandedDevelopers] = useState<Set<string>>(new Set());
   const showStatusColumn = statusFilter === "all";
   const columnCount = showStatusColumn ? 7 : 6;
+  // A nonempty search auto-expands every group it matches into (handled via
+  // isExpanded below) without touching expandedDevelopers itself — so
+  // clearing the search restores exactly whatever the user had manually
+  // expanded/collapsed before, with no extra state to reconcile.
+  const searchActive = search.trim().length > 0;
 
   function toggleExpanded(developer: string) {
     setExpandedDevelopers((prev) => {
@@ -55,6 +60,27 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
       );
     });
   }, [rollups, search, statusFilter]);
+
+  // Full (not search-narrowed) per-developer counts, for "N of M projects
+  // match" labeling while a search is active — statusFilter still applies,
+  // since Active/All is a real view toggle, not part of "the search."
+  const groupSizeByDeveloper = useMemo(() => {
+    const sizes = new Map<string, number>();
+    for (const r of rollups) {
+      if (statusFilter === "active" && r.project.status !== "active") continue;
+      const key = r.project.developer ?? UNASSIGNED_GROUP;
+      sizes.set(key, (sizes.get(key) ?? 0) + 1);
+    }
+    return sizes;
+  }, [rollups, statusFilter]);
+
+  function developerLabel(developer: string, matchCount: number): string {
+    const total = groupSizeByDeveloper.get(developer) ?? matchCount;
+    if (searchActive && total !== matchCount) {
+      return `${matchCount} of ${total} project${total === 1 ? "" : "s"} match`;
+    }
+    return `${matchCount} project${matchCount === 1 ? "" : "s"}`;
+  }
 
   // Grouped by developer, alphabetically, with unassigned projects (no
   // developer set) always last rather than sorting in wherever "Unassigned"
@@ -120,7 +146,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
       {/* Mobile: one card per project — avoids horizontal scrolling through 6 columns */}
       <div className="sm:hidden space-y-4">
         {groups.map((group, i) => {
-          const isExpanded = !group.developer || expandedDevelopers.has(group.developer);
+          const isExpanded = !group.developer || searchActive || expandedDevelopers.has(group.developer);
           return (
           <div key={group.developer ?? "all"} className={i > 0 ? "pt-6 mt-2 border-t-2 border-divider-strong" : undefined}>
             {group.developer && (
@@ -132,7 +158,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
               >
                 <ChevronIcon expanded={isExpanded} />
                 {group.developer}
-                <span className="text-muted-foreground font-normal"> · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}</span>
+                <span className="text-muted-foreground font-normal"> · {developerLabel(group.developer, group.rows.length)}</span>
               </button>
             )}
             {isExpanded && (
@@ -207,7 +233,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           </thead>
           <tbody className="divide-y divide-border">
             {groups.map((group, i) => {
-              const isExpanded = !group.developer || expandedDevelopers.has(group.developer);
+              const isExpanded = !group.developer || searchActive || expandedDevelopers.has(group.developer);
               return (
               <Fragment key={group.developer ?? "all"}>
                 {group.developer && (!isExpanded ? (
@@ -227,7 +253,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                         {group.developer}
                         <span className="text-muted-foreground font-normal">
                           {" "}
-                          · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}
+                          · {developerLabel(group.developer, group.rows.length)}
                         </span>
                       </button>
                     </td>
@@ -269,7 +295,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
                         {group.developer}
                         <span className="text-muted-foreground font-normal">
                           {" "}
-                          · {group.rows.length} project{group.rows.length === 1 ? "" : "s"}
+                          · {developerLabel(group.developer, group.rows.length)}
                         </span>
                       </button>
                     </td>

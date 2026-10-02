@@ -73,3 +73,35 @@ export function businessTodayISO(instant: Date = new Date()): string {
 export function businessToday(instant: Date = new Date()): Date {
   return parseLocalDate(businessTodayISO(instant));
 }
+
+// UTC-anchored calendar-day timestamp for a bare "YYYY-MM-DD" string, or
+// (via businessTodayISO) for a full timestamp like created_at — the same
+// resolution "now" itself gets. Date.UTC has no DST, so diffing two of
+// these is always exact, unlike dividing elapsed milliseconds by 24h, which
+// undercounts a span that crosses a DST transition in the runtime's own
+// timezone.
+function calendarDayTimestamp(value: string): number {
+  const iso = value.length <= 10 ? value : businessTodayISO(new Date(value));
+  const [y, m, d] = iso.split("-").map(Number);
+  return Date.UTC(y, m - 1, d);
+}
+
+// Same, but for a Date that's already a resolved calendar day (e.g. from
+// businessToday() or parseLocalDate(dateOnlyString)) — reads its components
+// directly rather than re-running it through businessTodayISO, which would
+// double-convert and could shift the date by a day depending on the
+// runtime's own timezone.
+function calendarDayTimestampOfDate(d: Date): number {
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/**
+ * Whole calendar days from `aISO` to `b`, independent of the server/
+ * browser's runtime timezone and immune to DST. `aISO` may be a bare date
+ * or a full timestamp; `b` is a resolved calendar-date Date. Not clamped —
+ * callers that want "never negative" (like daysOpen) clamp explicitly.
+ */
+export function calendarDaysBetween(aISO: string, b: Date): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((calendarDayTimestampOfDate(b) - calendarDayTimestamp(aISO)) / msPerDay);
+}

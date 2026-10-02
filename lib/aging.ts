@@ -3,7 +3,7 @@
 // "use client" without bundling server code.
 
 import { badgeCard, badgeText, badgeTone } from "@/lib/badgeTone";
-import { businessToday, parseLocalDate } from "@/lib/format";
+import { businessToday, calendarDaysBetween } from "@/lib/format";
 
 export type AgingBucket = "current" | "31-60" | "61-90" | "90+";
 
@@ -16,9 +16,7 @@ export type AgingBucket = "current" | "31-60" | "61-90" | "90+";
 export const MIN_MEANINGFUL_OPEN_BALANCE = 1000;
 
 export function daysOpen(referenceDateISO: string, now: Date = businessToday()): number {
-  const ref = parseLocalDate(referenceDateISO);
-  const diffMs = now.getTime() - ref.getTime();
-  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+  return Math.max(0, calendarDaysBetween(referenceDateISO, now));
 }
 
 export function agingBucket(days: number): AgingBucket {
