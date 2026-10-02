@@ -6,7 +6,7 @@ import { parseBudgetFromXlsx } from "@/lib/g702-parser";
 
 function toNumber(value: FormDataEntryValue | null): number {
   const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
 function toNullableString(value: FormDataEntryValue | null): string | null {
@@ -38,8 +38,18 @@ export async function upsertBudgetLine(formData: FormData) {
   };
 
   if (id) {
-    const { error } = await supabase.from("inv_project_budget_lines").update(payload).eq("id", id);
-    if (error) throw error;
+    // Re-check deleted_at on the write, not just the lookup — a concurrent
+    // soft-delete between loading the edit form and submitting it would
+    // otherwise silently "resurrect" the line, same risk markDrawPaid guards
+    // against for draws.
+    const { error } = await supabase
+      .from("inv_project_budget_lines")
+      .update(payload)
+      .eq("id", id)
+      .is("deleted_at", null)
+      .select("id")
+      .single();
+    if (error) throw new Error("This line item no longer exists or has been deleted.");
   } else {
     const { data: max } = await supabase
       .from("inv_project_budget_lines")

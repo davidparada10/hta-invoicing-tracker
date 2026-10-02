@@ -24,6 +24,25 @@ function toNullableMonth(value: FormDataEntryValue | null): string | null {
   return /^\d{4}-\d{2}$/.test(s) ? `${s}-01` : null;
 }
 
+const STATUSES: ProjectStatus[] = ["active", "closed"];
+
+// Shared by createProject/updateProject/updateProjectStatus. The status
+// <select>/toggle already constrains this client-side, but that's not
+// trustworthy on its own — an invalid value here wouldn't error, it'd just
+// silently write garbage into inv_projects.status.
+function resolveStatus(value: string | null): ProjectStatus {
+  if (!STATUSES.includes(value as ProjectStatus)) {
+    throw new Error("Invalid project status.");
+  }
+  return value as ProjectStatus;
+}
+
+function requireName(value: FormDataEntryValue | null): string {
+  const name = (value ?? "").toString().trim();
+  if (!name) throw new Error("Project name is required.");
+  return name;
+}
+
 // Shared by createProject/updateProject. The Edit/Add Project forms already
 // constrain draw_due_day via <select>/min/max, but that's client-side only —
 // validate again here rather than trusting it, since a bad value doesn't
@@ -50,14 +69,14 @@ export async function createProject(formData: FormData): Promise<{ id: string }>
   const supabase = createServerSupabaseClient();
 
   const payload = {
-    name: (formData.get("name") as string) ?? "",
+    name: requireName(formData.get("name")),
     // No longer collected in the UI — the column is still unique/required
     // in the database, so generate a value that'll never collide instead.
     project_number: crypto.randomUUID(),
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
     developer: toNullableString(formData.get("developer")),
-    status: (formData.get("status") as string) || "active",
+    status: resolveStatus((formData.get("status") as string) || "active"),
     ...resolveDrawDueFields(formData),
   };
 
@@ -77,12 +96,12 @@ export async function updateProject(formData: FormData) {
   const id = formData.get("id") as string;
 
   const payload = {
-    name: (formData.get("name") as string) ?? "",
+    name: requireName(formData.get("name")),
     address: toNullableString(formData.get("address")),
     lender: toNullableString(formData.get("lender")),
     developer: toNullableString(formData.get("developer")),
     draw_skip_month: toNullableMonth(formData.get("draw_skip_month")),
-    status: formData.get("status") as string,
+    status: resolveStatus(formData.get("status") as string | null),
     ...resolveDrawDueFields(formData),
   };
 
@@ -95,7 +114,10 @@ export async function updateProject(formData: FormData) {
 
 export async function updateProjectStatus(id: string, status: ProjectStatus) {
   const supabase = createServerSupabaseClient();
-  const { error } = await supabase.from("inv_projects").update({ status }).eq("id", id);
+  const { error } = await supabase
+    .from("inv_projects")
+    .update({ status: resolveStatus(status) })
+    .eq("id", id);
   if (error) throw error;
   revalidatePath(`/projects/${id}`);
   revalidatePath("/");

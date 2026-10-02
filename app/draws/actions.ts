@@ -173,7 +173,7 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
 
 function toNumber(value: FormDataEntryValue | null): number {
   const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
 function toNullableString(value: FormDataEntryValue | null): string | null {

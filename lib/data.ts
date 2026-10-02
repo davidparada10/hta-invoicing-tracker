@@ -154,13 +154,6 @@ export async function getAllocationsForProject(projectId: string): Promise<DrawL
     }));
 }
 
-export async function getAllocationsForDraw(drawId: string): Promise<DrawLineAllocation[]> {
-  const supabase = createServerSupabaseClient();
-  return fetchAllRows<DrawLineAllocation>(supabase, "inv_draw_line_allocations", "*", (query) =>
-    query.eq("draw_id", drawId)
-  );
-}
-
 export async function getAllDraws(): Promise<OwnerDraw[]> {
   const supabase = createServerSupabaseClient();
   return fetchAllRows<OwnerDraw>(supabase, "inv_owner_draws", "*", (query) =>
