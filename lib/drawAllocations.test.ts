@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { applyParsedAllocations, diffAllocations } from "@/lib/drawAllocations";
+import { allocationExceedsTolerance, applyParsedAllocations, diffAllocations } from "@/lib/drawAllocations";
+
+describe("allocationExceedsTolerance", () => {
+  // The real production cases: Corinth Draw 3 and Delmas Draw 1 each differ
+  // by exactly one cent and used to trip a float-comparison false positive.
+  it("tolerates a one-cent difference (Corinth Draw 3)", () => {
+    expect(allocationExceedsTolerance(253311.55, 227980.4, 25331.16)).toBe(false);
+  });
+
+  it("tolerates a one-cent difference in the other direction (Delmas Draw 1)", () => {
+    expect(allocationExceedsTolerance(323552.33, 291197.09, 32355.23)).toBe(false);
+  });
+
+  it("tolerates an exact match", () => {
+    expect(allocationExceedsTolerance(178818.38, 161103.47, 17714.91)).toBe(false);
+  });
+
+  it("still flags a two-cent difference", () => {
+    expect(allocationExceedsTolerance(100000.02, 90000, 10000)).toBe(true);
+  });
+
+  it("still flags a real mismatch (the pre-fix trash chute gap)", () => {
+    expect(allocationExceedsTolerance(178818.38, 161103.47, 17881.84)).toBe(true);
+  });
+});
 
 describe("diffAllocations", () => {
   // This is the exact scenario that crashed production on 2026-09-08:

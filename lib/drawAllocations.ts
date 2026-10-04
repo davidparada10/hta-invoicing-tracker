@@ -35,6 +35,20 @@ export function diffAllocations(
   return { toUpsert: newAllocations, staleIds };
 }
 
+// True only when the schedule-of-values total is off from requested +
+// retainage by more than one cent. Compared in whole cents: a plain
+// `Math.abs(a - b) > 0.01` on floats reads a true one-cent gap as
+// 0.0100000000093 and fires a spurious mismatch warning on draws whose
+// per-line amounts each round to the cent.
+export function allocationExceedsTolerance(
+  allocated: number,
+  requested: number,
+  retainage: number
+): boolean {
+  const diffCents = Math.abs(Math.round(allocated * 100) - Math.round((requested + retainage) * 100));
+  return diffCents > 1;
+}
+
 // The draw form's in-progress line-amount state — budget_line_id → amount
 // as a string (how the amount input renders), not yet saved.
 export type LineAmounts = Record<string, string>;

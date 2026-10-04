@@ -5,7 +5,7 @@ import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/typ
 import { businessTodayISO, formatCurrency } from "@/lib/format";
 import Modal from "@/components/Modal";
 import { ParsedG702Upload, parseG702Upload, upsertDraw } from "@/app/draws/actions";
-import { applyParsedAllocations, LineAmounts } from "@/lib/drawAllocations";
+import { allocationExceedsTolerance, applyParsedAllocations, LineAmounts } from "@/lib/drawAllocations";
 import {
   computeDocumentCumulativeRetention,
   computeRetentionRelease,
@@ -161,7 +161,7 @@ export default function DrawFormModal({
   const allocationMismatch =
     budgetLines.length > 0 &&
     allocationsTotal > 0 &&
-    Math.abs(allocationsTotal - (requestedAmount + retainageHeldAmount)) > 0.01;
+    allocationExceedsTolerance(allocationsTotal, requestedAmount, retainageHeldAmount);
 
   // Live, not one-shot: recomputed from whatever is actually in the field
   // right now, so it clears itself once retentionMode switches to a %
