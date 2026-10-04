@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BudgetLine, DrawLineAllocation, OpenDraw, OwnerDraw, Project, ProjectRollup } from "@/lib/types";
 import { DrawPayment } from "@/lib/paymentHistory";
+import { excludedLineIdSet } from "@/lib/paymentDefaults";
 import {
   BillingReport,
   GroupedBillingRow,
@@ -155,22 +156,74 @@ export async function getAllocationsForProject(projectId: string): Promise<DrawL
     }));
 }
 
-// Reads the proposed inv_draw_payments table (see
-// supabase/migrations/20261001120000_add_draw_payments.sql) — this table
-// does not exist in production yet, so this is exercised only by
-// lib/data.test.ts's mocked Supabase client, not by any live call site.
-// Scaffolded alongside lib/paymentHistory.ts so the data-access shape is
-// reviewed now, ahead of the migration actually running; not dead code in
-// the usual sense (nothing calls it because nothing *can*, not because it
-// was abandoned) — see the migration file's header for what wiring this in
-// for real would involve.
+// Payment receipts (inv_draw_payments — see
+// supabase/migrations/20261001120000_add_draw_payments.sql). A database that
+// hasn't had that migration applied yet has no such table; that reads as "no
+// receipt rows", and every report then falls back to each draw's cached
+// amount_paid/date_paid exactly as it did before receipts existed, so reads
+// keep working on either side of the migration. (Writes need the migration —
+// see lib/paymentsRepo.ts.)
+function isMissingPaymentsTable(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  if (!e) return false;
+  return (
+    e.code === "42P01" ||
+    e.code === "PGRST205" ||
+    /inv_draw_payments/.test(e.message ?? "") && /(does not exist|could not find the table)/i.test(e.message ?? "")
+  );
+}
+
+function toPayment(row: DrawPayment): DrawPayment {
+  return { ...row, amount: Number(row.amount) };
+}
+
+async function loadPayments(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  options: { select?: string; configure?: (query: any) => any } = {} // eslint-disable-line @typescript-eslint/no-explicit-any
+): Promise<DrawPayment[]> {
+  try {
+    const rows = await fetchAllRows<DrawPayment & { inv_owner_draws?: unknown }>(
+      supabase,
+      "inv_draw_payments",
+      options.select ?? "*",
+      (query) => {
+        const q = query.is("deleted_at", null);
+        return options.configure ? options.configure(q) : q;
+      }
+    );
+    // Drop the joined parent columns used only for filtering.
+    return rows.map((row) => {
+      const payment = { ...row } as Record<string, unknown>;
+      delete payment.inv_owner_draws;
+      return toPayment(payment as unknown as DrawPayment);
+    });
+  } catch (err) {
+    if (isMissingPaymentsTable(err)) return [];
+    throw err;
+  }
+}
+
+/**
+ * Every live receipt. Receipts of trashed draws are included here but never
+ * counted: the reports only look up receipts for the live draws they're given,
+ * so a draw in Trash contributes nothing and gets its history back on restore.
+ */
+export async function getLivePayments(): Promise<DrawPayment[]> {
+  return loadPayments(createServerSupabaseClient());
+}
+
+export async function getPaymentsForProject(projectId: string): Promise<DrawPayment[]> {
+  return loadPayments(createServerSupabaseClient(), {
+    select: "*, inv_owner_draws!inner(project_id)",
+    configure: (q) => q.eq("inv_owner_draws.project_id", projectId),
+  });
+}
+
 export async function getPaymentsForDraw(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   drawId: string
 ): Promise<DrawPayment[]> {
-  return fetchAllRows<DrawPayment>(supabase, "inv_draw_payments", "*", (query) =>
-    query.eq("draw_id", drawId).is("deleted_at", null)
-  );
+  return loadPayments(supabase, { configure: (q) => q.eq("draw_id", drawId) });
 }
 
 export async function getAllDraws(): Promise<OwnerDraw[]> {
@@ -188,42 +241,49 @@ export async function getAllBudgetLines(): Promise<BudgetLine[]> {
 }
 
 export async function getBillingReport(year: number): Promise<BillingReport> {
-  const [draws, excludedMap] = await Promise.all([getAllDraws(), getPortfolioExcludedMap()]);
-  return buildBillingReport(withExcludedAllocated(draws, excludedMap), year);
+  const [draws, excludedMap, payments] = await Promise.all([
+    getAllDraws(),
+    getPortfolioExcludedMap(),
+    getLivePayments(),
+  ]);
+  return buildBillingReport(withExcludedAllocated(draws, excludedMap), year, payments);
 }
 
 export async function getProjectBillingBreakdown(year: number): Promise<ProjectBillingRow[]> {
-  const [draws, projects, excludedMap] = await Promise.all([
+  const [draws, projects, excludedMap, payments] = await Promise.all([
     getAllDraws(),
     getProjects(),
     getPortfolioExcludedMap(),
+    getLivePayments(),
   ]);
-  return buildProjectBillingBreakdown(withExcludedAllocated(draws, excludedMap), projects, year);
+  return buildProjectBillingBreakdown(withExcludedAllocated(draws, excludedMap), projects, year, payments);
 }
 
 export async function getDeveloperBillingBreakdown(year: number): Promise<GroupedBillingRow[]> {
-  const [draws, projects, excludedMap] = await Promise.all([
+  const [draws, projects, excludedMap, payments] = await Promise.all([
     getAllDraws(),
     getProjects(),
     getPortfolioExcludedMap(),
+    getLivePayments(),
   ]);
   const withLabel = projects.map((p) => ({ ...p, label: p.developer }));
-  return buildLabelBillingBreakdown(withExcludedAllocated(draws, excludedMap), withLabel, year, "Unassigned");
+  return buildLabelBillingBreakdown(withExcludedAllocated(draws, excludedMap), withLabel, year, "Unassigned", payments);
 }
 
 export async function getLenderBillingBreakdown(year: number): Promise<GroupedBillingRow[]> {
-  const [draws, projects, excludedMap] = await Promise.all([
+  const [draws, projects, excludedMap, payments] = await Promise.all([
     getAllDraws(),
     getProjects(),
     getPortfolioExcludedMap(),
+    getLivePayments(),
   ]);
   const withLabel = projects.map((p) => ({ ...p, label: p.lender }));
-  return buildLabelBillingBreakdown(withExcludedAllocated(draws, excludedMap), withLabel, year, "Unassigned");
+  return buildLabelBillingBreakdown(withExcludedAllocated(draws, excludedMap), withLabel, year, "Unassigned", payments);
 }
 
 export async function getShortPaymentSummary(year: number): Promise<ShortPaymentSummary> {
-  const draws = await getAllDraws();
-  return buildShortPaymentSummary(draws, year);
+  const [draws, payments] = await Promise.all([getAllDraws(), getLivePayments()]);
+  return buildShortPaymentSummary(draws, year, payments);
 }
 
 // A draw's outstanding balance: what's been billed but not yet actually
@@ -253,9 +313,7 @@ export function excludedAllocationByDraw(
   allocations: { draw_id: string; budget_line_id: string; amount: number }[],
   budgetLines: BudgetLine[]
 ): Map<string, number> {
-  const excludedLineIds = new Set(
-    budgetLines.filter((l) => l.excluded_from_contract).map((l) => l.id)
-  );
+  const excludedLineIds = excludedLineIdSet(budgetLines);
   const map = new Map<string, number>();
   for (const a of allocations) {
     if (!excludedLineIds.has(a.budget_line_id)) continue;

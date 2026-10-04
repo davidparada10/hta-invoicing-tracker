@@ -186,3 +186,88 @@ describe("buildShortPaymentSummary", () => {
     expect(buildShortPaymentSummary([d], 2026).count).toBe(0);
   });
 });
+
+// ---- Per-receipt reporting (payment history) ----------------------------------
+
+import type { DrawPayment } from "@/lib/paymentHistory";
+
+function receipt(id: string, drawId: string, amount: number, date: string, overrides: Partial<DrawPayment> = {}): DrawPayment {
+  return {
+    id,
+    draw_id: drawId,
+    amount,
+    date_received: date,
+    source: "manual",
+    idempotency_key: null,
+    created_at: `${date}T00:00:00Z`,
+    deleted_at: null,
+    ...overrides,
+  };
+}
+
+describe("receipts: $30,000 in September + $20,000 in October on one draw", () => {
+  // The brief's regression example. The draw's cached columns are what the DB
+  // function leaves behind: total $50,000, date_paid = the latest receipt.
+  const split = draw({
+    id: "split",
+    amount_requested: 50000,
+    amount_paid: 50000,
+    date_submitted: "2026-08-25",
+    date_paid: "2026-10-05",
+    status: "paid",
+  });
+  const receipts = [receipt("a", "split", 30000, "2026-09-20"), receipt("b", "split", 20000, "2026-10-05")];
+
+  it("quarterly: both receipts land in Q3 and Q4 separately instead of $50k in Q4", () => {
+    const q = buildBillingReport([split], 2026, receipts).quarters;
+    expect(q[2].received).toBe(30000); // Q3 (Sept)
+    expect(q[3].received).toBe(20000); // Q4 (Oct)
+  });
+
+  it("annual: the year's received is the full $50,000", () => {
+    expect(buildBillingReport([split], 2026, receipts).ytdReceived).toBe(50000);
+  });
+
+  it("without receipt rows the same draw still reports its whole total on date_paid (unchanged behavior)", () => {
+    const q = buildBillingReport([split], 2026).quarters;
+    expect(q[3].received).toBe(50000);
+    expect(q[2].received).toBe(0);
+  });
+
+  it("by project: received is the sum of its receipts in the year", () => {
+    const rows = buildProjectBillingBreakdown([split], [project({ id: "proj-1" })], 2026, receipts);
+    expect(rows[0].received).toBe(50000);
+  });
+
+  it("a receipt dated in a different year is counted in that year only", () => {
+    const dec = [receipt("a", "split", 30000, "2025-12-28"), receipt("b", "split", 20000, "2026-01-04")];
+    expect(buildBillingReport([split], 2025, dec).ytdReceived).toBe(30000);
+    expect(buildBillingReport([split], 2026, dec).ytdReceived).toBe(20000);
+  });
+
+  it("days to pay measures to the LAST receipt, not the first", () => {
+    // submitted Aug 25 → last receipt Oct 5 = 41 days (the first would be 26).
+    expect(buildBillingReport([split], 2026, receipts).ytdAvgDaysToPay).toBe(41);
+  });
+
+  it("a voided receipt is ignored", () => {
+    const withVoid = [...receipts, receipt("c", "split", 9999, "2026-07-01", { deleted_at: "2026-07-02T00:00:00Z" })];
+    expect(buildBillingReport([split], 2026, withVoid).ytdReceived).toBe(50000);
+  });
+
+  it("short-pay summary compares approved against the receipts' total, in the year of the last receipt", () => {
+    const short = draw({ ...split, amount_approved: 52000 });
+    expect(buildShortPaymentSummary([short], 2026, receipts)).toEqual({ count: 1, totalGap: 2000 });
+  });
+});
+
+describe("receipts: draws without receipt rows keep reporting from their cached totals", () => {
+  it("a legacy draw alongside a receipt-backed draw both count", () => {
+    const legacy = draw({ id: "legacy", amount_paid: 7000, amount_requested: 7000, date_paid: "2026-02-01", date_submitted: "2026-01-15" });
+    const backed = draw({ id: "backed", amount_paid: 3000, amount_requested: 3000, date_paid: "2026-05-01" });
+    const rows = [receipt("r", "backed", 3000, "2026-05-01")];
+    const report = buildBillingReport([legacy, backed], 2026, rows);
+    expect(report.quarters[0].received).toBe(7000);
+    expect(report.quarters[1].received).toBe(3000);
+  });
+});

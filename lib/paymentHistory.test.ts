@@ -4,14 +4,10 @@ import {
   DrawPayment,
   lastPaymentDate,
   paymentsByPeriod,
-  recordPayment,
+  paymentsForDraws,
   syntheticLegacyPayment,
   totalPaid,
 } from "@/lib/paymentHistory";
-
-let nextId = 0;
-const makeId = () => `payment-${++nextId}`;
-const fixedNow = () => "2026-10-01T00:00:00Z";
 
 function payment(overrides: Partial<DrawPayment> = {}): DrawPayment {
   return {
@@ -27,76 +23,11 @@ function payment(overrides: Partial<DrawPayment> = {}): DrawPayment {
   };
 }
 
-describe("recordPayment", () => {
-  it("appends a new payment", () => {
-    const { payments, payment: added, wasDuplicate } = recordPayment(
-      [],
-      { draw_id: "draw-1", amount: 30000, date_received: "2026-09-15", source: "manual" },
-      makeId,
-      fixedNow
-    );
-    expect(wasDuplicate).toBe(false);
-    expect(payments).toHaveLength(1);
-    expect(added).toEqual({
-      id: "payment-1",
-      draw_id: "draw-1",
-      amount: 30000,
-      date_received: "2026-09-15",
-      source: "manual",
-      idempotency_key: null,
-      created_at: "2026-10-01T00:00:00Z",
-      deleted_at: null,
-    });
-  });
-
-  // The guard markDrawPaidTool lacks today — two identical agent calls
-  // (same idempotency_key) must not both apply.
-  it("returns the existing payment instead of duplicating when idempotency_key matches a live payment", () => {
-    const first = recordPayment(
-      [],
-      { draw_id: "draw-1", amount: 20000, date_received: "2026-10-01", source: "ai", idempotency_key: "req-1" },
-      makeId,
-      fixedNow
-    );
-    const second = recordPayment(
-      first.payments,
-      { draw_id: "draw-1", amount: 20000, date_received: "2026-10-01", source: "ai", idempotency_key: "req-1" },
-      makeId,
-      fixedNow
-    );
-    expect(second.wasDuplicate).toBe(true);
-    expect(second.payments).toHaveLength(1);
-    expect(second.payment).toEqual(first.payment);
-  });
-
-  it("allows the same idempotency_key again once the original was soft-deleted (a corrected retry)", () => {
-    const first = recordPayment(
-      [],
-      { draw_id: "draw-1", amount: 20000, date_received: "2026-10-01", source: "ai", idempotency_key: "req-1" },
-      makeId,
-      fixedNow
-    );
-    const deleted = first.payments.map((p) => ({ ...p, deleted_at: "2026-10-01T01:00:00Z" }));
-    const retry = recordPayment(
-      deleted,
-      { draw_id: "draw-1", amount: 20000, date_received: "2026-10-01", source: "ai", idempotency_key: "req-1" },
-      makeId,
-      fixedNow
-    );
-    expect(retry.wasDuplicate).toBe(false);
-    expect(retry.payments).toHaveLength(2);
-  });
-
-  it("never dedupes when no idempotency_key is given (ordinary manual entry)", () => {
-    const first = recordPayment([], { draw_id: "draw-1", amount: 500, date_received: "2026-09-01", source: "manual" }, makeId, fixedNow);
-    const second = recordPayment(first.payments, { draw_id: "draw-1", amount: 500, date_received: "2026-09-01", source: "manual" }, makeId, fixedNow);
-    expect(second.wasDuplicate).toBe(false);
-    expect(second.payments).toHaveLength(2);
-  });
-});
+// Stand-in for lib/format's businessTodayISO applied to a timestamp.
+const businessDate = (iso: string) => iso.slice(0, 10);
 
 describe("totalPaid", () => {
-  it("sums live payments, ignoring soft-deleted ones", () => {
+  it("sums live receipts, ignoring voided ones", () => {
     const payments = [
       payment({ amount: 30000 }),
       payment({ amount: 20000, id: "p2" }),
@@ -111,19 +42,15 @@ describe("totalPaid", () => {
 });
 
 describe("lastPaymentDate", () => {
-  // The exact scenario from the bug report: $30k in September, $20k in
-  // October — the derived "last payment date" is the October payment's
-  // date, same as today's date_paid would end up being, but now each
-  // payment still carries its own correct date for period bucketing.
-  it("returns the most recent payment's date", () => {
+  it("returns the most recent live receipt's date", () => {
     const payments = [
-      payment({ id: "p1", amount: 30000, date_received: "2026-09-20" }),
-      payment({ id: "p2", amount: 20000, date_received: "2026-10-05" }),
+      payment({ id: "p1", date_received: "2026-09-20" }),
+      payment({ id: "p2", date_received: "2026-10-05" }),
     ];
     expect(lastPaymentDate(payments)).toBe("2026-10-05");
   });
 
-  it("ignores soft-deleted payments", () => {
+  it("ignores voided receipts", () => {
     const payments = [
       payment({ id: "p1", date_received: "2026-09-20" }),
       payment({ id: "p2", date_received: "2026-10-05", deleted_at: "2026-10-06T00:00:00Z" }),
@@ -131,15 +58,14 @@ describe("lastPaymentDate", () => {
     expect(lastPaymentDate(payments)).toBe("2026-09-20");
   });
 
-  it("returns null when there are no payments", () => {
+  it("returns null when there are no receipts", () => {
     expect(lastPaymentDate([])).toBeNull();
   });
 });
 
 describe("paymentsByPeriod", () => {
-  // This is the actual bug fix: the $50k from the report doesn't all land
-  // in October — $30k buckets to September, $20k to October.
-  it("buckets each payment into its own period by its own date, not one shared date", () => {
+  // The bug fix: the $50k from the report doesn't all land in October.
+  it("buckets each receipt by its own date: $30k in September, $20k in October", () => {
     const payments = [
       payment({ id: "p1", amount: 30000, date_received: "2026-09-20" }),
       payment({ id: "p2", amount: 20000, date_received: "2026-10-05" }),
@@ -147,61 +73,97 @@ describe("paymentsByPeriod", () => {
     const byMonth = paymentsByPeriod(payments, (d) => d.slice(0, 7));
     expect(byMonth.get("2026-09")).toBe(30000);
     expect(byMonth.get("2026-10")).toBe(20000);
+    expect(totalPaid(payments)).toBe(50000);
   });
 
-  it("sums multiple payments landing in the same period", () => {
+  it("sums receipts landing in the same period and skips voided ones", () => {
     const payments = [
       payment({ id: "p1", amount: 1000, date_received: "2026-09-05" }),
       payment({ id: "p2", amount: 2000, date_received: "2026-09-25" }),
+      payment({ id: "p3", amount: 500, date_received: "2026-09-26", deleted_at: "2026-09-27T00:00:00Z" }),
     ];
-    const byMonth = paymentsByPeriod(payments, (d) => d.slice(0, 7));
-    expect(byMonth.get("2026-09")).toBe(3000);
+    expect(paymentsByPeriod(payments, (d) => d.slice(0, 7)).get("2026-09")).toBe(3000);
   });
 });
 
 describe("daysToLastPayment", () => {
-  function fakeCalendarDaysBetween(aISO: string, b: Date): number {
-    const a = new Date(aISO + (aISO.length <= 10 ? "T00:00:00Z" : ""));
-    return Math.round((b.getTime() - a.getTime()) / 86400000);
-  }
-  function fakeParseLocalDate(value: string): Date {
-    return new Date(value + "T00:00:00Z");
-  }
+  const between = (aISO: string, b: Date) =>
+    Math.round((b.getTime() - new Date(aISO + "T00:00:00Z").getTime()) / 86400000);
+  const parse = (v: string) => new Date(v + "T00:00:00Z");
 
-  it("is days from submission to the LAST (final-settlement) payment, not the first", () => {
+  it("is days from submission to the LAST live receipt, not the first", () => {
     const payments = [
       payment({ id: "p1", date_received: "2026-09-05" }),
       payment({ id: "p2", date_received: "2026-09-15" }),
     ];
-    const days = daysToLastPayment(payments, "2026-09-01", fakeCalendarDaysBetween, fakeParseLocalDate);
-    expect(days).toBe(14); // to Sep 15, not Sep 5
+    expect(daysToLastPayment(payments, "2026-09-01", between, parse)).toBe(14);
   });
 
-  it("returns null when nothing has been paid yet", () => {
-    expect(daysToLastPayment([], "2026-09-01", fakeCalendarDaysBetween, fakeParseLocalDate)).toBeNull();
+  it("is null when nothing has been paid", () => {
+    expect(daysToLastPayment([], "2026-09-01", between, parse)).toBeNull();
   });
 });
 
 describe("syntheticLegacyPayment", () => {
-  it("builds one payment matching the draw's existing total and date — no invented installments", () => {
-    const p = syntheticLegacyPayment("draw-1", 50000, "2026-10-05", makeId);
-    expect(p).toEqual({
-      id: expect.any(String),
-      draw_id: "draw-1",
+  const draw = {
+    id: "d1",
+    amount_paid: 50000,
+    date_paid: "2026-10-05" as string | null,
+    date_submitted: "2026-09-01" as string | null,
+    created_at: "2026-08-15T12:00:00Z",
+  };
+
+  it("builds one receipt with the draw's known total and date — no invented installments", () => {
+    expect(syntheticLegacyPayment(draw, businessDate)).toMatchObject({
+      draw_id: "d1",
       amount: 50000,
       date_received: "2026-10-05",
-      source: "manual",
-      idempotency_key: null,
-      created_at: expect.any(String),
-      deleted_at: null,
+      source: "legacy",
+      date_inferred: false,
     });
   });
 
-  it("returns null for a draw with nothing paid", () => {
-    expect(syntheticLegacyPayment("draw-1", 0, null, makeId)).toBeNull();
+  it("keeps money that has no date_paid, falling back submitted → created like paidDate() does, and flags it", () => {
+    expect(syntheticLegacyPayment({ ...draw, date_paid: null }, businessDate)).toMatchObject({
+      date_received: "2026-09-01",
+      date_inferred: true,
+    });
+    expect(
+      syntheticLegacyPayment({ ...draw, date_paid: null, date_submitted: null }, businessDate)?.date_received
+    ).toBe("2026-08-15");
   });
 
-  it("returns null when amount_paid is set but date_paid is missing (can't backfill a dateless payment)", () => {
-    expect(syntheticLegacyPayment("draw-1", 5000, null, makeId)).toBeNull();
+  it("returns null for a draw with nothing received", () => {
+    expect(syntheticLegacyPayment({ ...draw, amount_paid: 0 }, businessDate)).toBeNull();
+  });
+});
+
+describe("paymentsForDraws", () => {
+  const base = { date_submitted: null, created_at: "2026-08-15T12:00:00Z" };
+  const migrated = { ...base, id: "migrated", amount_paid: 50000, date_paid: "2026-10-05" };
+  const legacy = { ...base, id: "legacy", amount_paid: 7000, date_paid: "2026-06-01" };
+  const unpaid = { ...base, id: "unpaid", amount_paid: 0, date_paid: null };
+
+  it("uses real receipts where a draw has them and synthesizes one for a draw that has none", () => {
+    const rows = [
+      payment({ id: "a", draw_id: "migrated", amount: 30000, date_received: "2026-09-20" }),
+      payment({ id: "b", draw_id: "migrated", amount: 20000, date_received: "2026-10-05" }),
+    ];
+    const out = paymentsForDraws([migrated, legacy, unpaid], rows, businessDate);
+    expect(out.filter((p) => p.draw_id === "migrated").map((p) => p.amount).sort((a, b) => a - b)).toEqual([20000, 30000]);
+    expect(out.filter((p) => p.draw_id === "legacy")).toEqual([
+      expect.objectContaining({ source: "legacy", amount: 7000, date_received: "2026-06-01" }),
+    ]);
+    expect(out.some((p) => p.draw_id === "unpaid")).toBe(false);
+  });
+
+  it("works with no receipt rows at all — every report keeps working before the migration", () => {
+    const out = paymentsForDraws([migrated, legacy], [], businessDate);
+    expect(out.map((p) => p.amount).sort((a, b) => a - b)).toEqual([7000, 50000]);
+  });
+
+  it("drops receipts whose draw isn't in the live list (e.g. trashed)", () => {
+    const rows = [payment({ id: "x", draw_id: "trashed-draw", amount: 999 })];
+    expect(paymentsForDraws([legacy], rows, businessDate).some((p) => p.draw_id === "trashed-draw")).toBe(false);
   });
 });

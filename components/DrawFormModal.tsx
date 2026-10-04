@@ -4,10 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { OwnerDraw, DrawStatus, BudgetLine, DrawLineAllocation } from "@/lib/types";
 import { businessTodayISO, formatCurrency } from "@/lib/format";
 import Modal from "@/components/Modal";
+import DrawPaymentsPanel from "@/components/DrawPaymentsPanel";
+import { formPaymentIntent, ownerPaidFromAmounts, paidTransition } from "@/lib/paymentDefaults";
+import { groupLiveReceipts, type DrawPayment } from "@/lib/paymentHistory";
 import { ParsedG702Upload, parseG702Upload, upsertDraw } from "@/app/draws/actions";
 import { allocationExceedsTolerance, applyParsedAllocations, LineAmounts } from "@/lib/drawAllocations";
 import {
-  computeDocumentCumulativeRetention,
+  convertCumulativeRetention,
   computeRetentionRelease,
   inferRetentionRate,
   isImplausibleRetainage,
@@ -26,10 +29,8 @@ interface DrawFormValues {
   amount_requested: string;
   amount_approved: string;
   retainage_held: string;
-  amount_paid: string;
   date_submitted: string;
   date_approved: string;
-  date_paid: string;
   notes: string;
 }
 
@@ -41,10 +42,8 @@ const EMPTY_FORM: DrawFormValues = {
   amount_requested: "0",
   amount_approved: "0",
   retainage_held: "0",
-  amount_paid: "0",
   date_submitted: "",
   date_approved: "",
-  date_paid: "",
   notes: "",
 };
 
@@ -58,10 +57,8 @@ function drawToForm(d: OwnerDraw | null): DrawFormValues {
     amount_requested: String(d.amount_requested),
     amount_approved: String(d.amount_approved),
     retainage_held: String(d.retainage_held),
-    amount_paid: String(d.amount_paid),
     date_submitted: d.date_submitted ?? "",
     date_approved: d.date_approved ?? "",
-    date_paid: d.date_paid ?? "",
     notes: d.notes ?? "",
   };
 }
@@ -86,6 +83,7 @@ export default function DrawFormModal({
   draws,
   budgetLines,
   allocations,
+  payments = [],
 }: {
   open: boolean;
   onClose: () => void;
@@ -94,6 +92,7 @@ export default function DrawFormModal({
   draws: OwnerDraw[];
   budgetLines: BudgetLine[];
   allocations: DrawLineAllocation[];
+  payments?: DrawPayment[];
 }) {
   const [formValues, setFormValues] = useState<DrawFormValues>(EMPTY_FORM);
   const [parsing, setParsing] = useState(false);
@@ -121,6 +120,14 @@ export default function DrawFormModal({
   const [suggestedRetentionRate, setSuggestedRetentionRate] = useState<"0" | "5" | "10" | null>(null);
   const [retentionConfirmed, setRetentionConfirmed] = useState(false);
   const [unmatchedLineCount, setUnmatchedLineCount] = useState(0);
+  // Recording a payment is a separate, additive action from editing the draw's
+  // fields: "recording" turns the row on, "paymentOverride" is the amount the
+  // user typed (null = still the live default), and one key per open of the
+  // form makes a double-submit or a retried save record the payment once.
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [paymentOverride, setPaymentOverride] = useState<string | null>(null);
+  const [paymentDate, setPaymentDate] = useState(businessTodayISO());
+  const [paymentKey, setPaymentKey] = useState(() => crypto.randomUUID());
 
   useEffect(() => {
     if (!open) return;
@@ -137,7 +144,37 @@ export default function DrawFormModal({
     setSuggestedRetentionRate(null);
     setRetentionConfirmed(false);
     setUnmatchedLineCount(0);
+    setRecordingPayment(false);
+    setPaymentOverride(null);
+    setPaymentDate(businessTodayISO());
+    setPaymentKey(crypto.randomUUID());
   }, [open, editing, allocations]);
+
+  // The draw as the server has it now (the `editing` object is a snapshot from
+  // when the form opened, so a void/correct done in this form would not show in
+  // it), its receipts, and what a payment recorded on Save would be — worked
+  // out from the CURRENT form values, including unsaved allocation edits.
+  const currentDraw = editing ? draws.find((d) => d.id === editing.id) ?? editing : null;
+  const receipts = useMemo(
+    () => (editing ? (groupLiveReceipts(payments).get(editing.id) ?? []) : []),
+    [payments, editing]
+  );
+  const alreadyReceived = Number(currentDraw?.amount_paid) || 0;
+  const ownerPaid = useMemo(() => ownerPaidFromAmounts(lineAmounts, budgetLines), [lineAmounts, budgetLines]);
+  const paymentIntent = formPaymentIntent({
+    active: recordingPayment,
+    override: paymentOverride,
+    requested: Number(formValues.amount_requested) || 0,
+    ownerPaid,
+    alreadyReceived,
+  });
+  const defaultPaymentAmount = formPaymentIntent({
+    active: true,
+    override: null,
+    requested: Number(formValues.amount_requested) || 0,
+    ownerPaid,
+    alreadyReceived,
+  }).amount;
 
   const previousByLine = useMemo(() => {
     const totals = new Map<string, number>();
@@ -186,12 +223,29 @@ export default function DrawFormModal({
   const retentionComputationUnreliable =
     parsedFileName !== null && (unmatchedLineCount > 0 || (budgetLines.length > 0 && allocationsTotal === 0));
 
+  // Cumulative-document conversion is relative to the draws BEFORE this one
+  // (by draw_number) — see convertCumulativeRetention for the ordering rule.
+  // Recomputed from the live draw number so changing it re-derives the figure.
+  const typedDrawNumber = formValues.draw_number.trim() === "" ? null : Number(formValues.draw_number);
+  const cumulativeConversion = useMemo(
+    () =>
+      parsedRetainageFromDocument === null
+        ? null
+        : convertCumulativeRetention({
+            draws,
+            editingId: editing?.id,
+            targetDrawNumber: typedDrawNumber,
+            parsedCumulative: parsedRetainageFromDocument,
+          }),
+    [draws, editing, typedDrawNumber, parsedRetainageFromDocument]
+  );
+
   const computedRetention = useMemo(() => {
     if (retentionMode === "manual") return null;
     if (retentionMode === "release") return releaseAmount;
     if (retentionMode === "document_cumulative") {
-      if (parsedRetainageFromDocument === null) return null;
-      return computeDocumentCumulativeRetention(parsedRetainageFromDocument, retentionHeldToDate);
+      if (cumulativeConversion?.status !== "ok") return null;
+      return cumulativeConversion.incremental;
     }
     const rate = Number(retentionMode) / 100;
     const total = budgetLines.reduce((acc, line) => {
@@ -203,7 +257,7 @@ export default function DrawFormModal({
       return acc + (Number(lineAmounts[line.id]) || 0) * lineRate;
     }, 0);
     return Math.round(total * 100) / 100;
-  }, [retentionMode, budgetLines, lineAmounts, releaseAmount, parsedRetainageFromDocument, retentionHeldToDate]);
+  }, [retentionMode, budgetLines, lineAmounts, releaseAmount, cumulativeConversion]);
 
   useEffect(() => {
     if (computedRetention === null) return;
@@ -216,7 +270,7 @@ export default function DrawFormModal({
   // changes.
   useEffect(() => {
     setRetentionConfirmed(false);
-  }, [retentionMode, lineAmounts, parsedFileName]);
+  }, [retentionMode, lineAmounts, parsedFileName, formValues.draw_number]);
 
   async function handleSubmit(formData: FormData) {
     if (isSaving) return;
@@ -252,6 +306,30 @@ export default function DrawFormModal({
       }))
       .filter((a) => a.amount !== 0);
     formData.set("allocations", JSON.stringify(allocationsPayload));
+
+    if (paymentIntent.mode !== "none") {
+      if (paymentIntent.mode === "explicit" && !(paymentIntent.amount > 0)) {
+        alert("Enter the payment amount, or choose Don't record.");
+        return;
+      }
+      if (
+        paymentIntent.overpaidBy > 0 &&
+        !confirm(
+          `${formatCurrency(paymentIntent.amount)} is ${formatCurrency(
+            paymentIntent.overpaidBy
+          )} more than what's still collectible on this draw. Record the overpayment?`
+        )
+      ) {
+        return;
+      }
+      // Intent only — never an owner-paid total; the server works that out
+      // itself from the allocations it saves.
+      formData.set("payment_mode", paymentIntent.mode);
+      formData.set("payment_amount", String(paymentIntent.amount));
+      formData.set("payment_date", paymentDate);
+      formData.set("payment_key", paymentKey);
+      formData.set("confirm_overpayment", paymentIntent.overpaidBy > 0 ? "true" : "false");
+    }
     setIsSaving(true);
     try {
       const result = await upsertDraw(formData);
@@ -272,19 +350,26 @@ export default function DrawFormModal({
   }
 
   function updateStatus(status: DrawStatus) {
-    setFormValues((v) => {
-      if (status !== "paid" || (Number(v.amount_paid) || 0) > 0) {
-        return { ...v, status };
-      }
-      return {
-        ...v,
-        status,
-        amount_paid: v.amount_requested,
-        // Same defaulting the server applies when a draw is marked paid.
-        amount_approved: (Number(v.amount_approved) || 0) > 0 ? v.amount_approved : v.amount_requested,
-        date_paid: v.date_paid || businessTodayISO(),
-      };
+    if (status !== "paid") {
+      setFormValues((v) => ({ ...v, status }));
+      return;
+    }
+    // Same rule as Mark Paid and the status dropdown: a draw moved to paid with
+    // nothing received yet is offered what's collectible — requested, less
+    // owner-paid scope (taken from the allocations as currently shown, saved or
+    // not). Money already received is never overwritten, and a genuine partial
+    // approval stays partial.
+    const transition = paidTransition({
+      requested: Number(formValues.amount_requested) || 0,
+      approved: Number(formValues.amount_approved) || 0,
+      alreadyReceived,
+      ownerPaid,
     });
+    setFormValues((v) => ({ ...v, status, amount_approved: String(transition.amountApproved) }));
+    if (transition.pendingPayment) {
+      setRecordingPayment(true);
+      setPaymentOverride(null);
+    }
   }
 
   function updateLineAmount(budgetLineId: string, value: string) {
@@ -630,11 +715,26 @@ export default function DrawFormModal({
                 </p>
               )
             ) : retentionMode === "document_cumulative" ? (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Document total ({formatCurrency(parsedRetainageFromDocument ?? 0)}) minus{" "}
-                {formatCurrency(retentionHeldToDate)} already held on this project&rsquo;s other posted
-                draws.
-              </p>
+              cumulativeConversion?.status === "ok" ? (
+                <>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Document total ({formatCurrency(parsedRetainageFromDocument ?? 0)}) minus{" "}
+                    {formatCurrency(cumulativeConversion.priorHeld)} held on the draws before Draw #
+                    {formValues.draw_number} — later draws are ignored.
+                  </p>
+                  {cumulativeConversion.isDecrease && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                      The document&rsquo;s cumulative total is below what earlier draws already held, so this
+                      reads as a {formatCurrency(Math.abs(cumulativeConversion.incremental))} partial release
+                      (entered as a negative). Confirm that&rsquo;s intended — it is not treated as a full release.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                  {cumulativeConversion?.reason ?? "Upload a G702 first."}
+                </p>
+              )
             ) : retentionMode !== "manual" ? (
               <>
                 <p className="text-[11px] text-muted-foreground mt-1">
@@ -691,20 +791,9 @@ export default function DrawFormModal({
               </p>
             )}
           </Field>
-          <Field label="Amount paid">
-            <input
-              name="amount_paid"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formValues.amount_paid}
-              onChange={(e) => updateField("amount_paid", e.target.value)}
-              className="input"
-            />
-          </Field>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Date submitted">
             <input
               name="date_submitted"
@@ -723,16 +812,26 @@ export default function DrawFormModal({
               className="input"
             />
           </Field>
-          <Field label="Date paid">
-            <input
-              name="date_paid"
-              type="date"
-              value={formValues.date_paid}
-              onChange={(e) => updateField("date_paid", e.target.value)}
-              className="input"
-            />
-          </Field>
         </div>
+
+        <DrawPaymentsPanel
+          drawId={editing?.id ?? null}
+          projectId={projectId}
+          receipts={receipts}
+          totalReceived={alreadyReceived}
+          lastDate={currentDraw?.date_paid ?? null}
+          recording={recordingPayment}
+          onRecordingChange={(v) => {
+            setRecordingPayment(v);
+            if (!v) setPaymentOverride(null);
+          }}
+          amountText={paymentOverride ?? String(paymentIntent.mode === "none" ? defaultPaymentAmount : paymentIntent.amount)}
+          onAmountChange={setPaymentOverride}
+          paymentDate={paymentDate}
+          onDateChange={setPaymentDate}
+          overpaidBy={paymentIntent.overpaidBy}
+          defaultAmount={defaultPaymentAmount}
+        />
 
         {budgetLines.length > 0 && (
           <div className="rounded-lg border border-border p-3">
@@ -761,7 +860,11 @@ export default function DrawFormModal({
                     <option value="10" disabled={retentionComputationUnreliable}>
                       10%
                     </option>
-                    <option value="document_cumulative" disabled={parsedRetainageFromDocument === null}>
+                    <option
+                      value="document_cumulative"
+                      disabled={cumulativeConversion === null || cumulativeConversion.status !== "ok"}
+                      title={cumulativeConversion?.status === "unavailable" ? cumulativeConversion.reason : undefined}
+                    >
                       Document total − held to date
                     </option>
                     <option value="release">Release retention</option>

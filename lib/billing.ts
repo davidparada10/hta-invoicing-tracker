@@ -4,11 +4,21 @@
 
 import { daysOpen } from "@/lib/aging";
 import { businessToday, parseLocalDate } from "@/lib/format";
-import { billedDate as resolveBilledDate, paidDate as resolvePaidDate } from "@/lib/billingDates";
+import { billedDate as resolveBilledDate } from "@/lib/billingDates";
 import { DrawDueType } from "@/lib/types";
 import { wasDrawSubmittedOnTime } from "@/lib/drawSchedule";
+import {
+  groupLiveReceipts as groupReceipts,
+  lastReceiptDate as lastPaidDate,
+  receiptsForDraw as receiptsOf,
+  type DrawPayment,
+  type ReceiptsByDraw,
+} from "@/lib/paymentHistory";
 
 export interface DrawForBilling {
+  // Needed to match a draw to its payment receipts; draws without one are
+  // read from their cached amount_paid/date_paid exactly as before.
+  id?: string;
   project_id: string;
   status: string;
   amount_requested: number | null;
@@ -84,13 +94,19 @@ function averageDays(sum: number, count: number): number | null {
   return Math.round(sum / count);
 }
 
-// Days from billed (submitted, else created) to paid. Only defined when a
-// real date_paid is on the draw — unpaid draws and paid-without-a-date are
-// excluded so a missing date doesn't read as "paid in 0 days".
-function daysToPay(d: DrawForBilling): number | null {
-  if (!d.date_paid) return null;
-  return daysOpen(d.date_submitted ?? d.created_at, parseLocalDate(d.date_paid));
+function receivedTotal(d: DrawForBilling, byDraw: ReceiptsByDraw): number {
+  return receiptsOf(d, byDraw).reduce((acc, r) => acc + r.amount, 0);
 }
+
+// Days from billed (submitted, else created) to the LAST payment — the same
+// meaning as before the receipts model: how long until the draw was closed
+// out, not days to the first partial payment.
+function daysToPay(d: DrawForBilling, byDraw: ReceiptsByDraw): number | null {
+  const last = lastPaidDate(d, byDraw);
+  if (!last) return null;
+  return daysOpen(d.date_submitted ?? d.created_at, parseLocalDate(last));
+}
+
 
 // Days from submitted to approved — the owner/lender's own turnaround, as
 // opposed to daysToPay's full submit-to-cash lag. Only defined once a real
@@ -107,7 +123,12 @@ function daysToApprove(d: DrawForBilling): number | null {
 // a later one, which is the point of showing both columns side by side.
 // Draws marked paid without a recorded date_paid fall back to their
 // submission date rather than being silently dropped from the total.
-export function buildBillingReport(draws: DrawForBilling[], year: number): BillingReport {
+export function buildBillingReport(
+  draws: DrawForBilling[],
+  year: number,
+  payments: DrawPayment[] = []
+): BillingReport {
+  const byDraw = groupReceipts(payments);
   const quarters: QuarterBucket[] = [1, 2, 3, 4].map((quarter) => ({
     quarter: quarter as 1 | 2 | 3 | 4,
     requested: 0,
@@ -131,17 +152,16 @@ export function buildBillingReport(draws: DrawForBilling[], year: number): Billi
       quarters[requested.quarter - 1].requested += (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0);
     }
 
-    const amountPaid = d.amount_paid ?? 0;
-    if (amountPaid > 0) {
-      const received = yearAndQuarterOf(resolvePaidDate(d));
+    for (const receipt of receiptsOf(d, byDraw)) {
+      const received = yearAndQuarterOf(receipt.date);
       if (received.year === year) {
-        quarters[received.quarter - 1].received += amountPaid;
+        quarters[received.quarter - 1].received += receipt.amount;
       }
     }
 
-    const lag = daysToPay(d);
+    const lag = daysToPay(d, byDraw);
     if (lag !== null) {
-      const paid = yearAndQuarterOf(d.date_paid as string);
+      const paid = yearAndQuarterOf(lastPaidDate(d, byDraw) as string);
       if (paid.year === year) {
         daysByQuarter[paid.quarter - 1].sum += lag;
         daysByQuarter[paid.quarter - 1].count += 1;
@@ -186,8 +206,10 @@ export function buildGroupedBillingBreakdown(
   draws: DrawForBilling[],
   projects: ProjectForBillingGroup[],
   groupOf: (projectId: string) => { id: string; name: string },
-  year: number
+  year: number,
+  payments: DrawPayment[] = []
 ): GroupedBillingRow[] {
+  const byDraw = groupReceipts(payments);
   const cadenceByProject = new Map(projects.map((p) => [p.id, p]));
   const rows = new Map<string, GroupedBillingRow>();
   const daysByGroup = new Map<string, { sum: number; count: number }>();
@@ -221,17 +243,16 @@ export function buildGroupedBillingBreakdown(
       rowFor(d.project_id).requested += (d.amount_requested ?? 0) - (d.excluded_allocated ?? 0);
     }
 
-    const amountPaid = d.amount_paid ?? 0;
-    if (amountPaid > 0) {
-      const received = yearAndQuarterOf(resolvePaidDate(d));
+    for (const receipt of receiptsOf(d, byDraw)) {
+      const received = yearAndQuarterOf(receipt.date);
       if (received.year === year) {
-        rowFor(d.project_id).received += amountPaid;
+        rowFor(d.project_id).received += receipt.amount;
       }
     }
 
-    const lag = daysToPay(d);
+    const lag = daysToPay(d, byDraw);
     if (lag !== null) {
-      const paid = yearAndQuarterOf(d.date_paid as string);
+      const paid = yearAndQuarterOf(lastPaidDate(d, byDraw) as string);
       if (paid.year === year) {
         const groupId = groupOf(d.project_id).id;
         rowFor(d.project_id);
@@ -289,14 +310,16 @@ const UNKNOWN_PROJECT_NAME = "Unknown project";
 export function buildProjectBillingBreakdown(
   draws: DrawForBilling[],
   projects: (ProjectForBillingGroup & { name: string })[],
-  year: number
+  year: number,
+  payments: DrawPayment[] = []
 ): ProjectBillingRow[] {
   const nameById = new Map(projects.map((p) => [p.id, p.name]));
   const rows = buildGroupedBillingBreakdown(
     draws,
     projects,
     (projectId) => ({ id: projectId, name: nameById.get(projectId) ?? UNKNOWN_PROJECT_NAME }),
-    year
+    year,
+    payments
   );
   return rows.map((r) => ({ ...r, projectId: r.groupId, projectName: r.groupName }));
 }
@@ -308,7 +331,8 @@ export function buildLabelBillingBreakdown(
   draws: DrawForBilling[],
   projects: (ProjectForBillingGroup & { label: string | null })[],
   year: number,
-  unassignedLabel: string
+  unassignedLabel: string,
+  payments: DrawPayment[] = []
 ): GroupedBillingRow[] {
   const labelById = new Map(projects.map((p) => [p.id, p.label ?? unassignedLabel]));
   return buildGroupedBillingBreakdown(
@@ -318,7 +342,8 @@ export function buildLabelBillingBreakdown(
       const label = labelById.get(projectId) ?? unassignedLabel;
       return { id: label, name: label };
     },
-    year
+    year,
+    payments
   ).sort((a, b) => {
     if (a.groupName === unassignedLabel) return 1;
     if (b.groupName === unassignedLabel) return -1;
@@ -339,14 +364,20 @@ export interface ShortPaymentSummary {
 // Scoped by when each draw was actually paid landing in `year`, same as
 // "received" elsewhere on the billing page — a shortfall only becomes real
 // once the payment itself happens.
-export function buildShortPaymentSummary(draws: DrawForBilling[], year: number): ShortPaymentSummary {
+export function buildShortPaymentSummary(
+  draws: DrawForBilling[],
+  year: number,
+  payments: DrawPayment[] = []
+): ShortPaymentSummary {
+  const byDraw = groupReceipts(payments);
   let count = 0;
   let totalGap = 0;
   for (const d of draws) {
-    if (d.status !== "paid" || !d.date_paid) continue;
-    const paid = yearAndQuarterOf(d.date_paid);
+    const last = lastPaidDate(d, byDraw);
+    if (d.status !== "paid" || !last) continue;
+    const paid = yearAndQuarterOf(last);
     if (paid.year !== year) continue;
-    const gap = (d.amount_approved ?? d.amount_requested ?? 0) - (d.amount_paid ?? 0);
+    const gap = (d.amount_approved ?? d.amount_requested ?? 0) - receivedTotal(d, byDraw);
     if (Math.abs(gap) > 0.01) {
       count += 1;
       totalGap += gap;

@@ -7,6 +7,7 @@ import { daysOpen } from "@/lib/aging";
 import DrawStatusSelect from "@/components/DrawStatusSelect";
 import DrawFormModal from "@/components/DrawFormModal";
 import MarkPaidButton from "@/components/MarkPaidButton";
+import { groupLiveReceipts, type DrawPayment } from "@/lib/paymentHistory";
 import { deleteDraw } from "@/app/draws/actions";
 
 const STATUSES: DrawStatus[] = ["draft", "submitted", "approved", "paid"];
@@ -45,12 +46,22 @@ export default function DrawsSection({
   draws,
   budgetLines,
   allocations,
+  payments = [],
 }: {
   projectId: string;
   draws: OwnerDraw[];
   budgetLines: BudgetLine[];
   allocations: DrawLineAllocation[];
+  payments?: DrawPayment[];
 }) {
+  const receiptsByDraw = useMemo(() => groupLiveReceipts(payments), [payments]);
+  // "Paid" shows the most recent payment's date, and how many payments there
+  // were when more than one — a single date alone would hide that a draw was
+  // paid in installments.
+  const paidLabel = (d: OwnerDraw) => {
+    const n = receiptsByDraw.get(d.id)?.length ?? 0;
+    return n > 1 ? `${formatDate(d.date_paid)} · ${n} payments` : formatDate(d.date_paid);
+  };
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
@@ -166,7 +177,7 @@ export default function DrawsSection({
             <div className="grid grid-cols-3 gap-2 mt-2 text-xs text-muted-foreground">
               <div>Submitted: {formatDate(d.date_submitted)}</div>
               <div>Approved: {approvalLabel(d)}</div>
-              <div>Paid: {formatDate(d.date_paid)}</div>
+              <div>Paid: {paidLabel(d)}</div>
             </div>
 
             <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
@@ -257,7 +268,7 @@ export default function DrawsSection({
                 <td className="px-4 py-2 text-right">{formatCurrency(d.retainage_held)}</td>
                 <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
                 <td className="px-4 py-2 text-muted-foreground">{approvalLabel(d)}</td>
-                <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_paid)}</td>
+                <td className="px-4 py-2 text-muted-foreground">{paidLabel(d)}</td>
                 <td className="px-4 py-2">
                   <DrawStatusSelect drawId={d.id} projectId={projectId} status={d.status} />
                 </td>
@@ -308,6 +319,7 @@ export default function DrawsSection({
         draws={draws}
         budgetLines={budgetLines}
         allocations={allocations}
+        payments={payments}
       />
     </div>
   );

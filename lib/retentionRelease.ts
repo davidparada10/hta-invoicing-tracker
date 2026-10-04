@@ -59,17 +59,87 @@ export function isImplausibleRetainage(retainageHeld: number, amountRequested: n
   return retainageHeld > amountRequested * 0.25;
 }
 
+type ConversionDraw = Pick<OwnerDraw, "id" | "status" | "retainage_held" | "draw_number"> & {
+  deleted_at?: string | null;
+};
+
+export type CumulativeConversion =
+  | {
+      status: "ok";
+      // Retention already held by the draws that PRECEDE the target.
+      priorHeld: number;
+      // This draw's own retainage: parsedCumulative − priorHeld. Negative
+      // when the document's cumulative figure fell below what was held
+      // before it — a partial release. Never clamped.
+      incremental: number;
+      isDecrease: boolean;
+    }
+  | { status: "unavailable"; reason: string };
+
 // A parsed G702's "Total Retainage" cell is normally cumulative-to-date.
-// When the user explicitly confirms that reading (rather than this app's
-// default incremental assumption), this draw's own retainage is the
-// cumulative figure minus whatever's already been withheld on every other
-// posted draw — floored at 0, since a genuine decrease goes through
-// "release" instead, never through this subtraction going negative.
-export function computeDocumentCumulativeRetention(
-  parsedCumulative: number,
-  retentionHeldToDate: number
-): number {
-  return Math.max(0, Math.round((parsedCumulative - retentionHeldToDate) * 100) / 100);
+// When the user confirms that reading, this draw's own (incremental)
+// retainage is the cumulative figure minus what the draws BEFORE it already
+// held — not the whole project's balance, which would wrongly include later
+// draws when an older draw is edited.
+//
+// Ordering rule: draw_number is the app's only real sequence key — it's what
+// getDrawsForProject sorts by, what the duplicate-number constraint
+// protects, and what users see ("Draw #2"). period_end / date_submitted are
+// nullable or user-entered and created_at is insertion time, so none of them
+// reliably tracks billing order (draws can be entered out of order). A draw
+// precedes the target only if its draw_number is STRICTLY LESS; gaps are fine
+// (e.g. draws 1-11 and 13), and an equal number is ambiguous rather than
+// something to break by date.
+//
+// Counted: live (not deleted), non-draft draws other than the one being
+// edited, with earlier releases included at their negative sign. If the
+// target's own number is missing/invalid, collides with another live draw,
+// or any live posted draw has no usable number, the result is "unavailable"
+// so the form can ask instead of guessing.
+export function convertCumulativeRetention(args: {
+  draws: ConversionDraw[];
+  editingId?: string;
+  targetDrawNumber: number | null;
+  parsedCumulative: number;
+}): CumulativeConversion {
+  const { draws, editingId, targetDrawNumber, parsedCumulative } = args;
+
+  if (
+    targetDrawNumber === null ||
+    !Number.isFinite(targetDrawNumber) ||
+    !Number.isInteger(targetDrawNumber) ||
+    targetDrawNumber <= 0
+  ) {
+    return { status: "unavailable", reason: "Enter this draw's number first — retention is converted relative to the draws before it." };
+  }
+
+  const live = draws.filter((d) => !d.deleted_at);
+
+  if (live.some((d) => d.id !== editingId && d.draw_number === targetDrawNumber)) {
+    return { status: "unavailable", reason: `Draw #${targetDrawNumber} already exists on this project, so its place in the sequence is ambiguous.` };
+  }
+
+  const others = live.filter((d) => d.id !== editingId && d.status !== "draft");
+
+  if (others.some((d) => !Number.isFinite(d.draw_number))) {
+    return { status: "unavailable", reason: "A posted draw on this project has no usable draw number, so the sequence can't be determined." };
+  }
+
+  const numbers = new Set<number>();
+  for (const d of live.filter((x) => x.status !== "draft")) {
+    if (numbers.has(d.draw_number)) {
+      return { status: "unavailable", reason: `Draw #${d.draw_number} appears more than once on this project, so the sequence is ambiguous.` };
+    }
+    numbers.add(d.draw_number);
+  }
+
+  const priorHeld =
+    Math.round(
+      others.filter((d) => d.draw_number < targetDrawNumber).reduce((acc, d) => acc + (d.retainage_held ?? 0), 0) * 100
+    ) / 100;
+  const incremental = Math.round((parsedCumulative - priorHeld) * 100) / 100;
+
+  return { status: "ok", priorHeld, incremental, isDecrease: incremental < 0 };
 }
 
 type RateInferenceDraw = Pick<OwnerDraw, "id" | "status" | "amount_requested" | "retainage_held">;

@@ -240,3 +240,45 @@ describe("getExcludedAllocatedForDraw / remainingBalanceForDraw", () => {
     expect(remaining).toBe(0);
   });
 });
+
+describe("getPaymentsForDraw — before the payments table exists", () => {
+  // A query-builder stub whose terminal call fails the way PostgREST does for an
+  // unmigrated database: reports must keep working off cached totals.
+  function failingClient(error: { code: string; message: string }) {
+    const chain: Record<string, unknown> = new Proxy(
+      {},
+      {
+        get: (_t, prop) =>
+          prop === "range" ? async () => ({ data: null, error }) : () => chain,
+      }
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return { from: () => chain } as any;
+  }
+
+  it("treats a missing table as no receipts instead of failing the page", async () => {
+    const client = failingClient({
+      code: "PGRST205",
+      message: "Could not find the table 'public.inv_draw_payments' in the schema cache",
+    });
+    expect(await getPaymentsForDraw(client, "d1")).toEqual([]);
+  });
+
+  it("also recognizes a plain Postgres undefined-table error", async () => {
+    const client = failingClient({ code: "42P01", message: 'relation "inv_draw_payments" does not exist' });
+    expect(await getPaymentsForDraw(client, "d1")).toEqual([]);
+  });
+
+  it("still surfaces unrelated database errors", async () => {
+    const client = failingClient({ code: "XX000", message: "connection reset" });
+    await expect(getPaymentsForDraw(client, "d1")).rejects.toMatchObject({ code: "XX000" });
+  });
+
+  it("coerces numeric amounts to numbers", async () => {
+    const supabase = fakeSupabase({
+      inv_draw_payments: [{ id: "p1", draw_id: "d1", amount: "30000.00", date_received: "2026-09-20", deleted_at: null }],
+    });
+    const [p] = await getPaymentsForDraw(supabase, "d1");
+    expect(p.amount).toBe(30000);
+  });
+});

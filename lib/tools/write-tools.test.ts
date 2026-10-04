@@ -1,15 +1,16 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createFakeSupabase } from "@/lib/testUtils/fakeSupabase";
+import { fakePaymentRpc } from "@/lib/testUtils/fakePaymentRpc";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 let tables: Record<string, Record<string, unknown>[]>;
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: () => createFakeSupabase(tables),
+  createServerSupabaseClient: () => createFakeSupabase(tables, { rpc: fakePaymentRpc }),
 }));
 
-const { markDrawPaidTool, updateDrawTool } = await import("@/lib/tools/write-tools");
+const { markDrawPaidTool, updateDrawTool, createDrawTool } = await import("@/lib/tools/write-tools");
 
 function project(overrides: Record<string, unknown> = {}) {
   return {
@@ -132,5 +133,79 @@ describe("markDrawPaidTool / updateDrawTool — same project-ownership and delet
 
     expect(result).toHaveProperty("error");
     expect((result as { error: string }).error).toMatch(/not found/i);
+  });
+});
+
+describe("markDrawPaidTool — payments are individual receipts", () => {
+  const ctx = (id: string) => ({ toolCallId: id, messages: [], context: undefined as never });
+  const run = (input: Record<string, unknown>, id = "call-1") =>
+    markDrawPaidTool.execute!({ projectName: "Project A", drawNumber: 1, ...input } as never, ctx(id));
+  const receipts = () => tables.inv_draw_payments.filter((p) => !p.deleted_at);
+
+  function seedDraw(overrides: Record<string, unknown> = {}) {
+    tables.inv_projects.push(project({ id: "proj-A", name: "Project A" }));
+    tables.inv_owner_draws.push(draw({ id: "d1", project_id: "proj-A", draw_number: 1, ...overrides }));
+    tables.inv_project_budget_lines.push(
+      { id: "l-hta", project_id: "proj-A", excluded_from_contract: false, deleted_at: null },
+      { id: "l-owner", project_id: "proj-A", excluded_from_contract: true, deleted_at: null }
+    );
+    tables.inv_draw_line_allocations.push(
+      { id: "a1", draw_id: "d1", budget_line_id: "l-hta", amount: 80000 },
+      { id: "a2", draw_id: "d1", budget_line_id: "l-owner", amount: 20000 }
+    );
+    tables.inv_draw_payments = [];
+  }
+
+  it("$30,000 in September + $20,000 in October: each is its own receipt with its own date", async () => {
+    seedDraw();
+    await run({ amountReceived: 30000, datePaid: "2026-09-20" }, "c1");
+    await run({ amountReceived: 20000, datePaid: "2026-10-05" }, "c2");
+    expect(tables.inv_owner_draws[0].amount_paid).toBe(50000);
+    expect(receipts().map((r) => [r.amount, r.date_received, r.source])).toEqual([
+      [30000, "2026-09-20", "ai"],
+      [20000, "2026-10-05", "ai"],
+    ]);
+  });
+
+  it("a retried call (same tool-call id) is recorded once and reports it was already recorded", async () => {
+    seedDraw();
+    await run({ amountReceived: 30000, datePaid: "2026-09-20" }, "same-call");
+    const retry = await run({ amountReceived: 30000, datePaid: "2026-09-20" }, "same-call");
+    expect(receipts()).toHaveLength(1);
+    expect(retry).toMatchObject({ success: true, alreadyRecorded: true });
+  });
+
+  it("two different calls for the same amount are two payments", async () => {
+    seedDraw();
+    await run({ amountReceived: 10000, datePaid: "2026-09-20" }, "a");
+    await run({ amountReceived: 10000, datePaid: "2026-09-20" }, "b");
+    expect(receipts()).toHaveLength(2);
+  });
+
+  it("refuses an overpayment unless the user's confirmation is passed through", async () => {
+    seedDraw();
+    const refused = await run({ amountReceived: 85000, datePaid: "2026-09-20" }, "o1");
+    expect(refused).toHaveProperty("error");
+    expect(receipts()).toHaveLength(0);
+
+    const ok = await run({ amountReceived: 85000, datePaid: "2026-09-20", confirmOverpayment: true }, "o2");
+    expect(ok).toMatchObject({ success: true });
+    expect(tables.inv_owner_draws[0].amount_paid).toBe(85000);
+  });
+
+  it("rejects a malformed date", async () => {
+    seedDraw();
+    expect(await run({ amountReceived: 100, datePaid: "yesterday" })).toHaveProperty("error");
+    expect(receipts()).toHaveLength(0);
+  });
+
+  it("createDrawTool won't create an already-paid draw with nothing received against it", async () => {
+    tables.inv_projects.push(project({ id: "proj-A", name: "Project A" }));
+    const result = await createDrawTool.execute!(
+      { projectName: "Project A", drawNumber: 5, amountRequested: 1000, status: "paid" } as never,
+      ctx("c")
+    );
+    expect(result).toHaveProperty("error");
+    expect(tables.inv_owner_draws).toHaveLength(0);
   });
 });

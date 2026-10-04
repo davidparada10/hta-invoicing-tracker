@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createFakeSupabase } from "@/lib/testUtils/fakeSupabase";
+import { fakePaymentRpc } from "@/lib/testUtils/fakePaymentRpc";
 
 // upsertDraw calls revalidatePath, which relies on Next.js request-scoped
 // state that doesn't exist under plain Vitest — stub it to a no-op so the
@@ -10,7 +11,7 @@ let tables: Record<string, Record<string, unknown>[]>;
 let raceHooks: Record<string, (row: Record<string, unknown>) => void> = {};
 
 vi.mock("@/lib/supabase/server", () => ({
-  createServerSupabaseClient: () => createFakeSupabase(tables, { raceHooks }),
+  createServerSupabaseClient: () => createFakeSupabase(tables, { raceHooks, rpc: fakePaymentRpc }),
 }));
 
 // Imported after the mocks above so the module under test picks them up.

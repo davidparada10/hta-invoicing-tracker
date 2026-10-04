@@ -21,6 +21,12 @@ import {
 import { isLenderPortalPdfText, parseLenderDrawFromPdf } from "@/lib/lender-portal-parser";
 import { diffAllocations } from "@/lib/drawAllocations";
 import { businessTodayISO } from "@/lib/format";
+import {
+  checkExplicitPayment,
+  defaultCashReceived,
+  ownerPaidFromAmounts,
+} from "@/lib/paymentDefaults";
+import { correctDrawPayment, recordDrawPayment, voidDrawPayment } from "@/lib/paymentsRepo";
 
 function normalizeMatchKey(s: string): string {
   return s
@@ -263,6 +269,87 @@ async function saveAllocations(
   }
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// What the edit form asks to do about a payment on this save. The form sends
+// an INTENT ("default" = collect what's still collectible, "explicit" = this
+// amount), never an owner-paid total: the server works that out itself from
+// the allocations being saved and the budget-line flags in the database.
+interface PaymentIntent {
+  mode: "none" | "default" | "explicit";
+  amount: number;
+  date: string | null;
+  // A date was sent but isn't a valid YYYY-MM-DD.
+  dateInvalid: boolean;
+  key: string | null;
+  confirmOverpayment: boolean;
+}
+
+function parsePaymentIntent(formData: FormData): PaymentIntent {
+  const raw = formData.get("payment_mode");
+  const mode = raw === "default" || raw === "explicit" ? raw : "none";
+  const amount = Number(formData.get("payment_amount"));
+  const date = toNullableString(formData.get("payment_date"));
+  const validDate = date !== null && ISO_DATE.test(date);
+  return {
+    mode,
+    amount: Number.isFinite(amount) ? amount : 0,
+    date: validDate ? date : null,
+    dateInvalid: date !== null && !validDate,
+    key: toNullableString(formData.get("payment_key")),
+    confirmOverpayment: formData.get("confirm_overpayment") === "true",
+  };
+}
+
+// Resolves the payment (if any) to record with this save, validating it BEFORE
+// anything is written so a rejected payment never leaves a half-saved draw.
+async function resolvePaymentForSave(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  args: {
+    intent: PaymentIntent;
+    projectId: string;
+    requested: number;
+    alreadyReceived: number;
+    allocations: AllocationInput[];
+  }
+): Promise<{ error: string } | { amount: number; date: string } | null> {
+  const { intent } = args;
+  if (intent.mode === "none") return null;
+  if (intent.dateInvalid) return { error: "Enter the payment date as a valid date." };
+
+  const { data: lines, error } = await supabase
+    .from("inv_project_budget_lines")
+    .select("id, excluded_from_contract")
+    .eq("project_id", args.projectId)
+    .is("deleted_at", null);
+  if (error) throw error;
+
+  const ownerPaid = ownerPaidFromAmounts(
+    Object.fromEntries(args.allocations.map((a) => [a.budget_line_id, a.amount])),
+    (lines ?? []) as { id: string; excluded_from_contract: boolean }[]
+  );
+
+  const date = intent.date ?? businessTodayISO();
+  if (intent.mode === "default") {
+    const amount = defaultCashReceived({
+      requested: args.requested,
+      ownerPaid,
+      alreadyReceived: args.alreadyReceived,
+    });
+    return amount > 0 ? { amount, date } : null;
+  }
+
+  const check = checkExplicitPayment({
+    amount: intent.amount,
+    requested: args.requested,
+    ownerPaid,
+    alreadyReceived: args.alreadyReceived,
+    confirmOverpayment: intent.confirmOverpayment,
+  });
+  if (!check.ok) return { error: check.error };
+  return { amount: intent.amount, date };
+}
+
 // Returns { error } instead of throwing. Next.js strips the .message off
 // any thrown Server Action error in production, keeping only an opaque
 // digest — a real, readable Error object still reaches the client as a
@@ -287,13 +374,21 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
       amount_requested: toNumber(formData.get("amount_requested")),
       amount_approved: toNumber(formData.get("amount_approved")),
       retainage_held: toNumber(formData.get("retainage_held")),
-      amount_paid: toNumber(formData.get("amount_paid")),
+      // amount_paid / date_paid are deliberately NOT written here: they are a
+      // cache of the draw's payment receipts, kept in step by the database
+      // functions in lib/paymentsRepo.ts. Writing them from a form would let
+      // them drift from the receipts.
       date_submitted: toNullableString(formData.get("date_submitted")),
       date_approved: toNullableString(formData.get("date_approved")),
-      date_paid: toNullableString(formData.get("date_paid")),
       status: formData.get("status") as string,
       notes: toNullableString(formData.get("notes")),
     };
+
+    // A draw can be marked paid without ever passing through "approved"; same
+    // defaulting as the approved transition, keeping a genuine partial approval.
+    if (payload.status === "paid" && !(payload.amount_approved > 0)) {
+      payload.amount_approved = payload.amount_requested;
+    }
 
     if (
       payload.period_start &&
@@ -302,6 +397,9 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
     ) {
       return { error: "Period end date can't be before the period start date." };
     }
+
+    const paymentIntent = parsePaymentIntent(formData);
+    let paymentToRecord: { amount: number; date: string } | null = null;
 
     let drawId = id;
     if (id) {
@@ -334,13 +432,16 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
       ) {
         payload.date_approved = today;
       }
-      if (
-        payload.status === "paid" &&
-        existing.status !== "paid" &&
-        payload.date_paid === existing.date_paid
-      ) {
-        payload.date_paid = today;
-      }
+
+      const resolved = await resolvePaymentForSave(supabase, {
+        intent: paymentIntent,
+        projectId,
+        requested: payload.amount_requested,
+        alreadyReceived: Number(existing.amount_paid) || 0,
+        allocations,
+      });
+      if (resolved && "error" in resolved) return { error: resolved.error };
+      paymentToRecord = resolved;
 
       const { error } = await supabase
         .from("inv_owner_draws")
@@ -359,9 +460,19 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
         };
       }
     } else {
+      const resolved = await resolvePaymentForSave(supabase, {
+        intent: paymentIntent,
+        projectId,
+        requested: payload.amount_requested,
+        alreadyReceived: 0,
+        allocations,
+      });
+      if (resolved && "error" in resolved) return { error: resolved.error };
+      paymentToRecord = resolved;
+
       const { data, error } = await supabase
         .from("inv_owner_draws")
-        .insert(payload)
+        .insert({ ...payload, amount_paid: 0, date_paid: null })
         .select("id")
         .single();
       if (error) return { error: normalizeDrawSaveError(error, payload.draw_number).message };
@@ -370,6 +481,26 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
 
     if (drawId) {
       await saveAllocations(supabase, drawId, allocations);
+    }
+
+    if (drawId && paymentToRecord) {
+      try {
+        await recordDrawPayment(supabase, {
+          drawId,
+          amount: paymentToRecord.amount,
+          date: paymentToRecord.date,
+          source: "manual",
+          idempotencyKey: paymentIntent.key,
+        });
+      } catch (err) {
+        revalidatePath(`/projects/${projectId}`);
+        revalidatePath("/");
+        return {
+          error: `The draw was saved, but its payment wasn't recorded: ${
+            err instanceof Error ? err.message : "unknown error"
+          }`,
+        };
+      }
     }
 
     revalidatePath(`/projects/${projectId}`);
@@ -382,15 +513,21 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
 
 // Returns { error } rather than throwing — see normalizeDrawSaveError above
 // for why (Next.js strips thrown Server Action error messages in
-// production). Both mutations here re-check deleted_at on the write, not
-// just the lookup, since a concurrent delete between the two would
-// otherwise silently "resurrect" the row into a paid/updated state instead
-// of failing.
+// production). Both mutations here re-check deleted_at, not just the lookup,
+// since a concurrent delete between the two would otherwise silently
+// "resurrect" the row into a paid/updated state instead of failing.
+//
+// Recording a payment goes through the database function behind
+// recordDrawPayment, which adds the receipt AND refreshes the draw's cached
+// amount_paid/date_paid in one transaction. The amount it defaults to — and
+// the owner-paid scope it nets out — is always worked out here from the draw's
+// saved allocations; a client-supplied excluded total is never read.
 export async function markDrawPaid(
   id: string,
   projectId: string,
   amountReceived?: number,
-  datePaid?: string
+  datePaid?: string,
+  options: { idempotencyKey?: string; confirmOverpayment?: boolean } = {}
 ): Promise<{ error?: string }> {
   try {
     const supabase = createServerSupabaseClient();
@@ -399,28 +536,34 @@ export async function markDrawPaid(
     if (!draw || draw.project_id !== projectId) {
       return { error: "This draw no longer exists or has been deleted." };
     }
+    if (datePaid !== undefined && datePaid !== "" && !ISO_DATE.test(datePaid)) {
+      return { error: "Enter the payment date as a valid date." };
+    }
 
-    const alreadyPaid = Number(draw.amount_paid) || 0;
-    const { remaining } = await remainingBalanceForDraw(supabase, draw);
+    const alreadyReceived = Number(draw.amount_paid) || 0;
+    const { remaining, excludedAllocated } = await remainingBalanceForDraw(supabase, draw);
     const received = amountReceived ?? remaining;
     if (!(received > 0)) return { error: "Amount received must be greater than zero." };
 
-    const { error } = await supabase
-      .from("inv_owner_draws")
-      .update({
-        status: "paid",
-        amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
-        date_paid: datePaid || businessTodayISO(),
-        // A draw can jump to paid without ever passing through "approved"
-        // — default the approved amount the same way that transition does,
-        // so paid draws never sit at amount_approved = 0.
-        ...(Number(draw.amount_approved) > 0 ? {} : { amount_approved: draw.amount_requested }),
-      })
-      .eq("id", id)
-      .is("deleted_at", null)
-      .select("id")
-      .single();
-    if (error) return { error: "This draw no longer exists or has been deleted." };
+    if (amountReceived !== undefined) {
+      const check = checkExplicitPayment({
+        amount: received,
+        requested: Number(draw.amount_requested) || 0,
+        ownerPaid: excludedAllocated,
+        alreadyReceived,
+        confirmOverpayment: options.confirmOverpayment === true,
+      });
+      if (!check.ok) return { error: check.error };
+    }
+
+    await recordDrawPayment(supabase, {
+      drawId: id,
+      amount: received,
+      date: datePaid || businessTodayISO(),
+      source: "manual",
+      idempotencyKey: options.idempotencyKey ?? null,
+      setPaid: true,
+    });
 
     revalidatePath(`/projects/${projectId}`);
     revalidatePath("/");
@@ -433,7 +576,8 @@ export async function markDrawPaid(
 export async function updateDrawStatus(
   id: string,
   projectId: string,
-  status: DrawStatus
+  status: DrawStatus,
+  idempotencyKey?: string
 ): Promise<{ error?: string }> {
   try {
     const supabase = createServerSupabaseClient();
@@ -453,20 +597,38 @@ export async function updateDrawStatus(
     if (status === "submitted" && draw.status !== "submitted") {
       payload.date_submitted = today;
     }
+
     if (status === "paid") {
-      // Defaults to the full collectible amount (requested minus any
-      // owner-paid, non-HTA scope), not the raw requested total — marking
-      // paid must never record owner-paid subcontractor money as HTA's own
-      // cash received. A draw with an existing partial payment on record
-      // is left alone here (its own remaining balance stays visible;
-      // this only fills in the very first payment).
-      if (!(Number(draw.amount_paid) > 0)) {
+      // Moving to paid with nothing received yet records the full collectible
+      // amount as a receipt (requested minus owner-paid scope) — marking paid
+      // must never book owner-paid subcontractor money as HTA's own cash. A
+      // draw that already has money received keeps its receipts untouched;
+      // only the status changes. Either way a missing approved amount defaults
+      // to the requested one, and a genuine partial approval is kept.
+      const alreadyReceived = Number(draw.amount_paid) || 0;
+      if (alreadyReceived <= 0) {
+        // Not remainingBalanceForDraw's `remaining`: openBalance reads 0 for a
+        // draft, and a draft moved straight to paid still has money to record.
         const { excludedAllocated } = await remainingBalanceForDraw(supabase, draw);
-        payload.amount_paid = Math.max(0, (draw.amount_requested ?? 0) - excludedAllocated);
+        const collectible = defaultCashReceived({
+          requested: Number(draw.amount_requested) || 0,
+          ownerPaid: excludedAllocated,
+          alreadyReceived: 0,
+        });
+        if (collectible > 0) {
+          await recordDrawPayment(supabase, {
+            drawId: id,
+            amount: collectible,
+            date: today,
+            source: "manual",
+            idempotencyKey: idempotencyKey ?? null,
+            setPaid: true,
+          });
+          revalidatePath(`/projects/${projectId}`);
+          revalidatePath("/");
+          return {};
+        }
       }
-      if (draw.status !== "paid") payload.date_paid = today;
-      // Same defaulting as the approved transition — a draw moved straight
-      // to paid never passes through it.
       if (!(Number(draw.amount_approved) > 0)) payload.amount_approved = draw.amount_requested;
     }
     if (status === "approved" && draw.status !== "approved" && draw.status !== "paid") {
@@ -488,6 +650,55 @@ export async function updateDrawStatus(
     return {};
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Could not update this draw's status." };
+  }
+}
+
+// Voids one receipt (the history is kept, just marked void) and refreshes the
+// draw's cached totals in the same database transaction.
+export async function voidPayment(
+  paymentId: string,
+  drawId: string,
+  projectId: string
+): Promise<{ error?: string }> {
+  try {
+    const supabase = createServerSupabaseClient();
+    const draw = await getLiveDraw(supabase, { id: drawId });
+    if (!draw || draw.project_id !== projectId) {
+      return { error: "This draw no longer exists or has been deleted." };
+    }
+    await voidDrawPayment(supabase, { paymentId, drawId });
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath("/");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not void this payment." };
+  }
+}
+
+// Replaces a wrong receipt: voids it and records the corrected amount/date in
+// one transaction. Retrying with the same key returns the replacement.
+export async function correctPayment(
+  paymentId: string,
+  drawId: string,
+  projectId: string,
+  amount: number,
+  date: string,
+  idempotencyKey?: string
+): Promise<{ error?: string }> {
+  try {
+    if (!(amount > 0)) return { error: "Amount received must be greater than zero." };
+    if (!ISO_DATE.test(date)) return { error: "Enter the payment date as a valid date." };
+    const supabase = createServerSupabaseClient();
+    const draw = await getLiveDraw(supabase, { id: drawId });
+    if (!draw || draw.project_id !== projectId) {
+      return { error: "This draw no longer exists or has been deleted." };
+    }
+    await correctDrawPayment(supabase, { paymentId, drawId, amount, date, idempotencyKey: idempotencyKey ?? null });
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath("/");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Could not correct this payment." };
   }
 }
 

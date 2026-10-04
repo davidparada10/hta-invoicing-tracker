@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  computeDocumentCumulativeRetention,
+  convertCumulativeRetention,
   computeRetentionRelease,
   inferRetentionRate,
   isImplausibleRetainage,
@@ -129,20 +129,102 @@ describe("inferRetentionRate", () => {
   });
 });
 
-describe("computeDocumentCumulativeRetention", () => {
-  it("subtracts retention already held on other draws from the document's cumulative figure", () => {
-    expect(computeDocumentCumulativeRetention(15000, 10000)).toBe(5000);
+function numbered(
+  id: string,
+  drawNumber: number,
+  retainage: number,
+  status: "draft" | "submitted" | "approved" | "paid" = "paid",
+  deleted_at: string | null = null
+) {
+  return { id, draw_number: drawNumber, retainage_held: retainage, status, deleted_at };
+}
+
+describe("convertCumulativeRetention", () => {
+  // The brief's example: editing Draw 2 must not be affected by Draw 3.
+  it("subtracts only the draws BEFORE the target — a later draw doesn't change the answer", () => {
+    const draws = [numbered("d1", 1, 10000), numbered("d2", 2, 99999), numbered("d3", 3, 8000)];
+    const r = convertCumulativeRetention({ draws, editingId: "d2", targetDrawNumber: 2, parsedCumulative: 25000 });
+    expect(r).toEqual({ status: "ok", priorHeld: 10000, incremental: 15000, isDecrease: false });
   });
 
-  it("floors at 0 instead of going negative when held-to-date exceeds the document figure", () => {
-    expect(computeDocumentCumulativeRetention(5000, 10000)).toBe(0);
+  it("uses only earlier draws for a new draw entered out of order (typed #2 with #1 and #3 present)", () => {
+    const draws = [numbered("d1", 1, 10000), numbered("d3", 3, 8000)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 2, parsedCumulative: 25000 });
+    expect(r).toMatchObject({ status: "ok", priorHeld: 10000, incremental: 15000 });
   });
 
-  it("returns the full figure when nothing has been held yet (first draw)", () => {
-    expect(computeDocumentCumulativeRetention(8000, 0)).toBe(8000);
+  it("includes an earlier partial release at its negative sign", () => {
+    const draws = [numbered("d1", 1, 10000), numbered("d2", 2, -4000)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 3, parsedCumulative: 20000 });
+    expect(r).toMatchObject({ status: "ok", priorHeld: 6000, incremental: 14000 });
+  });
+
+  it("ignores later draws even when they carry a release", () => {
+    const draws = [numbered("d1", 1, 10000), numbered("d3", 3, -10000)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 2, parsedCumulative: 12000 });
+    expect(r).toMatchObject({ status: "ok", priorHeld: 10000, incremental: 2000 });
+  });
+
+  it("excludes drafts, soft-deleted draws, and the draw being edited", () => {
+    const draws = [
+      numbered("d1", 1, 10000),
+      numbered("draft", 2, 5000, "draft"),
+      numbered("gone", 3, 7000, "paid", "2026-01-01T00:00:00Z"),
+      numbered("me", 4, 123456),
+    ];
+    const r = convertCumulativeRetention({ draws, editingId: "me", targetDrawNumber: 4, parsedCumulative: 25000 });
+    expect(r).toMatchObject({ status: "ok", priorHeld: 10000, incremental: 15000 });
+  });
+
+  it("tolerates gaps in the numbering (draws 1-11 then 13)", () => {
+    const draws = [numbered("d11", 11, 4000), numbered("d1", 1, 1000)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 13, parsedCumulative: 6000 });
+    expect(r).toMatchObject({ status: "ok", priorHeld: 5000, incremental: 1000 });
+  });
+
+  // A decrease may be a partial release — surfaced explicitly, never clamped to
+  // zero and never swapped for a full release.
+  it("returns a negative incremental, flagged as a decrease, when the cumulative figure fell", () => {
+    const draws = [numbered("d1", 1, 10000)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 2, parsedCumulative: 6000 });
+    expect(r).toEqual({ status: "ok", priorHeld: 10000, incremental: -4000, isDecrease: true });
+  });
+
+  it("is unavailable when the target number is blank, zero, non-integer, or NaN", () => {
+    const draws = [numbered("d1", 1, 10000)];
+    for (const n of [null, 0, -1, 1.5, NaN]) {
+      const r = convertCumulativeRetention({ draws, targetDrawNumber: n, parsedCumulative: 5000 });
+      expect(r.status).toBe("unavailable");
+    }
+  });
+
+  it("is unavailable when another live draw already holds the target number", () => {
+    const draws = [numbered("d1", 1, 10000), numbered("d2", 2, 4000)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 2, parsedCumulative: 20000 });
+    expect(r.status).toBe("unavailable");
+  });
+
+  it("does not treat the draw being edited as a collision with its own number", () => {
+    const draws = [numbered("d1", 1, 10000), numbered("d2", 2, 4000)];
+    const r = convertCumulativeRetention({ draws, editingId: "d2", targetDrawNumber: 2, parsedCumulative: 20000 });
+    expect(r.status).toBe("ok");
+  });
+
+  it("is unavailable when a posted draw has no usable draw number", () => {
+    const draws = [numbered("d1", 1, 10000), numbered("bad", NaN, 3000)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 3, parsedCumulative: 20000 });
+    expect(r.status).toBe("unavailable");
+  });
+
+  it("is unavailable when two posted draws share a number", () => {
+    const draws = [numbered("a", 1, 10000), numbered("b", 1, 2000)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 3, parsedCumulative: 20000 });
+    expect(r.status).toBe("unavailable");
   });
 
   it("rounds to the cent", () => {
-    expect(computeDocumentCumulativeRetention(1000.004, 0)).toBe(1000);
+    const draws = [numbered("d1", 1, 0.1), numbered("d2", 2, 0.2)];
+    const r = convertCumulativeRetention({ draws, targetDrawNumber: 3, parsedCumulative: 1 });
+    expect(r).toMatchObject({ status: "ok", priorHeld: 0.3, incremental: 0.7 });
   });
 });

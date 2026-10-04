@@ -8,7 +8,13 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 
+// Handlers for supabase.rpc(name, args) — stand-ins for Postgres functions,
+// given the same tables the fake client holds. Return the function's result
+// or throw { code, message } to simulate a database error.
+export type FakeRpcHandler = (args: Record<string, unknown>, tables: Record<string, Row[]>) => unknown;
+
 export interface FakeSupabaseOptions {
+  rpc?: Record<string, FakeRpcHandler>;
   // Fires once, right after the first successful read that returns a row
   // from the given table — for simulating a row changing (e.g. soft-deleted,
   // reassigned) *between* a function's lookup and its own write, the same
@@ -21,9 +27,22 @@ export function createFakeSupabase(tables: Record<string, Row[]>, options: FakeS
   const raceHooks = { ...options.raceHooks };
 
   return {
+    async rpc(name: string, args: Record<string, unknown>) {
+      const handler = options.rpc?.[name];
+      if (!handler) {
+        return { data: null, error: { code: "PGRST202", message: `Could not find the function ${name}` } };
+      }
+      try {
+        return { data: handler(args, tables), error: null };
+      } catch (e) {
+        const err = e as { code?: string; message?: string };
+        return { data: null, error: { code: err.code, message: err.message ?? String(e) } };
+      }
+    },
     from(table: string) {
       if (!tables[table]) tables[table] = [];
-      let op: "select" | "update" | "insert" = "select";
+      let op: "select" | "update" | "insert" | "upsert" | "delete" = "select";
+      let conflictCols: string[] = [];
       let patch: Row = {};
       let toInsert: Row[] = [];
       let predicate: (r: Row) => boolean = () => true;
@@ -37,6 +56,19 @@ export function createFakeSupabase(tables: Record<string, Row[]>, options: FakeS
         if (op === "insert") {
           tables[table].push(...toInsert);
           return toInsert;
+        }
+        if (op === "upsert") {
+          for (const row of toInsert) {
+            const existing = tables[table].find((r) => conflictCols.length > 0 && conflictCols.every((c) => r[c] === row[c]));
+            if (existing) Object.assign(existing, row);
+            else tables[table].push({ ...row });
+          }
+          return toInsert;
+        }
+        if (op === "delete") {
+          const doomed = tables[table].filter(predicate);
+          tables[table] = tables[table].filter((r) => !predicate(r));
+          return doomed;
         }
         const matched = tables[table].filter(predicate);
         if (op === "update") {
@@ -61,6 +93,20 @@ export function createFakeSupabase(tables: Record<string, Row[]>, options: FakeS
           applyFilter((r) => r[col] === val);
           return builder;
         },
+        in(col: string, vals: unknown[]) {
+          applyFilter((r) => vals.includes(r[col]));
+          return builder;
+        },
+        upsert(rows: Row | Row[], opts?: { onConflict?: string }) {
+          op = "upsert";
+          toInsert = Array.isArray(rows) ? rows : [rows];
+          conflictCols = opts?.onConflict ? opts.onConflict.split(",").map((c) => c.trim()) : [];
+          return builder;
+        },
+        delete() {
+          op = "delete";
+          return builder;
+        },
         is(col: string, val: unknown) {
           applyFilter((r) => r[col] === val);
           return builder;
@@ -75,7 +121,8 @@ export function createFakeSupabase(tables: Record<string, Row[]>, options: FakeS
         },
         insert(rows: Row | Row[]) {
           op = "insert";
-          toInsert = Array.isArray(rows) ? rows : [rows];
+          // Like the real tables, generate an id when the caller doesn't supply one.
+          toInsert = (Array.isArray(rows) ? rows : [rows]).map((r) => ({ id: crypto.randomUUID(), ...r }));
           return builder;
         },
         range() {

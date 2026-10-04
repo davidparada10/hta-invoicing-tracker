@@ -70,3 +70,36 @@ describe("monthKey / monthLabel", () => {
     expect(monthLabel(key)).toBe("Mar 26");
   });
 });
+
+describe("buildMonthlyBillingBuckets — per-receipt paid amounts", () => {
+  const split = draw({
+    id: "split",
+    status: "paid" as const,
+    amount_requested: 50000,
+    amount_paid: 50000,
+    date_submitted: "2026-08-25",
+    date_paid: "2026-10-05",
+  });
+  const rows = [
+    { id: "a", draw_id: "split", amount: 30000, date_received: "2026-09-20", source: "manual" as const, idempotency_key: null, created_at: "2026-09-20T00:00:00Z", deleted_at: null },
+    { id: "b", draw_id: "split", amount: 20000, date_received: "2026-10-05", source: "manual" as const, idempotency_key: null, created_at: "2026-10-05T00:00:00Z", deleted_at: null },
+  ];
+
+  // The brief's regression example, in the chart.
+  it("charts $30,000 in September and $20,000 in October, not $50,000 in October", () => {
+    const buckets = buildMonthlyBillingBuckets([split], rows);
+    expect(buckets.find((b) => b.key === "2026-09")?.paid).toBe(30000);
+    expect(buckets.find((b) => b.key === "2026-10")?.paid).toBe(20000);
+  });
+
+  it("without receipt rows, charts the whole cached total on date_paid exactly as before", () => {
+    const buckets = buildMonthlyBillingBuckets([split]);
+    expect(buckets.find((b) => b.key === "2026-10")?.paid).toBe(50000);
+    expect(buckets.find((b) => b.key === "2026-09")?.paid ?? 0).toBe(0);
+  });
+
+  it("ignores voided receipts", () => {
+    const withVoid = [...rows, { ...rows[0], id: "c", amount: 777, deleted_at: "2026-09-21T00:00:00Z" }];
+    expect(buildMonthlyBillingBuckets([split], withVoid).find((b) => b.key === "2026-09")?.paid).toBe(30000);
+  });
+});

@@ -9,6 +9,8 @@ import {
   getDrawsForProject,
   getBudgetLinesForProject,
   getAllDraws,
+  getLivePayments,
+  getPaymentsForProject,
   getProjects,
   getBillingReport,
   getProjectBillingBreakdown,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/data";
 import { AGING_BUCKETS, agingBucket, daysOpen } from "@/lib/aging";
 import { businessToday, businessTodayISO, parseLocalDate } from "@/lib/format";
+import { paymentsForDraws } from "@/lib/paymentHistory";
 import { resolveProject } from "./shared";
 import { OwnerDraw } from "@/lib/types";
 
@@ -75,7 +78,7 @@ export const getOpenDrawsTool = tool({
 
 export const getRecentPaymentsTool = tool({
   description:
-    "List every draw with a payment recorded on a specific date, across all projects, in one call — use this for 'what got paid today/yesterday/on <date>' instead of checking each project individually. Defaults to today's date (server clock) if no date is given.",
+    "List every payment (receipt) received on a specific date, across all projects, in one call — use this for 'what got paid today/yesterday/on <date>' instead of checking each project individually. Each draw's payments are tracked separately with their own date, so a draw paid in two installments shows up on both dates with just that day's amount. Defaults to today's date (server clock) if no date is given.",
   inputSchema: z.object({
     date: z
       .string()
@@ -86,17 +89,26 @@ export const getRecentPaymentsTool = tool({
   }),
   execute: async ({ date }) => {
     const targetDate = date ?? businessTodayISO();
-    const [draws, projects] = await Promise.all([getAllDraws(), getProjects()]);
+    const [draws, projects, rows] = await Promise.all([getAllDraws(), getProjects(), getLivePayments()]);
     const projectNameById = new Map(projects.map((p) => [p.id, p.name]));
+    const drawById = new Map(draws.map((d) => [d.id, d]));
 
-    const payments = draws
-      .filter((d) => d.date_paid === targetDate)
-      .map((d) => ({
-        project: projectNameById.get(d.project_id) ?? "Unknown project",
-        drawNumber: d.draw_number,
-        amountPaid: d.amount_paid,
-        retainageHeld: d.retainage_held,
-      }));
+    // Real receipts, plus one synthetic receipt for any draw that has money
+    // received but no receipt rows (see lib/paymentHistory.ts).
+    const receipts = paymentsForDraws(draws, rows, (iso) => businessTodayISO(new Date(iso)));
+
+    const payments = receipts
+      .filter((r) => r.date_received === targetDate)
+      .map((r) => {
+        const d = drawById.get(r.draw_id)!;
+        return {
+          project: projectNameById.get(d.project_id) ?? "Unknown project",
+          drawNumber: d.draw_number,
+          amountReceived: r.amount,
+          drawTotalReceived: d.amount_paid,
+          retainageHeld: d.retainage_held,
+        };
+      });
 
     return { date: targetDate, payments };
   },
@@ -224,10 +236,11 @@ export const getProjectDetailsTool = tool({
     if ("error" in resolved) return { error: resolved.error };
     const project = resolved.project;
 
-    const [rawDraws, budgetLines, allocations] = await Promise.all([
+    const [rawDraws, budgetLines, allocations, paymentRows] = await Promise.all([
       getDrawsForProject(project.id),
       getBudgetLinesForProject(project.id),
       getAllocationsForProject(project.id),
+      getPaymentsForProject(project.id),
     ]);
     const excludedMap = excludedAllocationByDraw(allocations, budgetLines);
     const draws = rawDraws.map((d) => ({ ...d, excluded_allocated: excludedMap.get(d.id) ?? 0 }));
@@ -256,6 +269,13 @@ export const getProjectDetailsTool = tool({
         dateSubmitted: d.date_submitted,
         dateApproved: d.date_approved,
         datePaid: d.date_paid,
+        // Each payment with its own date; amountPaid is their total and
+        // datePaid the most recent one.
+        payments: paymentsForDraws(
+          [d],
+          paymentRows.filter((r) => r.draw_id === d.id),
+          (iso) => businessTodayISO(new Date(iso))
+        ).map((r) => ({ amount: r.amount, date: r.date_received })),
         daysToApprove: daysToApprove(d),
         notes: d.notes,
       })),

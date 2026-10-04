@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getLiveDraw, normalizeDrawSaveError, remainingBalanceForDraw } from "@/lib/data";
 import { businessTodayISO } from "@/lib/format";
+import { checkExplicitPayment } from "@/lib/paymentDefaults";
+import { recordDrawPayment } from "@/lib/paymentsRepo";
 import { resolveProject } from "./shared";
 
 export const createDrawTool = tool({
@@ -23,6 +25,13 @@ export const createDrawTool = tool({
     notes: z.string().optional(),
   }),
   execute: async (input) => {
+    // A "paid" draw created here would have nothing received against it —
+    // payments are recorded as receipts, so create the draw first and then
+    // use markDrawPaid.
+    if (input.status === "paid") {
+      return { error: "Create the draw first, then use markDrawPaid to record the payment." };
+    }
+
     const resolved = await resolveProject(input.projectName);
     if ("error" in resolved) return { error: resolved.error };
 
@@ -50,7 +59,7 @@ export const createDrawTool = tool({
 
 export const markDrawPaidTool = tool({
   description:
-    "Record a payment on an existing owner draw. Defaults to paying the remaining outstanding balance today. Pass amountReceived for a short/partial pay.",
+    "Record a payment on an existing owner draw as its own receipt (amount + date), added to anything already received. Defaults to the remaining collectible balance today. Pass amountReceived for a short/partial pay. A payment larger than what is still collectible is refused unless confirmOverpayment is true. Retried calls are safe: the same tool call never records twice.",
   inputSchema: z.object({
     projectName: z.string(),
     drawNumber: z.number().int(),
@@ -60,39 +69,60 @@ export const markDrawPaidTool = tool({
       .optional()
       .describe("Payment amount. Omit to pay the remaining outstanding balance in full."),
     datePaid: z.string().optional().describe("YYYY-MM-DD. Defaults to today."),
+    confirmOverpayment: z
+      .boolean()
+      .optional()
+      .describe("Set true only when the user explicitly confirmed paying more than the remaining collectible balance."),
   }),
-  execute: async ({ projectName, drawNumber, amountReceived, datePaid }) => {
+  execute: async ({ projectName, drawNumber, amountReceived, datePaid, confirmOverpayment }, options) => {
     const resolved = await resolveProject(projectName);
     if ("error" in resolved) return { error: resolved.error };
+
+    if (datePaid !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(datePaid)) {
+      return { error: "datePaid must be YYYY-MM-DD." };
+    }
 
     const supabase = createServerSupabaseClient();
     const draw = await getLiveDraw(supabase, { projectId: resolved.project.id, drawNumber });
     if (!draw) return { error: `Draw #${drawNumber} not found for ${resolved.project.name}.` };
 
-    const alreadyPaid = Number(draw.amount_paid) || 0;
+    const alreadyReceived = Number(draw.amount_paid) || 0;
     // Nets out owner-paid, non-HTA scope already billed against this draw
     // (excluded_allocated) — the same "remaining collectible balance" used
     // by the ordinary Mark Paid button, so the AI can't record that scope
     // as HTA's own cash received just because it wasn't told to exclude it.
-    const { remaining } = await remainingBalanceForDraw(supabase, draw);
+    const { remaining, excludedAllocated } = await remainingBalanceForDraw(supabase, draw);
     const received = amountReceived ?? remaining;
     if (!(received > 0)) {
       return { error: `Draw #${drawNumber} has no outstanding balance.` };
     }
 
-    const { error } = await supabase
-      .from("inv_owner_draws")
-      .update({
-        status: "paid",
-        amount_paid: Math.round((alreadyPaid + received) * 100) / 100,
-        date_paid: datePaid || businessTodayISO(),
-        ...(Number(draw.amount_approved) > 0 ? {} : { amount_approved: draw.amount_requested }),
-      })
-      .eq("id", draw.id)
-      .is("deleted_at", null)
-      .select("id")
-      .single();
-    if (error) return { error: `Draw #${drawNumber} no longer exists or has been deleted.` };
+    if (amountReceived !== undefined) {
+      const check = checkExplicitPayment({
+        amount: received,
+        requested: Number(draw.amount_requested) || 0,
+        ownerPaid: excludedAllocated,
+        alreadyReceived,
+        confirmOverpayment: confirmOverpayment === true,
+      });
+      if (!check.ok) return { error: check.error };
+    }
+
+    // The tool-call id is stable across a retry of the same call, so a retried
+    // payment returns the original receipt instead of recording a second one.
+    let result;
+    try {
+      result = await recordDrawPayment(supabase, {
+        drawId: draw.id,
+        amount: received,
+        date: datePaid || businessTodayISO(),
+        source: "ai",
+        idempotencyKey: options?.toolCallId ? `ai:${options.toolCallId}` : null,
+        setPaid: true,
+      });
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : `Could not record the payment on draw #${drawNumber}.` };
+    }
 
     revalidatePath(`/projects/${resolved.project.id}`);
     revalidatePath("/");
@@ -101,6 +131,8 @@ export const markDrawPaidTool = tool({
       project: resolved.project.name,
       drawNumber,
       amountReceived: received,
+      totalReceived: result.amountPaid,
+      alreadyRecorded: result.wasDuplicate,
     };
   },
 });

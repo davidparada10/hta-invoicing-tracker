@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { markDrawPaid } from "@/app/draws/actions";
-import { formatCurrency } from "@/lib/format";
+import { businessTodayISO, formatCurrency } from "@/lib/format";
+import { defaultCashReceived } from "@/lib/paymentDefaults";
 import Modal from "@/components/Modal";
 import { withScrollPreserved } from "@/lib/preserveScroll";
 
@@ -23,21 +24,29 @@ export default function MarkPaidButton({
   // Owner-paid, non-HTA scope already billed against this draw — netted
   // out so the default here matches openBalance() (the shared "what's
   // still actually collectible by HTA" calculation used everywhere else).
-  // The server independently recomputes this on save regardless of what's
-  // submitted here, so this only affects what the field starts pre-filled
-  // with, not what's actually recorded.
+  // The server independently recomputes this from the draw's saved
+  // allocations — it never reads this prop — so this only affects what the
+  // field starts pre-filled with, and when to ask about an overpayment.
   excludedAllocated?: number;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const outstanding = Math.max(0, (amountRequested ?? 0) - (excludedAllocated ?? 0) - (amountPaid ?? 0));
+  const outstanding = defaultCashReceived({
+    requested: amountRequested ?? 0,
+    ownerPaid: excludedAllocated ?? 0,
+    alreadyReceived: amountPaid ?? 0,
+  });
   const [amount, setAmount] = useState(String(outstanding));
-  const [datePaid, setDatePaid] = useState(new Date().toISOString().slice(0, 10));
+  const [datePaid, setDatePaid] = useState(businessTodayISO());
+  // One retry key per open of the dialog: a double-click or a retried request
+  // is recorded once, while reopening the dialog starts a fresh payment.
+  const [paymentKey, setPaymentKey] = useState(() => crypto.randomUUID());
   const [isPending, startTransition] = useTransition();
 
   function handleOpen() {
     setAmount(String(outstanding));
-    setDatePaid(new Date().toISOString().slice(0, 10));
+    setDatePaid(businessTodayISO());
+    setPaymentKey(crypto.randomUUID());
     setOpen(true);
   }
 
@@ -45,10 +54,26 @@ export default function MarkPaidButton({
     e.preventDefault();
     const received = Number(amount);
     if (!(received > 0)) return;
+    // More than what's still collectible is allowed (real draws are
+    // overpaid sometimes) but only on purpose.
+    const overpayment = received > outstanding + 0.005;
+    if (
+      overpayment &&
+      !confirm(
+        `${formatCurrency(received)} is ${formatCurrency(received - outstanding)} more than the ${formatCurrency(
+          outstanding
+        )} still collectible on this draw. Record the overpayment?`
+      )
+    ) {
+      return;
+    }
     startTransition(async () => {
       try {
         const result = await withScrollPreserved(() =>
-          markDrawPaid(drawId, projectId, received, datePaid || undefined)
+          markDrawPaid(drawId, projectId, received, datePaid || undefined, {
+            idempotencyKey: paymentKey,
+            confirmOverpayment: overpayment,
+          })
         );
         if (result?.error) {
           alert(result.error);
@@ -80,7 +105,7 @@ export default function MarkPaidButton({
           <p className="text-xs text-muted-foreground">
             Requested {formatCurrency(amountRequested)}
             {(excludedAllocated ?? 0) > 0 ? ` · owner-paid scope ${formatCurrency(excludedAllocated)}` : ""}
-            {(amountPaid ?? 0) > 0 ? ` · already paid ${formatCurrency(amountPaid)}` : ""}
+            {(amountPaid ?? 0) > 0 ? ` · already received ${formatCurrency(amountPaid)}` : ""}
             {` · outstanding ${formatCurrency(outstanding)}`}
           </p>
           <label className="block">

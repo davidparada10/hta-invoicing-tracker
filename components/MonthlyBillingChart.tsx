@@ -1,12 +1,19 @@
 import { OwnerDraw } from "@/lib/types";
 import { formatCurrency, formatCurrencyCompact } from "@/lib/format";
 import { buildMonthlyBillingBuckets, niceMax } from "@/lib/monthlyBilling";
+import type { DrawPayment } from "@/lib/paymentHistory";
 
 const INVOICED_COLOR = "var(--billed)";
 const PAID_COLOR = "var(--paid)";
 
-export default function MonthlyBillingChart({ draws }: { draws: OwnerDraw[] }) {
-  const months = buildMonthlyBillingBuckets(draws);
+export default function MonthlyBillingChart({
+  draws,
+  payments = [],
+}: {
+  draws: OwnerDraw[];
+  payments?: DrawPayment[];
+}) {
+  const months = buildMonthlyBillingBuckets(draws, payments);
 
   if (months.length === 0) {
     return (

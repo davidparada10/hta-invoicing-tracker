@@ -29,7 +29,10 @@ export default function DrawStatusSelect({
     }
     startTransition(async () => {
       try {
-        const result = await withScrollPreserved(() => updateDrawStatus(drawId, projectId, next));
+        // A fresh key per change: if the request is retried, the payment it
+        // records for a move to "paid" is recorded once, not twice.
+        const key = crypto.randomUUID();
+        const result = await withScrollPreserved(() => updateDrawStatus(drawId, projectId, next, key));
         if (result?.error) {
           e.target.value = status;
           alert(result.error);

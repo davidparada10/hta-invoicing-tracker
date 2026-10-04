@@ -1,99 +1,51 @@
-// Pure logic for a per-draw payment-history model — NOT wired into the live
-// app yet. See supabase/migrations/20261001120000_add_draw_payments.sql for
-// the proposed inv_draw_payments table this is designed against, and
-// DEVLOG.md / the session's final report for exactly what activating this
-// would require touching (markDrawPaid, markDrawPaidTool, lib/billing.ts,
-// lib/monthlyBilling.ts, getRecentPaymentsTool). Built and tested now so the
-// approach is reviewed ahead of that migration actually running, per the
-// request's own fallback for this gap: "complete the other independent
-// fixes and provide a concrete payment-history plan... [not] a partial
-// switch that makes reports inconsistent."
+// Pure helpers over per-draw payment receipts (inv_draw_payments). See
+// supabase/migrations/20261001120000_add_draw_payments.sql for the table and
+// the atomic record/void/correct functions; writes never happen here — they go
+// through lib/paymentsRepo.ts so the DB keeps the cached draw totals in step.
 //
-// The bug this replaces: inv_owner_draws.amount_paid accumulates but
-// date_paid is a flat overwrite, so a draw paid $30k in September and $20k
-// in October reports the full $50k in October. Each payment here keeps its
-// own amount and date, so period-based reporting (monthly/quarterly/annual)
-// can bucket correctly instead of dumping everything into the latest date.
+// The bug this replaces: inv_owner_draws.amount_paid accumulated but date_paid
+// was a flat overwrite, so $30k in September plus $20k in October reported the
+// full $50k in October. Each receipt keeps its own amount and date, and period
+// reports bucket per receipt.
 
 export interface DrawPayment {
   id: string;
   draw_id: string;
   amount: number;
   date_received: string; // YYYY-MM-DD
-  source: "manual" | "ai";
+  source: "manual" | "ai" | "legacy";
   idempotency_key: string | null;
+  // True when a legacy receipt's date was inferred (the draw had money but no
+  // date_paid), so it can be audited.
+  date_inferred?: boolean;
   created_at: string;
   deleted_at: string | null;
 }
 
-export type NewDrawPayment = Pick<DrawPayment, "draw_id" | "amount" | "date_received" | "source"> & {
-  idempotency_key?: string | null;
-};
+import { paidDate } from "@/lib/billingDates";
 
-export interface RecordPaymentResult {
-  payments: DrawPayment[];
-  // The payment actually recorded — or, when idempotency_key matched an
-  // existing payment, the pre-existing one that was returned instead of
-  // inserting a duplicate.
-  payment: DrawPayment;
-  wasDuplicate: boolean;
-}
-
-// Appends a new payment, unless its idempotency_key matches a live payment
-// already on record — the guard markDrawPaidTool lacks today, where two
-// identical agent calls would both apply. A null/omitted key never
-// dedupes (manual entry has no natural key to compare).
-export function recordPayment(
-  existing: DrawPayment[],
-  newPayment: NewDrawPayment,
-  makeId: () => string = () => crypto.randomUUID(),
-  now: () => string = () => new Date().toISOString()
-): RecordPaymentResult {
-  if (newPayment.idempotency_key) {
-    const duplicate = existing.find(
-      (p) => p.deleted_at === null && p.idempotency_key === newPayment.idempotency_key
-    );
-    if (duplicate) {
-      return { payments: existing, payment: duplicate, wasDuplicate: true };
-    }
-  }
-
-  const payment: DrawPayment = {
-    id: makeId(),
-    draw_id: newPayment.draw_id,
-    amount: newPayment.amount,
-    date_received: newPayment.date_received,
-    source: newPayment.source,
-    idempotency_key: newPayment.idempotency_key ?? null,
-    created_at: now(),
-    deleted_at: null,
-  };
-  return { payments: [...existing, payment], payment, wasDuplicate: false };
-}
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 function live(payments: DrawPayment[]): DrawPayment[] {
   return payments.filter((p) => p.deleted_at === null);
 }
 
 export function totalPaid(payments: DrawPayment[]): number {
-  return Math.round(live(payments).reduce((acc, p) => acc + p.amount, 0) * 100) / 100;
+  return round2(live(payments).reduce((acc, p) => acc + p.amount, 0));
 }
 
-// The derived/cached inv_owner_draws.date_paid value under this model: the
-// most recent payment's date, kept for backward-compatible display (e.g.
-// "last payment date") — never used for period bucketing, which should
-// read each payment's own date_received instead (see paymentsByPeriod).
+// The cached inv_owner_draws.date_paid under this model: the most recent live
+// receipt's date. Kept for display ("last payment date") — period bucketing
+// must read each receipt's own date_received instead (see paymentsByPeriod).
 export function lastPaymentDate(payments: DrawPayment[]): string | null {
   const dates = live(payments).map((p) => p.date_received);
   if (dates.length === 0) return null;
   return dates.reduce((latest, d) => (d > latest ? d : latest));
 }
 
-// Buckets each payment into its own period by its own date_received —
-// the fix for the "$50,000 reported in October" bug, where today's model
-// dumps a draw's entire amount_paid into whichever period its single
-// date_paid falls in instead of splitting by when each dollar actually
-// arrived.
+// Buckets each live receipt by its own date — the fix for "$50,000 reported in
+// October", where a draw's whole amount_paid landed in its single date_paid's
+// period regardless of when each dollar actually arrived.
 export function paymentsByPeriod(
   payments: DrawPayment[],
   periodKey: (dateReceived: string) => string
@@ -101,17 +53,79 @@ export function paymentsByPeriod(
   const totals = new Map<string, number>();
   for (const p of live(payments)) {
     const key = periodKey(p.date_received);
-    totals.set(key, Math.round(((totals.get(key) ?? 0) + p.amount) * 100) / 100);
+    totals.set(key, round2((totals.get(key) ?? 0) + p.amount));
   }
   return totals;
 }
 
-// days-to-pay, once this model is live, is defined as days to the LAST
-// (final-settlement) payment — closest to today's existing meaning ("how
-// long until this draw was fully closed out"), not days to the first
-// partial payment or a weighted average across installments. Written down
-// explicitly here rather than left for a future reader to guess, per the
-// request's "document the chosen definition."
+type LegacyDrawFields = {
+  id: string;
+  amount_paid: number;
+  date_paid: string | null;
+  date_submitted: string | null;
+  created_at: string;
+};
+
+// The one receipt a legacy draw (money received, no receipt rows) is treated
+// as having: its known total, dated like the migration's backfill does — the
+// real date_paid when there is one, else the date reports already used for it
+// (lib/billingDates.ts paidDate: submitted, then created). It invents no
+// installment history: it can't know which dollars arrived when.
+export function syntheticLegacyPayment(
+  draw: LegacyDrawFields,
+  businessDate: (isoTimestamp: string) => string
+): DrawPayment | null {
+  if (!(draw.amount_paid > 0)) return null;
+  const inferred = draw.date_paid === null;
+  const date = draw.date_paid ?? draw.date_submitted ?? businessDate(draw.created_at);
+  return {
+    id: `legacy:${draw.id}`,
+    draw_id: draw.id,
+    amount: draw.amount_paid,
+    date_received: date,
+    source: "legacy",
+    idempotency_key: null,
+    date_inferred: inferred,
+    created_at: draw.created_at,
+    deleted_at: null,
+  };
+}
+
+// Every receipt the reports should see: the real rows for draws that have
+// them, plus one synthetic legacy receipt for any draw that has money received
+// but no rows (pre-migration, or the table isn't deployed yet). This keeps
+// every report on one code path — receipts — whether or not a draw has been
+// migrated. Receipts of draws not in `draws` (e.g. trashed) are dropped.
+export function paymentsForDraws(
+  draws: LegacyDrawFields[],
+  rows: DrawPayment[],
+  businessDate: (isoTimestamp: string) => string
+): DrawPayment[] {
+  const liveIds = new Set(draws.map((d) => d.id));
+  const byDraw = new Map<string, DrawPayment[]>();
+  for (const r of rows) {
+    if (!liveIds.has(r.draw_id)) continue;
+    const list = byDraw.get(r.draw_id) ?? [];
+    list.push(r);
+    byDraw.set(r.draw_id, list);
+  }
+  const out: DrawPayment[] = [];
+  for (const d of draws) {
+    const own = byDraw.get(d.id);
+    if (own && own.length > 0) {
+      out.push(...own);
+      continue;
+    }
+    const legacy = syntheticLegacyPayment(d, businessDate);
+    if (legacy) out.push(legacy);
+  }
+  return out;
+}
+
+// days-to-pay, with this model, is days from submission (or creation) to the
+// LAST live receipt of the draw — the same meaning it has today ("how long
+// until this draw was closed out"), not days to the first partial payment or an
+// average across installments. Written down here so it isn't left to guess.
 export function daysToLastPayment(
   payments: DrawPayment[],
   submittedOrCreatedISO: string,
@@ -123,26 +137,56 @@ export function daysToLastPayment(
   return Math.max(0, calendarDaysBetween(submittedOrCreatedISO, parseLocalDate(last)));
 }
 
-// For a legacy draw with no payment-history rows (pre-migration), the
-// backfill creates exactly one synthetic payment equal to the draw's
-// existing amount_paid/date_paid — no invented installment history, per
-// the request. This is the backfill's row-shape, used by both the actual
-// migration backfill statement and by tests asserting the shape matches.
-export function syntheticLegacyPayment(
-  drawId: string,
-  amountPaid: number,
-  datePaid: string | null,
-  makeId: () => string = () => crypto.randomUUID()
-): DrawPayment | null {
-  if (amountPaid <= 0 || !datePaid) return null;
-  return {
-    id: makeId(),
-    draw_id: drawId,
-    amount: amountPaid,
-    date_received: datePaid,
-    source: "manual",
-    idempotency_key: null,
-    created_at: new Date().toISOString(),
-    deleted_at: null,
-  };
+// ---- Reading receipts for reports ----------------------------------------
+
+export type ReceiptsByDraw = Map<string, DrawPayment[]>;
+
+export interface Receipt {
+  amount: number;
+  date: string;
+}
+
+type ReceiptDraw = {
+  id?: string;
+  amount_paid: number | null;
+  date_paid: string | null;
+  date_submitted: string | null;
+  created_at: string;
+};
+
+/** Live receipts grouped by draw id. */
+export function groupLiveReceipts(payments: DrawPayment[]): ReceiptsByDraw {
+  const byDraw: ReceiptsByDraw = new Map();
+  for (const p of payments) {
+    if (p.deleted_at) continue;
+    const list = byDraw.get(p.draw_id) ?? [];
+    list.push(p);
+    byDraw.set(p.draw_id, list);
+  }
+  return byDraw;
+}
+
+/**
+ * The receipts a report should count for a draw. Each real receipt keeps its
+ * own amount and date. A draw with no receipt rows (pre-migration, or the
+ * table isn't deployed yet) is read as one receipt of its cached amount_paid
+ * on the date reports have always used for it (billingDates.paidDate), so it
+ * reports exactly as it did before.
+ */
+export function receiptsForDraw(d: ReceiptDraw, byDraw: ReceiptsByDraw): Receipt[] {
+  const rows = d.id ? byDraw.get(d.id) : undefined;
+  if (rows && rows.length > 0) return rows.map((r) => ({ amount: r.amount, date: r.date_received }));
+  const amount = d.amount_paid ?? 0;
+  return amount > 0 ? [{ amount, date: paidDate(d) }] : [];
+}
+
+/**
+ * The date a draw's last real payment landed: the latest receipt, or the
+ * cached date_paid for a draw with no receipt rows. Null when there is no real
+ * payment date, so a missing date never reads as "paid in 0 days".
+ */
+export function lastReceiptDate(d: { id?: string; date_paid: string | null }, byDraw: ReceiptsByDraw): string | null {
+  const rows = d.id ? byDraw.get(d.id) : undefined;
+  if (rows && rows.length > 0) return rows.map((r) => r.date_received).reduce((m, x) => (x > m ? x : m));
+  return d.date_paid;
 }

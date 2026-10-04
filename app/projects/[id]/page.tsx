@@ -13,6 +13,7 @@ import {
   getDeletedBudgetLinesForProject,
   getDeletedDrawsForProject,
   getDrawsForProject,
+  getPaymentsForProject,
   getProject,
   hasMeaningfulOpenBalance,
   openBalance,
@@ -39,10 +40,11 @@ export default async function ProjectDetailPage(
   const tab =
     searchParams.tab === "budget" ? "budget" : searchParams.tab === "trash" ? "trash" : "draws";
 
-  const [rawDraws, budgetLines, allocations, deletedDraws, deletedBudgetLines] = await Promise.all([
+  const [rawDraws, budgetLines, allocations, payments, deletedDraws, deletedBudgetLines] = await Promise.all([
     getDrawsForProject(project.id),
     getBudgetLinesForProject(project.id),
     getAllocationsForProject(project.id),
+    getPaymentsForProject(project.id),
     tab === "trash" ? getDeletedDrawsForProject(project.id) : Promise.resolve([]),
     tab === "trash" ? getDeletedBudgetLinesForProject(project.id) : Promise.resolve([]),
   ]);
@@ -135,7 +137,7 @@ export default async function ProjectDetailPage(
           </div>
         </div>
 
-        <MonthlyBillingChart draws={draws} />
+        <MonthlyBillingChart draws={draws} payments={payments} />
 
         <ProjectSummaryCard draws={draws} />
 
@@ -148,6 +150,7 @@ export default async function ProjectDetailPage(
               draws={draws}
               budgetLines={budgetLines}
               allocations={allocations}
+              payments={payments}
             />
           )}
           {tab === "budget" && (

@@ -119,7 +119,7 @@ export default function HelpPage() {
 
             <path d="M 243 392 C 243 428, 436 428, 436 392" fill="none" stroke={DRAW_COLOR} strokeWidth={1.4} strokeDasharray="4 3" markerEnd="url(#arrowDraw)" />
             <text x="340" y="443" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="10.5" fontWeight="600" fill={DRAW_COLOR}>
-              &quot;Mark Paid&quot; — amount + date, partial pay ok
+              &quot;Mark Paid&quot; — each payment keeps its own date
             </text>
 
             <path d="M 202 366 C 60 320, 60 300, 108 275" fill="none" stroke={MUTED_INK} strokeWidth={1.3} strokeDasharray="3 3" markerEnd="url(#arrowNeutral)" />
@@ -203,10 +203,33 @@ export default function HelpPage() {
           and the Retention selector on the draw form requires an explicit choice for how to
           interpret it: a % rate computed from the schedule of values below, &ldquo;Document
           total − held to date&rdquo; (treats the parsed cell as cumulative and backs out what
-          this draw actually withheld), manual entry, or release. If this project&rsquo;s prior
+          this draw actually withheld), manual entry, or release. &ldquo;Document total − held to
+          date&rdquo; subtracts only the retention on the draws <em>before</em> this one, by draw
+          number — so editing Draw 2 isn&rsquo;t thrown off by Draw 3 — counting earlier releases as
+          negatives and ignoring drafts. If the draw number is blank, or another draw already has
+          it, the option is disabled with the reason instead of guessing. If the cumulative total
+          is <em>lower</em> than what earlier draws held, it&rsquo;s entered as a negative (a partial
+          release) with a note asking you to confirm — it is never turned into a full release. If this project&rsquo;s prior
           posted draws agree on a single rate, that rate is offered as a one-click suggestion —
           Apply or Dismiss — never switched to on its own. Saving prompts for confirmation if the
           figure hasn&rsquo;t been explicitly reviewed since the upload.
+        </p>
+
+        <h2 className="text-sm font-semibold text-foreground mb-1">How payments are recorded</h2>
+        <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
+          A draw&rsquo;s payments are kept one by one, each with its own amount and date — so $30,000
+          received in September and $20,000 in October shows as $30,000 in September and $20,000 in
+          October on the billing reports and chart, with $50,000 received in total. Mark Paid, the status
+          dropdown, the Edit Draw form and the AI assistant all suggest the same amount: what was
+          requested, less any part billed to owner-paid scope, less what&rsquo;s already been received. In
+          the Edit Draw form that scope comes from the line amounts as currently shown, even before you
+          save. The draw&rsquo;s &ldquo;Total received&rdquo; is read-only; to add money use{" "}
+          <strong className="text-foreground">Record a payment</strong>, and to fix a wrong entry use{" "}
+          <strong className="text-foreground">Correct</strong> or <strong className="text-foreground">Void</strong>{" "}
+          next to it (a voided payment stays in the history). A payment larger than what&rsquo;s still
+          collectible asks you to confirm the overpayment. Clicking twice, or a retried request, records a
+          payment only once. Draws paid before this feature show one payment for their known total; the
+          original installment dates can&rsquo;t be recovered.
         </p>
 
         <h2 className="text-sm font-semibold text-foreground mb-1">What gets read from the G703 sheet</h2>
