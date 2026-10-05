@@ -8,10 +8,10 @@ import { join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
 
-const MIGRATION = readFileSync(
-  join(process.cwd(), "supabase/migrations/20261001120000_add_draw_payments.sql"),
-  "utf8"
-);
+// The base migration plus the idempotency-conflict follow-up, in deploy order.
+const MIGRATION = ["20261001120000_add_draw_payments.sql", "20261005090000_payment_idempotency_conflicts.sql"]
+  .map((f) => readFileSync(join(process.cwd(), "supabase/migrations", f), "utf8"))
+  .join("\n");
 
 const STUB_SCHEMA = `
   create table inv_projects (id uuid primary key default gen_random_uuid());
@@ -200,6 +200,53 @@ describe("record_draw_payment", () => {
     const retry = await record(db, id, 8000, "2026-10-01", "retry-key");
     expect(retry.rows[0].record_draw_payment.was_duplicate).toBe(true);
     expect((await drawState(db, id)).amount_paid).toBe("0.00");
+  });
+
+  const recordFlags = (id: string, amount: number, date: string, key: string, amountExplicit: boolean, dateExplicit: boolean) =>
+    db.query(
+      "select record_draw_payment($1::uuid, $2::numeric, $3::date, 'manual', $4, false, $5, $6) as r",
+      [id, amount, date, key, amountExplicit, dateExplicit]
+    );
+
+  it("a key reused with a different EXPLICIT amount or date is a conflict, not a silent success", async () => {
+    const id = await newDraw(db);
+    await recordFlags(id, 40000, "2026-10-01", "conflict-key", true, true);
+    await expect(recordFlags(id, 39999, "2026-10-01", "conflict-key", true, false)).rejects.toMatchObject({ code: "P0003" });
+    await expect(recordFlags(id, 40000, "2026-10-02", "conflict-key", false, true)).rejects.toMatchObject({ code: "P0003" });
+    expect(await receipts(db, id)).toHaveLength(1);
+  });
+
+  it("an identical explicit retry, or a derived-amount retry, returns the original", async () => {
+    const id = await newDraw(db);
+    await recordFlags(id, 40000, "2026-10-01", "same-key", true, true);
+    const same = await recordFlags(id, 40000, "2026-10-01", "same-key", true, true);
+    expect((same.rows[0] as { r: { was_duplicate: boolean } }).r.was_duplicate).toBe(true);
+    // A "pay the remaining balance" retry recomputes a different amount from the changed balance; not compared.
+    const derived = await recordFlags(id, 60000, "2026-10-05", "same-key", false, false);
+    expect((derived.rows[0] as { r: { was_duplicate: boolean } }).r.was_duplicate).toBe(true);
+    expect(await receipts(db, id)).toHaveLength(1);
+  });
+
+  it("simultaneous requests with one key record exactly one receipt", async () => {
+    const id = await newDraw(db);
+    const results = await Promise.allSettled(
+      Array.from({ length: 5 }, () => recordFlags(id, 25000, "2026-10-03", "race-key", true, true))
+    );
+    expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+    const dupes = results.filter((r) => r.status === "fulfilled" && (r.value.rows[0] as { r: { was_duplicate: boolean } }).r.was_duplicate);
+    expect(dupes).toHaveLength(4);
+    expect(await receipts(db, id)).toHaveLength(1);
+    expect((await drawState(db, id)).amount_paid).toBe("25000.00");
+  });
+
+  it("a correction key reused with a different amount or date conflicts", async () => {
+    const id = await newDraw(db);
+    const first = await record(db, id, 8000, "2026-10-01");
+    const paymentId = (first.rows[0].record_draw_payment.payment as { id: string }).id;
+    await db.query("select correct_draw_payment($1::uuid, $2::uuid, 7000, '2026-10-02'::date, 'fix-key')", [paymentId, id]);
+    await expect(
+      db.query("select correct_draw_payment($1::uuid, $2::uuid, 7100, '2026-10-02'::date, 'fix-key')", [paymentId, id])
+    ).rejects.toMatchObject({ code: "P0003" });
   });
 
   it("refuses to run when the cached total already disagrees with the receipts (drift), leaving everything untouched", async () => {

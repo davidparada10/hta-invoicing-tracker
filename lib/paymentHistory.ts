@@ -122,21 +122,6 @@ export function paymentsForDraws(
   return out;
 }
 
-// days-to-pay, with this model, is days from submission (or creation) to the
-// LAST live receipt of the draw — the same meaning it has today ("how long
-// until this draw was closed out"), not days to the first partial payment or an
-// average across installments. Written down here so it isn't left to guess.
-export function daysToLastPayment(
-  payments: DrawPayment[],
-  submittedOrCreatedISO: string,
-  calendarDaysBetween: (aISO: string, b: Date) => number,
-  parseLocalDate: (value: string) => Date
-): number | null {
-  const last = lastPaymentDate(payments);
-  if (last === null) return null;
-  return Math.max(0, calendarDaysBetween(submittedOrCreatedISO, parseLocalDate(last)));
-}
-
 // ---- Reading receipts for reports ----------------------------------------
 
 export type ReceiptsByDraw = Map<string, DrawPayment[]>;
@@ -144,6 +129,9 @@ export type ReceiptsByDraw = Map<string, DrawPayment[]>;
 export interface Receipt {
   amount: number;
   date: string;
+  // True when the date is an estimate (a legacy draw that had money but no
+  // date_paid), so settlement timing never treats it as a real payment date.
+  inferred?: boolean;
 }
 
 type ReceiptDraw = {
@@ -175,9 +163,11 @@ export function groupLiveReceipts(payments: DrawPayment[]): ReceiptsByDraw {
  */
 export function receiptsForDraw(d: ReceiptDraw, byDraw: ReceiptsByDraw): Receipt[] {
   const rows = d.id ? byDraw.get(d.id) : undefined;
-  if (rows && rows.length > 0) return rows.map((r) => ({ amount: r.amount, date: r.date_received }));
+  if (rows && rows.length > 0) {
+    return rows.map((r) => ({ amount: r.amount, date: r.date_received, inferred: r.date_inferred === true }));
+  }
   const amount = d.amount_paid ?? 0;
-  return amount > 0 ? [{ amount, date: paidDate(d) }] : [];
+  return amount > 0 ? [{ amount, date: paidDate(d), inferred: d.date_paid === null }] : [];
 }
 
 /**
@@ -189,4 +179,46 @@ export function lastReceiptDate(d: { id?: string; date_paid: string | null }, by
   const rows = d.id ? byDraw.get(d.id) : undefined;
   if (rows && rows.length > 0) return rows.map((r) => r.date_received).reduce((m, x) => (x > m ? x : m));
   return d.date_paid;
+}
+
+const toCents = (n: number | null | undefined) => Math.round((n ?? 0) * 100);
+
+type SettlementDraw = ReceiptDraw & {
+  status: string;
+  amount_requested: number | null;
+  excluded_allocated?: number;
+};
+
+/**
+ * The shared "when was this draw settled" rule behind every average-days-to-pay
+ * figure (annual, quarterly, per project, AI). A draw is settled on the receipt
+ * date at which its cumulative live receipts first cover what HTA can collect:
+ * requested, less owner-paid (excluded) scope — the same basis as openBalance.
+ *
+ *  - Drafts, and draws with nothing collectible (fully owner-funded scope), are
+ *    never settled: owner-paid scope is not HTA cash, so a receipt is required.
+ *  - Compared in whole cents, not against the $1,000 "meaningful balance"
+ *    display threshold: a $50 shortfall still means not settled.
+ *  - Status is ignored: a draw marked "paid" that is still short isn't settled,
+ *    and a later excess payment doesn't push the date out — only receipts that
+ *    actually cover the balance count, so voids and corrections move it.
+ *  - Legacy limits: a draw without receipt rows is one receipt of its total. If
+ *    that receipt's date was inferred (no real date_paid), settlement is null
+ *    rather than an invented 0-day figure; installment history that was never
+ *    recorded can't be reconstructed.
+ */
+export function settlementDate(d: SettlementDraw, byDraw: ReceiptsByDraw): string | null {
+  if (d.status === "draft") return null;
+  const collectible = toCents(d.amount_requested) - toCents(d.excluded_allocated);
+  if (collectible <= 0) return null;
+
+  const receipts = receiptsForDraw(d, byDraw)
+    .slice()
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  let running = 0;
+  for (const r of receipts) {
+    running += toCents(r.amount);
+    if (running >= collectible) return r.inferred ? null : r.date;
+  }
+  return null;
 }

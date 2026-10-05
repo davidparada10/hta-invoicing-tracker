@@ -9,10 +9,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createFakeSupabase } from "@/lib/testUtils/fakeSupabase";
 import { fakePaymentRpc } from "@/lib/testUtils/fakePaymentRpc";
 
-const MIGRATION = readFileSync(
-  join(process.cwd(), "supabase/migrations/20261001120000_add_draw_payments.sql"),
-  "utf8"
-);
+// The base migration plus the idempotency-conflict follow-up, in deploy order.
+const MIGRATION = ["20261001120000_add_draw_payments.sql", "20261005090000_payment_idempotency_conflicts.sql"]
+  .map((f) => readFileSync(join(process.cwd(), "supabase/migrations", f), "utf8"))
+  .join("\n");
 
 const DRAW = "aaaaaaaa-0000-0000-0000-000000000001";
 const UNAPPROVED = "aaaaaaaa-0000-0000-0000-000000000002";
@@ -28,7 +28,7 @@ interface Impl {
 }
 
 const ARG_NAMES: Record<string, string[]> = {
-  record_draw_payment: ["p_draw_id", "p_amount", "p_date", "p_source", "p_idempotency_key", "p_set_paid"],
+  record_draw_payment: ["p_draw_id", "p_amount", "p_date", "p_source", "p_idempotency_key", "p_set_paid", "p_amount_explicit", "p_date_explicit"],
   void_draw_payment: ["p_payment_id", "p_draw_id"],
   correct_draw_payment: ["p_payment_id", "p_draw_id", "p_new_amount", "p_new_date", "p_idempotency_key"],
 };
@@ -54,7 +54,7 @@ async function sqlImpl(): Promise<Impl> {
   `);
   await db.exec(MIGRATION);
   const casts: Record<string, string[]> = {
-    record_draw_payment: ["uuid", "numeric", "date", "text", "text", "boolean"],
+    record_draw_payment: ["uuid", "numeric", "date", "text", "text", "boolean", "boolean", "boolean"],
     void_draw_payment: ["uuid", "uuid"],
     correct_draw_payment: ["uuid", "uuid", "numeric", "date", "text"],
   };
@@ -148,6 +148,11 @@ const steps: Step[] = [
   { label: "correct A to $25k on Sep 25", after: DRAW, run: (i, ids) => i.call("correct_draw_payment", [ids.A, DRAW, 25000, "2026-09-25", "k3"]) },
   { label: "retry correction (duplicate)", after: DRAW, run: (i, ids) => i.call("correct_draw_payment", [ids.A, DRAW, 25000, "2026-09-25", "k3"]) },
   { label: "correct the already-voided A", after: DRAW, run: (i, ids) => i.call("correct_draw_payment", [ids.A, DRAW, 1, "2026-09-26", "k4"]) },
+  { label: "k1 retried with a derived (non-explicit) amount returns the original", after: DRAW, run: (i) => i.call("record_draw_payment", [DRAW, 99, "2026-09-21", "manual", "k1", false, false, false]) },
+  { label: "k1 retried with the same explicit amount and date returns the original", after: DRAW, run: (i) => i.call("record_draw_payment", [DRAW, 30000, "2026-09-20", "manual", "k1", false, true, true]) },
+  { label: "k1 reused with a different explicit amount conflicts", after: DRAW, run: (i) => i.call("record_draw_payment", [DRAW, 29999, "2026-09-20", "manual", "k1", false, true, false]) },
+  { label: "k1 reused with a different explicit date conflicts", after: DRAW, run: (i) => i.call("record_draw_payment", [DRAW, 30000, "2026-09-21", "manual", "k1", false, false, true]) },
+  { label: "k3 correction reused with a different amount conflicts", after: DRAW, run: (i, ids) => i.call("correct_draw_payment", [ids.A, DRAW, 26000, "2026-09-25", "k3"]) },
   { label: "drift injected then record refused", after: DRAW, run: async (i) => { await i.setPaidDirectly(DRAW, 9999); return i.call("record_draw_payment", [DRAW, 100, "2026-10-09", "manual", null, false]); } },
   { label: "set_paid defaults a missing approval", after: UNAPPROVED, run: (i) => i.call("record_draw_payment", [UNAPPROVED, 80000, "2026-10-01", "manual", null, true]) },
   { label: "recording on a trashed draw refused", after: TRASHED, run: (i) => i.call("record_draw_payment", [TRASHED, 100, "2026-10-01", "manual", null, false]) },

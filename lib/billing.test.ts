@@ -271,3 +271,110 @@ describe("receipts: draws without receipt rows keep reporting from their cached 
     expect(report.quarters[1].received).toBe(3000);
   });
 });
+
+// ---- Average days to pay = completed settlement --------------------------------
+
+describe("average days to pay measures settlement, not the latest receipt", () => {
+  const base = {
+    id: "s",
+    status: "paid",
+    amount_requested: 100000,
+    amount_paid: 100000,
+    date_submitted: "2026-09-01",
+    date_paid: "2026-10-05",
+  };
+  const days = (d: DrawForBilling, rows: DrawPayment[] = []) => buildBillingReport([d], 2026, rows);
+
+  it("brief example: $30k on Sep 10 is excluded; the $70k on Oct 5 settles it at 34 days, in Q4", () => {
+    const part = [receipt("a", "s", 30000, "2026-09-10")];
+    const partDraw = draw({ ...base, amount_paid: 30000, date_paid: "2026-09-10" });
+    expect(days(partDraw, part).ytdAvgDaysToPay).toBeNull();
+
+    const rows = [...part, receipt("b", "s", 70000, "2026-10-05")];
+    const r = days(draw(base), rows);
+    expect(r.ytdAvgDaysToPay).toBe(34);
+    expect(r.quarters[3].avgDaysToPay).toBe(34); // attributed to Oct / Q4
+    expect(r.quarters[2].avgDaysToPay).toBeNull();
+  });
+
+  it("a draw marked paid that still has a collectible balance is excluded", () => {
+    const d = draw({ ...base, amount_paid: 60000 });
+    expect(days(d, [receipt("a", "s", 60000, "2026-09-10")]).ytdAvgDaysToPay).toBeNull();
+  });
+
+  it("a later excess payment does not push the settlement date out", () => {
+    const rows = [receipt("a", "s", 100000, "2026-09-20"), receipt("b", "s", 500, "2026-11-30")];
+    expect(days(draw({ ...base, amount_paid: 100500 }), rows).ytdAvgDaysToPay).toBe(19);
+  });
+
+  it("an overpayment in one receipt settles on that receipt's date", () => {
+    expect(days(draw({ ...base, amount_paid: 120000 }), [receipt("a", "s", 120000, "2026-09-12")]).ytdAvgDaysToPay).toBe(11);
+  });
+
+  it("owner-paid scope lowers what must be collected", () => {
+    const d = draw({ ...base, amount_paid: 80000, excluded_allocated: 20000 });
+    expect(days(d, [receipt("a", "s", 80000, "2026-09-11")]).ytdAvgDaysToPay).toBe(10);
+  });
+
+  it("fully owner-funded scope with no receipt is not 'paid'", () => {
+    const d = draw({ ...base, amount_paid: 0, excluded_allocated: 100000 });
+    expect(days(d, []).ytdAvgDaysToPay).toBeNull();
+  });
+
+  it("uses cents, not the $1,000 display threshold: a $50 shortfall is not settled", () => {
+    const short = draw({ ...base, amount_paid: 99950 });
+    expect(days(short, [receipt("a", "s", 99950, "2026-09-10")]).ytdAvgDaysToPay).toBeNull();
+    const exact = draw({ ...base, amount_paid: 100000 });
+    expect(days(exact, [receipt("a", "s", 99999.995, "2026-09-10")]).ytdAvgDaysToPay).toBe(9);
+  });
+
+  it("excludes drafts", () => {
+    expect(days(draw({ ...base, status: "draft" }), [receipt("a", "s", 100000, "2026-09-10")]).ytdAvgDaysToPay).toBeNull();
+  });
+
+  it("a void recomputes settlement from the live receipts", () => {
+    const rows = [
+      receipt("a", "s", 100000, "2026-09-10", { deleted_at: "2026-09-11T00:00:00Z" }),
+      receipt("b", "s", 100000, "2026-10-01"),
+    ];
+    expect(days(draw({ ...base, amount_paid: 100000 }), rows).ytdAvgDaysToPay).toBe(30);
+    // Voiding the only covering receipt leaves it unsettled.
+    expect(days(draw({ ...base, amount_paid: 0 }), [rows[0]]).ytdAvgDaysToPay).toBeNull();
+  });
+
+  it("a correction (void + replacement) moves the settlement date", () => {
+    const rows = [
+      receipt("old", "s", 100000, "2026-09-10", { deleted_at: "2026-10-02T00:00:00Z" }),
+      receipt("new", "s", 100000, "2026-09-25"),
+    ];
+    expect(days(draw({ ...base }), rows).ytdAvgDaysToPay).toBe(24);
+  });
+
+  it("cross-quarter: the days count to settlement and land in the settling quarter", () => {
+    const rows = [receipt("a", "s", 50000, "2026-06-20"), receipt("b", "s", 50000, "2026-07-15")];
+    const r = days(draw({ ...base, date_submitted: "2026-06-01" }), rows);
+    expect(r.quarters[2].avgDaysToPay).toBe(44);
+    expect(r.quarters[1].avgDaysToPay).toBeNull();
+  });
+
+  it("the same rule applies per project and per label", () => {
+    const rows = [receipt("a", "s", 30000, "2026-09-10")];
+    const partial = draw({ ...base, amount_paid: 30000 });
+    expect(buildProjectBillingBreakdown([partial], [project({ id: "proj-1" })], 2026, rows)[0].avgDaysToPay).toBeNull();
+    const done = [...rows, receipt("b", "s", 70000, "2026-10-05")];
+    expect(buildProjectBillingBreakdown([draw(base)], [project({ id: "proj-1" })], 2026, done)[0].avgDaysToPay).toBe(34);
+    expect(buildLabelBillingBreakdown([draw(base)], [{ ...project({ id: "proj-1" }), label: "L" }], 2026, "—", done)[0].avgDaysToPay).toBe(34);
+  });
+
+  it("legacy draw with no receipt rows settles on its real date_paid", () => {
+    const legacy = draw({ ...base, id: "legacy", date_paid: "2026-09-12" });
+    expect(days(legacy).ytdAvgDaysToPay).toBe(11);
+  });
+
+  it("legacy draw with an inferred date (no date_paid) is excluded rather than read as 0 days", () => {
+    const legacy = draw({ ...base, id: "legacy", date_paid: null });
+    expect(days(legacy).ytdAvgDaysToPay).toBeNull();
+    const inferredRow = [receipt("a", "legacy", 100000, "2026-09-01", { date_inferred: true })];
+    expect(days(draw({ ...base, id: "legacy" }), inferredRow).ytdAvgDaysToPay).toBeNull();
+  });
+});

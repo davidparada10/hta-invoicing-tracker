@@ -9,8 +9,9 @@ import { DrawDueType } from "@/lib/types";
 import { wasDrawSubmittedOnTime } from "@/lib/drawSchedule";
 import {
   groupLiveReceipts as groupReceipts,
-  lastReceiptDate as lastPaidDate,
+  lastReceiptDate,
   receiptsForDraw as receiptsOf,
+  settlementDate,
   type DrawPayment,
   type ReceiptsByDraw,
 } from "@/lib/paymentHistory";
@@ -98,15 +99,16 @@ function receivedTotal(d: DrawForBilling, byDraw: ReceiptsByDraw): number {
   return receiptsOf(d, byDraw).reduce((acc, r) => acc + r.amount, 0);
 }
 
-// Days from billed (submitted, else created) to the LAST payment — the same
-// meaning as before the receipts model: how long until the draw was closed
-// out, not days to the first partial payment.
-function daysToPay(d: DrawForBilling, byDraw: ReceiptsByDraw): number | null {
-  const last = lastPaidDate(d, byDraw);
-  if (!last) return null;
-  return daysOpen(d.date_submitted ?? d.created_at, parseLocalDate(last));
+// Days from billed (submitted, else created) to settlement — the receipt date
+// on which cumulative receipts cover what HTA can collect (see settlementDate).
+// A draw that still has a collectible balance, or that was never actually paid
+// by the owner, contributes nothing: this measures completed settlement, not
+// the time to the latest partial payment.
+function settlement(d: DrawForBilling, byDraw: ReceiptsByDraw): { date: string; days: number } | null {
+  const date = settlementDate(d, byDraw);
+  if (!date) return null;
+  return { date, days: daysOpen(resolveBilledDate(d), parseLocalDate(date)) };
 }
-
 
 // Days from submitted to approved — the owner/lender's own turnaround, as
 // opposed to daysToPay's full submit-to-cash lag. Only defined once a real
@@ -159,13 +161,13 @@ export function buildBillingReport(
       }
     }
 
-    const lag = daysToPay(d, byDraw);
-    if (lag !== null) {
-      const paid = yearAndQuarterOf(lastPaidDate(d, byDraw) as string);
+    const settled = settlement(d, byDraw);
+    if (settled) {
+      const paid = yearAndQuarterOf(settled.date);
       if (paid.year === year) {
-        daysByQuarter[paid.quarter - 1].sum += lag;
+        daysByQuarter[paid.quarter - 1].sum += settled.days;
         daysByQuarter[paid.quarter - 1].count += 1;
-        ytdDaysSum += lag;
+        ytdDaysSum += settled.days;
         ytdDaysCount += 1;
       }
     }
@@ -250,14 +252,14 @@ export function buildGroupedBillingBreakdown(
       }
     }
 
-    const lag = daysToPay(d, byDraw);
-    if (lag !== null) {
-      const paid = yearAndQuarterOf(lastPaidDate(d, byDraw) as string);
+    const settled = settlement(d, byDraw);
+    if (settled) {
+      const paid = yearAndQuarterOf(settled.date);
       if (paid.year === year) {
         const groupId = groupOf(d.project_id).id;
         rowFor(d.project_id);
         const sample = daysByGroup.get(groupId) ?? { sum: 0, count: 0 };
-        sample.sum += lag;
+        sample.sum += settled.days;
         sample.count += 1;
         daysByGroup.set(groupId, sample);
       }
@@ -373,7 +375,7 @@ export function buildShortPaymentSummary(
   let count = 0;
   let totalGap = 0;
   for (const d of draws) {
-    const last = lastPaidDate(d, byDraw);
+    const last = lastReceiptDate(d, byDraw);
     if (d.status !== "paid" || !last) continue;
     const paid = yearAndQuarterOf(last);
     if (paid.year !== year) continue;

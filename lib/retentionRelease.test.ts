@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  canAutoApplyInferredRate,
   convertCumulativeRetention,
+  reconcileRetentionToDocument,
   computeRetentionRelease,
   inferRetentionRate,
   isImplausibleRetainage,
@@ -226,5 +228,55 @@ describe("convertCumulativeRetention", () => {
     const draws = [numbered("d1", 1, 0.1), numbered("d2", 2, 0.2)];
     const r = convertCumulativeRetention({ draws, targetDrawNumber: 3, parsedCumulative: 1 });
     expect(r).toMatchObject({ status: "ok", priorHeld: 0.3, incremental: 0.7 });
+  });
+});
+
+describe("reconcileRetentionToDocument — automatic check against the uploaded file", () => {
+  const prior = [
+    { id: "d1", draw_number: 1, status: "paid" as const, retainage_held: 10000, deleted_at: null },
+  ];
+  const conv = (cum: number) =>
+    convertCumulativeRetention({ draws: prior, targetDrawNumber: 2, parsedCumulative: cum });
+
+  it("matches when this draw's retention plus earlier holds equals the file's cumulative total", () => {
+    expect(reconcileRetentionToDocument({ parsedCumulative: 25000, conversion: conv(25000), retainageHeld: 15000 })).toEqual({
+      status: "match",
+      cumulative: 25000,
+    });
+  });
+
+  it("tolerates one cent, but not two", () => {
+    expect(reconcileRetentionToDocument({ parsedCumulative: 25000, conversion: conv(25000), retainageHeld: 15000.01 }).status).toBe("match");
+    expect(reconcileRetentionToDocument({ parsedCumulative: 25000, conversion: conv(25000), retainageHeld: 15000.02 }).status).toBe("mismatch");
+  });
+
+  it("reports what the file implies and the difference when it doesn't reconcile", () => {
+    expect(reconcileRetentionToDocument({ parsedCumulative: 25000, conversion: conv(25000), retainageHeld: 14000 })).toEqual({
+      status: "mismatch",
+      cumulative: 25000,
+      priorHeld: 10000,
+      expected: 15000,
+      difference: -1000,
+    });
+  });
+
+  it("a decreasing file total (partial release) reconciles against a negative figure", () => {
+    expect(reconcileRetentionToDocument({ parsedCumulative: 6000, conversion: conv(6000), retainageHeld: -4000 }).status).toBe("match");
+  });
+
+  it("is unavailable, with the reason, when the file has no figure or the sequence is ambiguous", () => {
+    expect(reconcileRetentionToDocument({ parsedCumulative: null, conversion: null, retainageHeld: 5 }).status).toBe("unavailable");
+    const ambiguous = convertCumulativeRetention({ draws: prior, targetDrawNumber: null, parsedCumulative: 1 });
+    const r = reconcileRetentionToDocument({ parsedCumulative: 1, conversion: ambiguous, retainageHeld: 5 });
+    expect(r).toMatchObject({ status: "unavailable" });
+  });
+});
+
+describe("canAutoApplyInferredRate", () => {
+  it("is true only when no line is exempt or has its own rate", () => {
+    expect(canAutoApplyInferredRate([{ retention_exempt: false, retention_rate_override: null }])).toBe(true);
+    expect(canAutoApplyInferredRate([])).toBe(true);
+    expect(canAutoApplyInferredRate([{ retention_exempt: true, retention_rate_override: null }])).toBe(false);
+    expect(canAutoApplyInferredRate([{ retention_exempt: false, retention_rate_override: 5 }])).toBe(false);
   });
 });

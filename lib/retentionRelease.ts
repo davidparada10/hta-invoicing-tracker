@@ -179,3 +179,47 @@ export function inferRetentionRate(
 
   return matchedBuckets.size === 1 ? [...matchedBuckets][0] : null;
 }
+
+export type RetentionReconciliation =
+  | { status: "match"; cumulative: number }
+  | { status: "mismatch"; cumulative: number; priorHeld: number; expected: number; difference: number }
+  | { status: "unavailable"; reason: string };
+
+// Automatic check, replacing the old "click to confirm retention" step: does
+// the retention on this draw, added to what earlier draws already hold, land on
+// the cumulative "Total Retainage" the uploaded file reports? Compared to the
+// cent. It never blocks saving — a G702 whose figure isn't cumulative will
+// simply read as a mismatch to look at — but a figure that doesn't reconcile is
+// shown prominently instead of waiting for someone to remember to check.
+export function reconcileRetentionToDocument(args: {
+  parsedCumulative: number | null;
+  conversion: CumulativeConversion | null;
+  retainageHeld: number;
+}): RetentionReconciliation {
+  const { parsedCumulative, conversion, retainageHeld } = args;
+  if (parsedCumulative === null || conversion === null) {
+    return { status: "unavailable", reason: "The file didn't include a total retainage figure to check against." };
+  }
+  if (conversion.status !== "ok") return { status: "unavailable", reason: conversion.reason };
+
+  const expected = conversion.incremental;
+  const diffCents = Math.round(retainageHeld * 100) - Math.round(expected * 100);
+  if (Math.abs(diffCents) <= 1) return { status: "match", cumulative: parsedCumulative };
+  return {
+    status: "mismatch",
+    cumulative: parsedCumulative,
+    priorHeld: conversion.priorHeld,
+    expected,
+    difference: diffCents / 100,
+  };
+}
+
+// A project's own history can be applied automatically only when its rate is
+// uniform: with retention-exempt lines or per-line rate overrides the history
+// is a blend of rates, and a single inferred percentage isn't a clean answer —
+// those still ask.
+export function canAutoApplyInferredRate(
+  lines: { retention_exempt: boolean; retention_rate_override: number | null }[]
+): boolean {
+  return lines.every((l) => !l.retention_exempt && l.retention_rate_override === null);
+}

@@ -10,10 +10,12 @@ import { groupLiveReceipts, type DrawPayment } from "@/lib/paymentHistory";
 import { ParsedG702Upload, parseG702Upload, upsertDraw } from "@/app/draws/actions";
 import { allocationExceedsTolerance, applyParsedAllocations, LineAmounts } from "@/lib/drawAllocations";
 import {
+  canAutoApplyInferredRate,
   convertCumulativeRetention,
   computeRetentionRelease,
   inferRetentionRate,
   isImplausibleRetainage,
+  reconcileRetentionToDocument,
 } from "@/lib/retentionRelease";
 
 type RetentionMode = "manual" | "0" | "5" | "10" | "release" | "document_cumulative";
@@ -104,9 +106,11 @@ export default function DrawFormModal({
   const [retentionMode, setRetentionMode] = useState<RetentionMode>("manual");
   const [autoSelectedRetention, setAutoSelectedRetention] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  // An upload's parsed allocations wait here for explicit review (replace
-  // vs. merge, any unmatched lines) instead of silently overwriting
-  // lineAmounts — see applyPendingParse/discardPendingParse below.
+  // A clean upload (every line matched) replaces this draw's allocations right
+  // away and leaves an Undo. Only a parse with lines that couldn't be matched
+  // waits here for review (replace vs. merge, the unmatched list) instead of
+  // overwriting lineAmounts — see applyPendingParse/discardPendingParse below.
+  const [appliedParse, setAppliedParse] = useState<{ count: number; previous: LineAmounts } | null>(null);
   const [pendingParse, setPendingParse] = useState<{
     parsed: ParsedG702Upload;
     mode: "replace" | "merge";
@@ -118,7 +122,6 @@ export default function DrawFormModal({
   // told from the document alone.
   const [parsedRetainageFromDocument, setParsedRetainageFromDocument] = useState<number | null>(null);
   const [suggestedRetentionRate, setSuggestedRetentionRate] = useState<"0" | "5" | "10" | null>(null);
-  const [retentionConfirmed, setRetentionConfirmed] = useState(false);
   const [unmatchedLineCount, setUnmatchedLineCount] = useState(0);
   // Recording a payment is a separate, additive action from editing the draw's
   // fields: "recording" turns the row on, "paymentOverride" is the amount the
@@ -142,7 +145,7 @@ export default function DrawFormModal({
     setPendingParse(null);
     setParsedRetainageFromDocument(null);
     setSuggestedRetentionRate(null);
-    setRetentionConfirmed(false);
+    setAppliedParse(null);
     setUnmatchedLineCount(0);
     setRecordingPayment(false);
     setPaymentOverride(null);
@@ -264,13 +267,21 @@ export default function DrawFormModal({
     setFormValues((v) => ({ ...v, retainage_held: String(computedRetention) }));
   }, [computedRetention]);
 
-  // A stale confirmation shouldn't carry forward once the figure it was
-  // given for could have changed — reset whenever the interpretation mode,
-  // the allocations it might be computed from, or the parsed file itself
-  // changes.
-  useEffect(() => {
-    setRetentionConfirmed(false);
-  }, [retentionMode, lineAmounts, parsedFileName, formValues.draw_number]);
+  // Retention is checked against the uploaded file automatically: this draw's
+  // retention plus what earlier draws hold should land on the file's cumulative
+  // total (to the cent). Live, so it re-derives when the draw number, the
+  // retention mode or the line amounts change. Informational — never blocks.
+  const retentionReconciliation = useMemo(
+    () =>
+      parsedFileName === null
+        ? null
+        : reconcileRetentionToDocument({
+            parsedCumulative: parsedRetainageFromDocument,
+            conversion: cumulativeConversion,
+            retainageHeld: retainageHeldAmount,
+          }),
+    [parsedFileName, parsedRetainageFromDocument, cumulativeConversion, retainageHeldAmount]
+  );
 
   async function handleSubmit(formData: FormData) {
     if (isSaving) return;
@@ -281,12 +292,6 @@ export default function DrawFormModal({
         } from ${parsedFileName} ${
           pendingParse.mode === "replace" ? "haven't replaced" : "haven't been merged into"
         } this draw's allocations yet — Apply or Discard them above first. Save without applying them?`
-      );
-      if (!ok) return;
-    }
-    if (parsedFileName && !retentionConfirmed) {
-      const ok = confirm(
-        `Retention for this draw (${formatCurrency(retainageHeldAmount)}) hasn't been explicitly confirmed since the upload. Save anyway?`
       );
       if (!ok) return;
     }
@@ -381,6 +386,7 @@ export default function DrawFormModal({
     setParsedFileName(null);
     setNoAllocationsInLastParse(false);
     setPendingParse(null);
+    setAppliedParse(null);
     setParsedRetainageFromDocument(null);
     setSuggestedRetentionRate(null);
     setUnmatchedLineCount(0);
@@ -424,19 +430,34 @@ export default function DrawFormModal({
         setParsedRetainageFromDocument(parsed.retainage_held);
       }
 
-      if (parsed.allocations.length > 0 || parsed.unmatchedLines.length > 0) {
+      if (parsed.unmatchedLines.length > 0) {
+        // Something couldn't be matched: show it and let the user decide.
         setPendingParse({ parsed, mode: "replace" });
+      } else if (parsed.allocations.length > 0) {
+        // Clean parse: replace right away (the same result as pressing Apply in
+        // replace mode) and keep an Undo, rather than asking every time.
+        setAppliedParse({ count: parsed.allocations.length, previous: lineAmounts });
+        setLineAmounts((prev) => applyParsedAllocations(prev, parsed.allocations, "replace"));
       } else {
         setNoAllocationsInLastParse(true);
       }
 
-      // Inference is now a suggestion, not an automatic switch — see
-      // applySuggestedRetentionRate/dismissSuggestedRetentionRate below.
-      // Only offered when the user hasn't already picked a mode, same as
-      // before.
+      // The project's own withholding history, when every prior draw agrees on
+      // one standard rate. A uniform project applies it automatically (it says
+      // so beside the Retention field, and the check against the file below
+      // catches a wrong one); a project with retention-exempt lines or per-line
+      // rates still gets a suggestion to accept, since its history is a blend.
+      // Only when the user hasn't already picked a mode.
       if (retentionMode === "manual") {
         const inferredRate = inferRetentionRate(draws, editing?.id);
-        if (inferredRate !== null) setSuggestedRetentionRate(inferredRate);
+        if (inferredRate !== null) {
+          if (canAutoApplyInferredRate(budgetLines)) {
+            setRetentionMode(inferredRate);
+            setAutoSelectedRetention(true);
+          } else {
+            setSuggestedRetentionRate(inferredRate);
+          }
+        }
       }
 
       setParsedFileName(file.name);
@@ -455,6 +476,12 @@ export default function DrawFormModal({
     setLineAmounts((prev) => applyParsedAllocations(prev, pendingParse.parsed.allocations, pendingParse.mode));
     setUnmatchedLineCount(pendingParse.parsed.unmatchedLines.length);
     setPendingParse(null);
+  }
+
+  function undoAppliedParse() {
+    if (!appliedParse) return;
+    setLineAmounts(appliedParse.previous);
+    setAppliedParse(null);
   }
 
   function discardPendingParse() {
@@ -564,6 +591,16 @@ export default function DrawFormModal({
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{retainageCaution}</p>
           )}
         </div>
+
+        {appliedParse && (
+          <p className="text-xs text-muted-foreground">
+            Replaced this draw&rsquo;s allocations with {appliedParse.count} line
+            {appliedParse.count === 1 ? "" : "s"} from {parsedFileName}.{" "}
+            <button type="button" onClick={undoAppliedParse} className="underline font-medium text-foreground">
+              Undo
+            </button>
+          </p>
+        )}
 
         {pendingParse && (
           <div className="rounded-lg border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950/40 p-3 text-xs space-y-2">
@@ -776,18 +813,24 @@ export default function DrawFormModal({
                 </button>
               </p>
             )}
-            {parsedFileName && !retentionConfirmed && (
-              <p className="text-[11px] mt-1">
-                <span className="text-amber-700 dark:text-amber-400">
-                  Retention not yet confirmed for this draw.
-                </span>{" "}
-                <button
-                  type="button"
-                  onClick={() => setRetentionConfirmed(true)}
-                  className="underline font-medium text-foreground"
-                >
-                  Confirm {formatCurrency(retainageHeldAmount)}
-                </button>
+            {retentionReconciliation?.status === "match" && (
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">
+                &#10003; Retention matches the file: {formatCurrency(retainageHeldAmount)} on this draw brings the
+                cumulative total to {formatCurrency(retentionReconciliation.cumulative)}.
+              </p>
+            )}
+            {retentionReconciliation?.status === "mismatch" && (
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1">
+                Retention doesn&rsquo;t reconcile to the file. It reports {formatCurrency(retentionReconciliation.cumulative)}{" "}
+                cumulative; with {formatCurrency(retentionReconciliation.priorHeld)} held on earlier draws that
+                implies {formatCurrency(retentionReconciliation.expected)} for this draw, but it&rsquo;s{" "}
+                {formatCurrency(retainageHeldAmount)} ({formatCurrency(Math.abs(retentionReconciliation.difference))}{" "}
+                {retentionReconciliation.difference > 0 ? "over" : "under"}).
+              </p>
+            )}
+            {retentionReconciliation?.status === "unavailable" && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Retention wasn&rsquo;t checked against the file: {retentionReconciliation.reason}
               </p>
             )}
           </Field>

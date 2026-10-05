@@ -7,6 +7,7 @@
 
 import type { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { DrawPayment } from "@/lib/paymentHistory";
+import { formatCurrency, formatDate } from "@/lib/format";
 
 type Supabase = ReturnType<typeof createServerSupabaseClient>;
 
@@ -34,6 +35,9 @@ export function describePaymentError(err: RpcError): string {
   }
   if (err.code === "P0001" && /drift/i.test(msg)) {
     return "This draw's received total doesn't match its recorded payments, so nothing was saved. Reconcile the draw's payments first.";
+  }
+  if (err.code === "P0003") {
+    return "This payment request was already used for a different payment. Refresh the draw and try again.";
   }
   if (err.code === "22023") return msg;
   return "Could not record the payment. Please try again.";
@@ -72,6 +76,14 @@ export function recordDrawPayment(
     idempotencyKey?: string | null;
     /** Also mark the draw paid (and default a missing approved amount). */
     setPaid?: boolean;
+    /**
+     * Whether the caller chose the amount / date (true) or they were derived
+     * (the remaining balance, today). Only explicit values are compared when the
+     * key matches an earlier receipt: a derived amount legitimately differs on a
+     * retry because the first attempt already changed the balance.
+     */
+    amountExplicit?: boolean;
+    dateExplicit?: boolean;
   }
 ): Promise<PaymentWriteResult> {
   return call(supabase, "record_draw_payment", {
@@ -81,6 +93,8 @@ export function recordDrawPayment(
     p_source: input.source,
     p_idempotency_key: input.idempotencyKey ?? null,
     p_set_paid: input.setPaid ?? false,
+    p_amount_explicit: input.amountExplicit ?? false,
+    p_date_explicit: input.dateExplicit ?? false,
   });
 }
 
@@ -102,4 +116,69 @@ export function correctDrawPayment(
     p_new_date: input.date,
     p_idempotency_key: input.idempotencyKey ?? null,
   });
+}
+
+// ---- Retries ---------------------------------------------------------------
+//
+// Server actions look for an earlier receipt under the same idempotency key
+// BEFORE judging the request against the draw's current balance — otherwise a
+// retry of a payment that already cleared the balance is rejected for "no
+// outstanding balance" (or as an overpayment) because of the very payment it
+// is repeating. This lookup is only a courtesy so the retry returns the
+// original result; the database function remains the guard against concurrent
+// duplicates and key reuse (it locks the draw, then checks the key).
+
+export type PriorPayment =
+  | { kind: "none" }
+  | { kind: "replay"; payment: DrawPayment }
+  | { kind: "error"; error: string };
+
+export async function findPaymentByKey(
+  supabase: Supabase,
+  drawId: string,
+  idempotencyKey: string | null | undefined
+): Promise<DrawPayment | null> {
+  if (!idempotencyKey) return null;
+  const { data, error } = await supabase
+    .from("inv_draw_payments")
+    .select("*")
+    .eq("draw_id", drawId)
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+  // A lookup failure (including a missing table before the migration) just
+  // means "no known earlier receipt"; the write itself reports real problems.
+  if (error || !data) return null;
+  return data as DrawPayment;
+}
+
+/**
+ * Classifies a request against any receipt already recorded under its key.
+ * `explicit` carries only the values the caller actually chose; a derived
+ * amount or "today" date is never compared. A voided receipt is never revived.
+ */
+export async function checkPriorPayment(
+  supabase: Supabase,
+  drawId: string,
+  idempotencyKey: string | null | undefined,
+  explicit: { amount?: number; date?: string } = {}
+): Promise<PriorPayment> {
+  const prior = await findPaymentByKey(supabase, drawId, idempotencyKey);
+  if (!prior) return { kind: "none" };
+
+  const amountDiffers =
+    explicit.amount !== undefined && Math.round(explicit.amount * 100) !== Math.round(Number(prior.amount) * 100);
+  const dateDiffers = explicit.date !== undefined && explicit.date !== prior.date_received;
+  if (amountDiffers || dateDiffers) {
+    return {
+      kind: "error",
+      error: `This payment request was already used for ${formatCurrency(Number(prior.amount))} received ${formatDate(prior.date_received)}, so a different amount or date wasn't recorded. Refresh the draw and try again.`,
+    };
+  }
+  if (prior.deleted_at) {
+    return {
+      kind: "error",
+      error: `That ${formatCurrency(Number(prior.amount))} payment was already recorded and has since been voided, so it wasn't applied again. Record a new payment if it's still owed.`,
+    };
+  }
+  return { kind: "replay", payment: prior };
 }

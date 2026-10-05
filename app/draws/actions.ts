@@ -26,7 +26,7 @@ import {
   defaultCashReceived,
   ownerPaidFromAmounts,
 } from "@/lib/paymentDefaults";
-import { correctDrawPayment, recordDrawPayment, voidDrawPayment } from "@/lib/paymentsRepo";
+import { checkPriorPayment, correctDrawPayment, recordDrawPayment, voidDrawPayment } from "@/lib/paymentsRepo";
 
 function normalizeMatchKey(s: string): string {
   return s
@@ -350,6 +350,21 @@ async function resolvePaymentForSave(
   return { amount: intent.amount, date };
 }
 
+// The earlier receipt (if any) this save's payment key already recorded. Only
+// values the user actually chose are compared: a "pay what's collectible"
+// request derives its amount from a balance the first attempt changed.
+function priorPaymentForSave(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  drawId: string,
+  intent: PaymentIntent
+) {
+  if (intent.mode === "none") return Promise.resolve({ kind: "none" } as const);
+  return checkPriorPayment(supabase, drawId, intent.key, {
+    amount: intent.mode === "explicit" ? intent.amount : undefined,
+    date: intent.date ?? undefined,
+  });
+}
+
 // Returns { error } instead of throwing. Next.js strips the .message off
 // any thrown Server Action error in production, keeping only an opaque
 // digest — a real, readable Error object still reaches the client as a
@@ -433,15 +448,30 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
         payload.date_approved = today;
       }
 
-      const resolved = await resolvePaymentForSave(supabase, {
-        intent: paymentIntent,
-        projectId,
-        requested: payload.amount_requested,
-        alreadyReceived: Number(existing.amount_paid) || 0,
-        allocations,
-      });
-      if (resolved && "error" in resolved) return { error: resolved.error };
-      paymentToRecord = resolved;
+      // A retry of a save whose payment already went through must not be
+      // judged against the balance that payment changed: look for the receipt
+      // under this key first. A replay still saves the draw's own edits (an
+      // update is naturally repeatable) but records nothing more.
+      const prior = await priorPaymentForSave(supabase, id, paymentIntent);
+      if (prior.kind === "error") return { error: prior.error };
+
+      if (prior.kind === "none") {
+        const resolved = await resolvePaymentForSave(supabase, {
+          intent: paymentIntent,
+          projectId,
+          requested: payload.amount_requested,
+          alreadyReceived: Number(existing.amount_paid) || 0,
+          allocations,
+        });
+        if (resolved && "error" in resolved) {
+          // Re-check: a concurrent request with this key may have just landed.
+          const again = await priorPaymentForSave(supabase, id, paymentIntent);
+          if (again.kind === "error") return { error: again.error };
+          if (again.kind === "none") return { error: resolved.error };
+        } else {
+          paymentToRecord = resolved;
+        }
+      }
 
       const { error } = await supabase
         .from("inv_owner_draws")
@@ -491,6 +521,8 @@ export async function upsertDraw(formData: FormData): Promise<{ error?: string }
           date: paymentToRecord.date,
           source: "manual",
           idempotencyKey: paymentIntent.key,
+          amountExplicit: paymentIntent.mode === "explicit",
+          dateExplicit: paymentIntent.date !== null,
         });
       } catch (err) {
         revalidatePath(`/projects/${projectId}`);
@@ -540,10 +572,26 @@ export async function markDrawPaid(
       return { error: "Enter the payment date as a valid date." };
     }
 
+    // An identical retry returns the original success BEFORE the balance is
+    // judged — that balance was changed by the very payment being repeated.
+    // A key reused for a different amount/date, or for a payment since
+    // voided, is refused instead. The database function is still the guard for
+    // concurrent requests; this lookup only makes the retry's answer correct.
+    const explicit = { amount: amountReceived, date: datePaid || undefined };
+    const settle = async (rejection: string): Promise<{ error?: string }> => {
+      const prior = await checkPriorPayment(supabase, id, options.idempotencyKey, explicit);
+      if (prior.kind === "error") return { error: prior.error };
+      if (prior.kind === "replay") return {};
+      return { error: rejection };
+    };
+    const earlier = await checkPriorPayment(supabase, id, options.idempotencyKey, explicit);
+    if (earlier.kind === "error") return { error: earlier.error };
+    if (earlier.kind === "replay") return {};
+
     const alreadyReceived = Number(draw.amount_paid) || 0;
     const { remaining, excludedAllocated } = await remainingBalanceForDraw(supabase, draw);
     const received = amountReceived ?? remaining;
-    if (!(received > 0)) return { error: "Amount received must be greater than zero." };
+    if (!(received > 0)) return settle("Amount received must be greater than zero.");
 
     if (amountReceived !== undefined) {
       const check = checkExplicitPayment({
@@ -553,7 +601,7 @@ export async function markDrawPaid(
         alreadyReceived,
         confirmOverpayment: options.confirmOverpayment === true,
       });
-      if (!check.ok) return { error: check.error };
+      if (!check.ok) return settle(check.error);
     }
 
     await recordDrawPayment(supabase, {
@@ -563,6 +611,8 @@ export async function markDrawPaid(
       source: "manual",
       idempotencyKey: options.idempotencyKey ?? null,
       setPaid: true,
+      amountExplicit: amountReceived !== undefined,
+      dateExplicit: Boolean(datePaid),
     });
 
     revalidatePath(`/projects/${projectId}`);
@@ -599,6 +649,12 @@ export async function updateDrawStatus(
     }
 
     if (status === "paid") {
+      // A retried change that already recorded its payment is a success, and a
+      // payment that was recorded and then voided is never quietly re-applied.
+      const earlier = await checkPriorPayment(supabase, id, idempotencyKey);
+      if (earlier.kind === "error") return { error: earlier.error };
+      if (earlier.kind === "replay") return {};
+
       // Moving to paid with nothing received yet records the full collectible
       // amount as a receipt (requested minus owner-paid scope) — marking paid
       // must never book owner-paid subcontractor money as HTA's own cash. A

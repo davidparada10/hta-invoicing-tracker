@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getLiveDraw, normalizeDrawSaveError, remainingBalanceForDraw } from "@/lib/data";
 import { businessTodayISO } from "@/lib/format";
 import { checkExplicitPayment } from "@/lib/paymentDefaults";
-import { recordDrawPayment } from "@/lib/paymentsRepo";
+import { checkPriorPayment, recordDrawPayment } from "@/lib/paymentsRepo";
 import { resolveProject } from "./shared";
 
 export const createDrawTool = tool({
@@ -86,6 +86,30 @@ export const markDrawPaidTool = tool({
     const draw = await getLiveDraw(supabase, { projectId: resolved.project.id, drawNumber });
     if (!draw) return { error: `Draw #${drawNumber} not found for ${resolved.project.name}.` };
 
+    // A retried tool call (same tool-call id) returns the original receipt
+    // instead of being judged against the balance that receipt already changed.
+    // The same id reused for a different amount/date, or for a payment since
+    // voided, is refused. The database function still guards concurrent calls.
+    const idempotencyKey = options?.toolCallId ? `ai:${options.toolCallId}` : null;
+    const explicit = { amount: amountReceived, date: datePaid };
+    const replayResult = (receipt: { amount: number | string }) => ({
+      success: true,
+      project: resolved.project.name,
+      drawNumber,
+      amountReceived: Number(receipt.amount),
+      totalReceived: Number(draw.amount_paid) || 0,
+      alreadyRecorded: true,
+    });
+    const earlier = await checkPriorPayment(supabase, draw.id, idempotencyKey, explicit);
+    if (earlier.kind === "error") return { error: earlier.error };
+    if (earlier.kind === "replay") return replayResult(earlier.payment);
+    const reject = async (message: string) => {
+      const again = await checkPriorPayment(supabase, draw.id, idempotencyKey, explicit);
+      if (again.kind === "error") return { error: again.error };
+      if (again.kind === "replay") return replayResult(again.payment);
+      return { error: message };
+    };
+
     const alreadyReceived = Number(draw.amount_paid) || 0;
     // Nets out owner-paid, non-HTA scope already billed against this draw
     // (excluded_allocated) — the same "remaining collectible balance" used
@@ -94,7 +118,7 @@ export const markDrawPaidTool = tool({
     const { remaining, excludedAllocated } = await remainingBalanceForDraw(supabase, draw);
     const received = amountReceived ?? remaining;
     if (!(received > 0)) {
-      return { error: `Draw #${drawNumber} has no outstanding balance.` };
+      return reject(`Draw #${drawNumber} has no outstanding balance.`);
     }
 
     if (amountReceived !== undefined) {
@@ -105,7 +129,7 @@ export const markDrawPaidTool = tool({
         alreadyReceived,
         confirmOverpayment: confirmOverpayment === true,
       });
-      if (!check.ok) return { error: check.error };
+      if (!check.ok) return reject(check.error);
     }
 
     // The tool-call id is stable across a retry of the same call, so a retried
@@ -117,8 +141,10 @@ export const markDrawPaidTool = tool({
         amount: received,
         date: datePaid || businessTodayISO(),
         source: "ai",
-        idempotencyKey: options?.toolCallId ? `ai:${options.toolCallId}` : null,
+        idempotencyKey,
         setPaid: true,
+        amountExplicit: amountReceived !== undefined,
+        dateExplicit: datePaid !== undefined,
       });
     } catch (err) {
       return { error: err instanceof Error ? err.message : `Could not record the payment on draw #${drawNumber}.` };

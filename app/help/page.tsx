@@ -35,7 +35,7 @@ export default function HelpPage() {
           <svg
             viewBox="0 0 1040 748"
             role="img"
-            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form's draw number, dates, and amount requested, with schedule-of-values lines and retention reviewed and explicitly applied rather than auto-filled, then the draw moves through draft, submitted, approved and paid status via a Mark Paid modal (amount received and date paid, defaulting to the full outstanding balance, with partial payments supported) and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk schedule-of-values import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
+            aria-label="Diagram showing a G702/G703 Excel workbook branching into two flows: the G702 sheet auto-fills an Owner Draw form's draw number, dates, and amount requested, with schedule-of-values lines replacing the draw's allocations (with Undo) and retention checked automatically against the file rather than copied in, then the draw moves through draft, submitted, approved and paid status via a Mark Paid modal (amount received and date paid, defaulting to the full outstanding balance, with partial payments supported) and a re-upload path back to the form on lender rejection; the G703 sheet feeds a bulk schedule-of-values import that replaces all line items and rolls up into a contract value figure. Both flows converge on the project detail page."
             className="mx-auto min-w-[720px]"
           >
             <defs>
@@ -153,12 +153,12 @@ export default function HelpPage() {
             genuinely retired from the contract is removed by hand instead.
           </p>
           <p className="text-xs text-muted-foreground mt-3 max-w-2xl mx-auto">
-            A G702&rsquo;s schedule-of-values lines parsed on the Owner Draws tab also wait for
-            review: by default they <strong className="text-foreground">replace</strong> this
-            draw&rsquo;s current line amounts (so a line dropped from a revised document doesn&rsquo;t
-            keep its old value) — a checkbox switches to merging them in instead. Any source line
-            that couldn&rsquo;t be matched to a budget line is listed before you apply or discard
-            the parse; nothing changes until you do.
+            A G702&rsquo;s schedule-of-values lines parsed on the Owner Draws tab{" "}
+            <strong className="text-foreground">replace</strong> this draw&rsquo;s current line
+            amounts straight away (so a line dropped from a revised document doesn&rsquo;t keep its
+            old value), with an Undo link beside the notice. If any source line couldn&rsquo;t be
+            matched to a budget line, they&rsquo;re listed instead and nothing changes until you
+            Apply or Discard &mdash; and a checkbox there switches to merging them in.
           </p>
         </div>
 
@@ -199,8 +199,8 @@ export default function HelpPage() {
         <p className="text-xs text-muted-foreground mb-8 -mt-6">
           The AIA form&rsquo;s Total Retainage cell is normally cumulative-to-date, not this
           draw&rsquo;s own withholding — nothing in the document itself says which one it is, so
-          it&rsquo;s never applied automatically. The parsed figure stays visible for comparison,
-          and the Retention selector on the draw form requires an explicit choice for how to
+          it&rsquo;s never copied in as this draw&rsquo;s retention. The parsed figure stays visible
+          for comparison, and the Retention selector on the draw form decides how to
           interpret it: a % rate computed from the schedule of values below, &ldquo;Document
           total − held to date&rdquo; (treats the parsed cell as cumulative and backs out what
           this draw actually withheld), manual entry, or release. &ldquo;Document total − held to
@@ -210,9 +210,12 @@ export default function HelpPage() {
           it, the option is disabled with the reason instead of guessing. If the cumulative total
           is <em>lower</em> than what earlier draws held, it&rsquo;s entered as a negative (a partial
           release) with a note asking you to confirm — it is never turned into a full release. If this project&rsquo;s prior
-          posted draws agree on a single rate, that rate is offered as a one-click suggestion —
-          Apply or Dismiss — never switched to on its own. Saving prompts for confirmation if the
-          figure hasn&rsquo;t been explicitly reviewed since the upload.
+          posted draws agree on a single rate and no line is retention-exempt or has its own rate, that
+          rate is applied for you after an upload (a note says so); otherwise it&rsquo;s offered as a
+          one-click suggestion &mdash; Apply or Dismiss. There&rsquo;s no separate confirm step: after
+          an upload, the form checks retention against the file for you &mdash; this draw&rsquo;s retention
+          plus what earlier draws hold should equal the file&rsquo;s cumulative total to the cent. A green
+          check means it does; an amber note says by how much it doesn&rsquo;t. It never blocks saving.
         </p>
 
         <h2 className="text-sm font-semibold text-foreground mb-1">How payments are recorded</h2>
@@ -228,8 +231,15 @@ export default function HelpPage() {
           <strong className="text-foreground">Correct</strong> or <strong className="text-foreground">Void</strong>{" "}
           next to it (a voided payment stays in the history). A payment larger than what&rsquo;s still
           collectible asks you to confirm the overpayment. Clicking twice, or a retried request, records a
-          payment only once. Draws paid before this feature show one payment for their known total; the
-          original installment dates can&rsquo;t be recovered.
+          payment only once, and a retry of a payment that already went through simply succeeds rather
+          than complaining that nothing is owed. If a payment was voided, retrying it never brings it
+          back &mdash; record it again as a new payment. Draws paid before this feature show one payment for their known total; the
+          original installment dates can&rsquo;t be recovered. The billing pages&rsquo; &ldquo;average days to
+          pay&rdquo; counts a draw only once it&rsquo;s fully settled: the days from submission to the
+          payment that brought what&rsquo;s received up to what HTA can collect (requested, less
+          owner-paid scope, to the cent). A draw with a balance still open &mdash; even one marked paid
+          &mdash; isn&rsquo;t counted yet, a later extra payment doesn&rsquo;t stretch the figure, and a
+          paid-before draw whose payment date was only estimated is left out rather than shown as 0 days.
         </p>
 
         <h2 className="text-sm font-semibold text-foreground mb-1">What gets read from the G703 sheet</h2>

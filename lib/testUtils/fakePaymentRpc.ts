@@ -68,7 +68,15 @@ export const fakePaymentRpc: Record<string, FakeRpcHandler> = {
     const draw = lockDraw(tables, args.p_draw_id);
 
     const existing = findByKey(tables, draw.id, args.p_idempotency_key);
-    if (existing) return { payment: existing, was_duplicate: true, ...totals(draw) };
+    if (existing) {
+      if (
+        (args.p_amount_explicit && round2(amount) !== Number(existing.amount)) ||
+        (args.p_date_explicit && String(args.p_date) !== existing.date_received)
+      ) {
+        dbError("P0003", "idempotency key already used for a different payment");
+      }
+      return { payment: existing, was_duplicate: true, ...totals(draw) };
+    }
 
     const receipts = round2(
       (tables.inv_draw_payments ?? [])
@@ -107,7 +115,12 @@ export const fakePaymentRpc: Record<string, FakeRpcHandler> = {
     const draw = lockDraw(tables, args.p_draw_id);
 
     const existing = findByKey(tables, draw.id, args.p_idempotency_key);
-    if (existing) return { payment: existing, was_duplicate: true, ...totals(draw) };
+    if (existing) {
+      if (round2(amount) !== Number(existing.amount) || String(args.p_new_date) !== existing.date_received) {
+        dbError("P0003", "idempotency key already used for a different payment");
+      }
+      return { payment: existing, was_duplicate: true, ...totals(draw) };
+    }
 
     const old = (tables.inv_draw_payments ?? []).find(
       (p) => p.id === args.p_payment_id && p.draw_id === draw.id && !p.deleted_at

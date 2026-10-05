@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  daysToLastPayment,
   DrawPayment,
   lastPaymentDate,
   paymentsByPeriod,
@@ -83,24 +82,6 @@ describe("paymentsByPeriod", () => {
       payment({ id: "p3", amount: 500, date_received: "2026-09-26", deleted_at: "2026-09-27T00:00:00Z" }),
     ];
     expect(paymentsByPeriod(payments, (d) => d.slice(0, 7)).get("2026-09")).toBe(3000);
-  });
-});
-
-describe("daysToLastPayment", () => {
-  const between = (aISO: string, b: Date) =>
-    Math.round((b.getTime() - new Date(aISO + "T00:00:00Z").getTime()) / 86400000);
-  const parse = (v: string) => new Date(v + "T00:00:00Z");
-
-  it("is days from submission to the LAST live receipt, not the first", () => {
-    const payments = [
-      payment({ id: "p1", date_received: "2026-09-05" }),
-      payment({ id: "p2", date_received: "2026-09-15" }),
-    ];
-    expect(daysToLastPayment(payments, "2026-09-01", between, parse)).toBe(14);
-  });
-
-  it("is null when nothing has been paid", () => {
-    expect(daysToLastPayment([], "2026-09-01", between, parse)).toBeNull();
   });
 });
 

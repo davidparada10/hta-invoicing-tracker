@@ -175,6 +175,53 @@ describe("markDrawPaidTool — payments are individual receipts", () => {
     expect(retry).toMatchObject({ success: true, alreadyRecorded: true });
   });
 
+  it("full payment, lost response, identical retry: success, one receipt (not 'no outstanding balance')", async () => {
+    seedDraw();
+    await run({ amountReceived: 80000, datePaid: "2026-09-20" }, "full");
+    const retry = await run({ amountReceived: 80000, datePaid: "2026-09-20" }, "full");
+    expect(retry).toMatchObject({ success: true, alreadyRecorded: true });
+    expect(receipts()).toHaveLength(1);
+  });
+
+  it("a default-amount retry doesn't collect a second amount from the changed balance", async () => {
+    seedDraw();
+    await run({ amountReceived: 30000, datePaid: "2026-09-01" }, "first");
+    await run({}, "rest"); // collects the remaining $50,000
+    const retry = await run({}, "rest");
+    expect(retry).toMatchObject({ success: true, alreadyRecorded: true });
+    expect(receipts()).toHaveLength(2);
+    expect(tables.inv_owner_draws[0].amount_paid).toBe(80000);
+  });
+
+  it("the same tool-call id with a changed amount or date is a conflict", async () => {
+    seedDraw();
+    await run({ amountReceived: 30000, datePaid: "2026-09-20" }, "conflict");
+    expect(await run({ amountReceived: 31000, datePaid: "2026-09-20" }, "conflict")).toMatchObject({
+      error: expect.stringMatching(/already used/),
+    });
+    expect(await run({ amountReceived: 30000, datePaid: "2026-09-21" }, "conflict")).toMatchObject({
+      error: expect.stringMatching(/already used/),
+    });
+    expect(receipts()).toHaveLength(1);
+  });
+
+  it("a retry after the receipt was voided does not reinstate it", async () => {
+    seedDraw();
+    await run({ amountReceived: 30000, datePaid: "2026-09-20" }, "voided");
+    fakePaymentRpc.void_draw_payment({ p_payment_id: receipts()[0].id, p_draw_id: "d1" }, tables);
+    const retry = await run({ amountReceived: 30000, datePaid: "2026-09-20" }, "voided");
+    expect(retry).toMatchObject({ error: expect.stringMatching(/voided/i) });
+    expect(receipts()).toHaveLength(0);
+    expect(tables.inv_owner_draws[0].amount_paid).toBe(0);
+  });
+
+  it("concurrent duplicate calls record one receipt", async () => {
+    seedDraw();
+    const results = await Promise.all([1, 2, 3].map(() => run({ amountReceived: 80000, datePaid: "2026-09-20" }, "same")));
+    expect(results.every((r) => (r as { success?: boolean }).success)).toBe(true);
+    expect(receipts()).toHaveLength(1);
+  });
+
   it("two different calls for the same amount are two payments", async () => {
     seedDraw();
     await run({ amountReceived: 10000, datePaid: "2026-09-20" }, "a");
