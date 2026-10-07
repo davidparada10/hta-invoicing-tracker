@@ -590,6 +590,25 @@ export async function markDrawPaid(
 
     const alreadyReceived = Number(draw.amount_paid) || 0;
     const { remaining, excludedAllocated } = await remainingBalanceForDraw(supabase, draw);
+    // Money already covers the draw (e.g. the payment was entered but the status
+    // never moved off approved): there is nothing left to record, so only the
+    // status changes. The existing receipts and their dates stay as they are.
+    if (amountReceived === undefined && draw.status !== "paid" && alreadyReceived > 0 && !(remaining > 0.005)) {
+      const payload: Record<string, unknown> = { status: "paid" };
+      if (!(Number(draw.amount_approved) > 0)) payload.amount_approved = draw.amount_requested;
+      const { error } = await supabase
+        .from("inv_owner_draws")
+        .update(payload)
+        .eq("id", id)
+        .is("deleted_at", null)
+        .select("id")
+        .single();
+      if (error) return { error: "This draw no longer exists or has been deleted." };
+      revalidatePath(`/projects/${projectId}`);
+      revalidatePath("/");
+      return {};
+    }
+
     const received = amountReceived ?? remaining;
     if (!(received > 0)) return settle("Amount received must be greater than zero.");
 

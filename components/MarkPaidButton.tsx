@@ -43,7 +43,33 @@ export default function MarkPaidButton({
   const [paymentKey, setPaymentKey] = useState(() => crypto.randomUUID());
   const [isPending, startTransition] = useTransition();
 
+  // The money is already recorded (status just never moved): no payment form,
+  // only a confirmation, and the existing receipts keep their dates.
+  const alreadyCovered = (amountPaid ?? 0) > 0 && outstanding <= 0.005;
+
+  function confirmStatusOnly() {
+    if (
+      !confirm(
+        `Draw #${drawNumber} already has ${formatCurrency(amountPaid)} received. Mark it paid? The recorded payment and its date stay as they are.`
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const result = await withScrollPreserved(() => markDrawPaid(drawId, projectId));
+        if (result?.error) alert(result.error);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not mark paid.");
+      }
+    });
+  }
+
   function handleOpen() {
+    if (alreadyCovered) {
+      confirmStatusOnly();
+      return;
+    }
     setAmount(String(outstanding));
     setDatePaid(businessTodayISO());
     setPaymentKey(crypto.randomUUID());

@@ -182,6 +182,27 @@ describe("retries: Mark Paid", () => {
   });
 });
 
+describe("Mark Paid on a draw whose money is already recorded", () => {
+  it("only moves the status: no new receipt, the recorded date is kept", async () => {
+    seed({ status: "approved", amount_paid: 80000, date_paid: "2026-09-25" });
+    tables.inv_draw_payments.push({
+      id: "p0", draw_id: "d1", amount: 80000, date_received: "2026-09-25", source: "legacy",
+      idempotency_key: null, date_inferred: false, created_at: "2026-09-25T00:00:00Z", deleted_at: null,
+    });
+    expect(await markDrawPaid("d1", "proj-A")).toEqual({});
+    expect(draw().status).toBe("paid");
+    expect(draw().date_paid).toBe("2026-09-25");
+    expect(live()).toHaveLength(1);
+  });
+
+  it("still asks for a payment when money is owed", async () => {
+    seed({ status: "approved" });
+    expect((await markDrawPaid("d1", "proj-A", 30000, "2026-09-20", { idempotencyKey: "k" })).error).toBeUndefined();
+    expect(draw().status).toBe("paid");
+    expect(live()).toHaveLength(1);
+  });
+});
+
 describe("retries: status dropdown", () => {
   it("a retried change to paid replays without a second receipt", async () => {
     await updateDrawStatus("d1", "proj-A", "paid", "s1");
