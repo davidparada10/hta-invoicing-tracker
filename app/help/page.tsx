@@ -232,7 +232,7 @@ export default function HelpPage() {
           next to it (a voided payment stays in the history). A payment larger than what&rsquo;s still
           collectible asks you to confirm the overpayment. Clicking twice, or a retried request, records a
           payment only once, and a retry of a payment that already went through simply succeeds rather
-          than complaining that nothing is owed. If a payment was voided, retrying it never brings it
+          than complaining that nothing is owed. If a draw already has its full payment recorded but is still approved, Mark Paid only asks you to confirm and changes the status, keeping the payment and its date. If a payment was voided, retrying it never brings it
           back &mdash; record it again as a new payment. Draws paid before this feature show one payment for their known total; the
           original installment dates can&rsquo;t be recovered. The billing pages&rsquo; &ldquo;average days to
           pay&rdquo; counts a draw only once it&rsquo;s fully settled: the days from submission to the
@@ -240,6 +240,27 @@ export default function HelpPage() {
           owner-paid scope, to the cent). A draw with a balance still open &mdash; even one marked paid
           &mdash; isn&rsquo;t counted yet, a later extra payment doesn&rsquo;t stretch the figure, and a
           paid-before draw whose payment date was only estimated is left out rather than shown as 0 days.
+        </p>
+
+        <h2 className="text-sm font-semibold text-foreground mb-1">Active, All and closed projects</h2>
+        <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
+          The dashboard has two kinds of numbers. <strong className="text-foreground">Outstanding across
+          all projects</strong> at the top is what is still owed on every project, including closed
+          ones, and it does not change with the Active / All switch or with the table search. The{" "}
+          <strong className="text-foreground">portfolio summary</strong> (contract value, paid to date,
+          balance to complete, retainage, drafts) and the project table follow the Active / All switch
+          together, including each developer&rsquo;s subtotal; the summary says which view it covers.
+          Searching the table only narrows the rows and is labeled as search results; the summary still
+          covers the whole Active or All view. Retainage is shown separately and is never added to
+          outstanding; the &ldquo;what is included&rdquo; panel lists closed projects that still hold
+          retainage and any small balances ($1,000 or less) that are counted but kept out of Open Draws.
+          Billing and year-to-date figures always cover all projects. Closing a project stops its
+          draw-due reminders and removes it from the Add Draw list; its past billing, payments and
+          average-days-to-pay history stay, its unpaid draws stay in Open Draws and the 60+ day alert
+          (tagged Closed), and you can still record, correct or void payments on its draws. Closed does
+          not mean paid. If a project still has money owed or retainage held, closing asks you to
+          confirm and shows both amounts; it never marks anything paid, releases retainage or writes a
+          balance off. Reopening it brings back its reminders and puts it in the Active view again.
         </p>
 
         <h2 className="text-sm font-semibold text-foreground mb-1">What gets read from the G703 sheet</h2>

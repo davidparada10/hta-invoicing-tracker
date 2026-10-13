@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DrawDueType, ProjectStatus } from "@/lib/types";
 import { isValidDrawDueDay } from "@/lib/drawSchedule";
+import { getProjectClosingSummary } from "@/lib/data";
+import type { ClosingSummary } from "@/lib/portfolio";
 
 function toNullableString(value: FormDataEntryValue | null): string | null {
   const s = (value ?? "").toString().trim();
@@ -121,4 +123,10 @@ export async function updateProjectStatus(id: string, status: ProjectStatus) {
   if (error) throw error;
   revalidatePath(`/projects/${id}`);
   revalidatePath("/");
+}
+
+// Read-only: what is still collectible and still held on a project, shown
+// before it is closed. Closing itself never changes a draw or a receipt.
+export async function previewProjectClose(id: string): Promise<ClosingSummary> {
+  return getProjectClosingSummary(id);
 }

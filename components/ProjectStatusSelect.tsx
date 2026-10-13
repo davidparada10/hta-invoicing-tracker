@@ -5,14 +5,17 @@ import { ProjectStatus } from "@/lib/types";
 import { updateProjectStatus } from "@/app/projects/actions";
 import { PROJECT_STATUS_TEXT_STYLES } from "@/lib/badgeTone";
 import { withScrollPreserved } from "@/lib/preserveScroll";
+import { confirmCloseProject } from "@/components/confirmClose";
 
 const STATUSES: ProjectStatus[] = ["active", "closed"];
 
 export default function ProjectStatusSelect({
   projectId,
+  projectName,
   status,
 }: {
   projectId: string;
+  projectName: string;
   status: ProjectStatus;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -22,6 +25,10 @@ export default function ProjectStatusSelect({
     if (next === status) return;
     startTransition(async () => {
       try {
+        if (next === "closed" && !(await confirmCloseProject(projectId, projectName))) {
+          e.target.value = status;
+          return;
+        }
         await withScrollPreserved(() => updateProjectStatus(projectId, next));
       } catch (err) {
         e.target.value = status;

@@ -89,7 +89,7 @@ export default async function ProjectDetailPage(
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <ProjectStatusSelect projectId={project.id} status={project.status} />
+            <ProjectStatusSelect projectId={project.id} projectName={project.name} status={project.status} />
             <EditProjectModal project={project} />
           </div>
         </div>

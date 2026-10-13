@@ -180,6 +180,7 @@ export default function OpenDrawsSection({
                 >
                   {d.project.name}
                 </Link>
+                {d.project.status === "closed" && <ClosedTag />}
                 <span className={`shrink-0 text-xs font-semibold tabular-nums ${AGING_BUCKET_TEXT_STYLE[bucket]}`}>
                   {age}d
                 </span>
@@ -261,6 +262,7 @@ export default function OpenDrawsSection({
                     >
                       {d.project.name}
                     </Link>
+                    {d.project.status === "closed" && <ClosedTag />}
                   </td>
                   <td className="px-4 py-2">
                     <button
@@ -323,5 +325,18 @@ export default function OpenDrawsSection({
         allocations={allocations}
       />
     </div>
+  );
+}
+
+// Closed projects keep their unpaid draws here under the same amount and age
+// rules; the tag explains why a project that looks finished is listed.
+function ClosedTag() {
+  return (
+    <span
+      title="This project is closed, but the draw still has an unpaid balance."
+      className="ml-2 align-middle rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+    >
+      Closed
+    </span>
   );
 }

@@ -37,7 +37,8 @@ export default function AgingAlertBanner({ draws }: { draws: OpenDraw[] }) {
         </span>
       </p>
       <p className="text-sm text-muted-foreground mt-0.5">
-        Oldest: {oldest.draw.project.name} draw #{oldest.draw.draw_number}, {oldest.age} days —{" "}
+        Oldest: {oldest.draw.project.name}
+        {oldest.draw.project.status === "closed" ? " (closed project)" : ""} draw #{oldest.draw.draw_number}, {oldest.age} days —{" "}
         {formatCurrency(openBalance(oldest.draw))} outstanding. View all in Open Draws below.
       </p>
     </Link>

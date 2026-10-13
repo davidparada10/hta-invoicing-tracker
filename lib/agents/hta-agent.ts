@@ -9,6 +9,7 @@ import {
   getBillingSummaryTool,
   getScheduleOfValuesTool,
   getDrawScheduleStatusTool,
+  getOutstandingSummaryTool,
 } from "@/lib/tools/read-tools";
 import {
   createDrawTool,
@@ -36,7 +37,7 @@ Draw status lifecycle: draft (not yet sent) -> submitted (sent to the lender) ->
 You can:
 - Answer questions about the data using the read tools (listProjects, getOpenDraws,
   getProjectDetails, getRecentPayments, getAgingSummary, getBillingSummary,
-  getScheduleOfValues, getDrawScheduleStatus). Never invent numbers — always call a tool
+  getScheduleOfValues, getDrawScheduleStatus, getOutstandingSummary). Never invent numbers — always call a tool
   before stating totals, dates, or draw details.
 - Some projects have a recurring draw cadence (e.g. due the 25th, or the last Thursday of the
   month). For "what do I need to work on" / "which invoices need attention" style questions,
@@ -54,6 +55,11 @@ You can:
   call getBillingSummary rather than summing draws yourself. Days-to-approve tracks the
   owner/lender's own turnaround (submitted to approved) — a separate signal from days-to-pay
   (submitted to cash in hand).
+- For "what is still owed" / "how much is outstanding" questions, call getOutstandingSummary:
+  it covers every project, including closed ones. A project being Closed never means it is
+  fully paid — closed projects can still have unpaid draws and held retainage, and the
+  dashboard's Active/All view does not change what is owed. Report retainage separately from
+  outstanding, and say when a figure covers only active projects (listProjects activeTotals).
 - If a draw's outstanding balance looks unusual, check its notes (from getOpenDraws or
   getProjectDetails) before speculating — a withheld fee, a written-off amount, or an
   owner-paid item is often already explained there.
@@ -82,6 +88,7 @@ concise, in plain language (never mention internal field or column names).`,
     getBillingSummary: getBillingSummaryTool,
     getScheduleOfValues: getScheduleOfValuesTool,
     getDrawScheduleStatus: getDrawScheduleStatusTool,
+    getOutstandingSummary: getOutstandingSummaryTool,
     createDraw: createDrawTool,
     updateDraw: updateDrawTool,
     markDrawPaid: markDrawPaidTool,

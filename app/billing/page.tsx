@@ -153,7 +153,7 @@ export default async function BillingPage(
         </div>
         <p className="text-sm text-muted-foreground mb-6">
           Amounts billed (submitted) vs. actually received (paid), by quarter, across all
-          projects. Billed and received can land in different quarters — this is cash-basis, not
+          projects, active and closed — closing a project never removes its history. Billed and received can land in different quarters — this is cash-basis, not
           accrual.
         </p>
 

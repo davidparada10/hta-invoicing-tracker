@@ -20,6 +20,7 @@ import {
   isDrawUrgent,
 } from "@/lib/drawSchedule";
 import { MIN_MEANINGFUL_OPEN_BALANCE } from "@/lib/aging";
+import { ClosingSummary, ResidualBalance, closingSummary, residualBalances } from "@/lib/portfolio";
 import { businessToday } from "@/lib/format";
 
 export { MIN_MEANINGFUL_OPEN_BALANCE };
@@ -457,7 +458,11 @@ export async function getOpenDraws(): Promise<OpenDraw[]> {
       const project = projectsById.get(d.project_id);
       return {
         ...d,
-        project: { id: project?.id ?? d.project_id, name: project?.name ?? "Unknown project" },
+        project: {
+          id: project?.id ?? d.project_id,
+          name: project?.name ?? "Unknown project",
+          status: project?.status ?? "active",
+        },
       };
     });
 
@@ -479,6 +484,9 @@ export async function getDashboardData(): Promise<{
     totalRetainage: number;
     totalDraft: number;
   };
+  // Draw balances at or under the alert threshold: counted in the totals but
+  // not listed in Open Draws / aging, so the dashboard lists them separately.
+  residuals: ResidualBalance[];
 }> {
   const [projects, draws, budgetLines, allocationRows] = await Promise.all([
     getProjects(),
@@ -559,10 +567,49 @@ export async function getDashboardData(): Promise<{
   const totalRetainage = sum(rollups.map((r) => r.totalDrawRetainage));
   const totalDraft = sum(rollups.map((r) => r.totalDraft));
 
+  const projectsById = new Map(projects.map((p) => [p.id, p]));
+  const residuals = residualBalances(
+    withExcludedAllocated(draws, excludedMap).flatMap((d) => {
+      const project = projectsById.get(d.project_id);
+      if (!project) return [];
+      return [
+        {
+          projectId: project.id,
+          projectName: project.name,
+          projectStatus: project.status,
+          drawNumber: d.draw_number,
+          status: d.status,
+          balance: openBalance(d),
+        },
+      ];
+    }),
+    MIN_MEANINGFUL_OPEN_BALANCE
+  );
+
   return {
     rollups,
     totals: { totalPaidToOwner, totalOpenToOwner, totalBudget, totalRetainage, totalDraft },
+    residuals,
   };
+}
+
+// What is still collectible and still held on one project, for the notice
+// shown before it is closed. Read-only; uses the same per-draw balance rule
+// (openBalance) as every other figure, with no alert threshold.
+export async function getProjectClosingSummary(projectId: string): Promise<ClosingSummary> {
+  const [draws, budgetLines, allocations] = await Promise.all([
+    getDrawsForProject(projectId),
+    getBudgetLinesForProject(projectId),
+    getAllocationsForProject(projectId),
+  ]);
+  const excludedMap = excludedAllocationByDraw(allocations, budgetLines);
+  return closingSummary(
+    withExcludedAllocated(draws, excludedMap).map((d) => ({
+      status: d.status,
+      balance: openBalance(d),
+      retainage: Number(d.retainage_held) || 0,
+    }))
+  );
 }
 
 function sum(values: number[]): number {

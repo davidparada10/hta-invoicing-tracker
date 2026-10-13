@@ -6,26 +6,24 @@ import { ProjectRollup } from "@/lib/types";
 import { formatCurrency, formatCurrencyRounded } from "@/lib/format";
 import { dashboardAddressLine } from "@/lib/address";
 import ProjectStatusSelect from "@/components/ProjectStatusSelect";
+import ScopeToggle from "@/components/ScopeToggle";
+import {
+  developerGroupSizes,
+  developerGroups,
+  visibleProjects,
+  type StatusScope,
+} from "@/lib/portfolio";
 
-// No-developer-set projects sort after every named group, but still need a
-// stable, distinct key from an actual (possibly falsy-looking) developer
-// name — an empty string, not null/undefined, so it sorts predictably.
-const UNASSIGNED_GROUP = "Unassigned";
-
-function sumGroup(rows: ProjectRollup[]) {
-  return {
-    totalOpenToOwner: rows.reduce((acc, r) => acc + r.totalOpenToOwner, 0),
-    totalPaidToOwner: rows.reduce((acc, r) => acc + r.totalPaidToOwner, 0),
-    totalBudget: rows.reduce((acc, r) => acc + r.totalBudget, 0),
-    balanceToComplete: rows.reduce((acc, r) => acc + r.balanceToComplete, 0),
-    totalDrawRetainage: rows.reduce((acc, r) => acc + r.totalDrawRetainage, 0),
-    hasMeaningfulOpenBalance: rows.some((r) => r.hasMeaningfulOpenBalance),
-  };
-}
-
-export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }) {
+export default function DashboardTable({
+  rollups,
+  statusFilter,
+  onStatusFilterChange,
+}: {
+  rollups: ProjectRollup[];
+  statusFilter: StatusScope;
+  onStatusFilterChange: (scope: StatusScope) => void;
+}) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"active" | "all">("active");
   const [groupByDeveloper, setGroupByDeveloper] = useState(true);
   // Every developer group starts collapsed — this tracks which ones have
   // been explicitly expanded, by developer name, so each toggles
@@ -48,31 +46,18 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
     });
   }
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return rollups.filter((r) => {
-      if (statusFilter === "active" && r.project.status !== "active") return false;
-      if (!q) return true;
-      return (
-        r.project.name.toLowerCase().includes(q) ||
-        (r.project.address ?? "").toLowerCase().includes(q) ||
-        (r.project.developer ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [rollups, search, statusFilter]);
+  const filtered = useMemo(
+    () => visibleProjects(rollups, statusFilter, search),
+    [rollups, search, statusFilter]
+  );
 
   // Full (not search-narrowed) per-developer counts, for "N of M projects
-  // match" labeling while a search is active — statusFilter still applies,
-  // since Active/All is a real view toggle, not part of "the search."
-  const groupSizeByDeveloper = useMemo(() => {
-    const sizes = new Map<string, number>();
-    for (const r of rollups) {
-      if (statusFilter === "active" && r.project.status !== "active") continue;
-      const key = r.project.developer ?? UNASSIGNED_GROUP;
-      sizes.set(key, (sizes.get(key) ?? 0) + 1);
-    }
-    return sizes;
-  }, [rollups, statusFilter]);
+  // match" labeling while a search is active — the Active/All view still
+  // applies, since it is a real view toggle, not part of "the search."
+  const groupSizeByDeveloper = useMemo(
+    () => developerGroupSizes(rollups, statusFilter),
+    [rollups, statusFilter]
+  );
 
   function developerLabel(developer: string, matchCount: number): string {
     const total = groupSizeByDeveloper.get(developer) ?? matchCount;
@@ -82,25 +67,9 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
     return `${matchCount} project${matchCount === 1 ? "" : "s"}`;
   }
 
-  // Grouped by developer, alphabetically, with unassigned projects (no
-  // developer set) always last rather than sorting in wherever "Unassigned"
-  // happens to fall — they're the exception, not just another group.
   const groups = useMemo(() => {
     if (!groupByDeveloper) return [{ developer: null, rows: filtered }];
-    const byDeveloper = new Map<string, ProjectRollup[]>();
-    for (const r of filtered) {
-      const key = r.project.developer ?? UNASSIGNED_GROUP;
-      const existing = byDeveloper.get(key);
-      if (existing) existing.push(r);
-      else byDeveloper.set(key, [r]);
-    }
-    return [...byDeveloper.entries()]
-      .sort(([a], [b]) => {
-        if (a === UNASSIGNED_GROUP) return 1;
-        if (b === UNASSIGNED_GROUP) return -1;
-        return a.localeCompare(b);
-      })
-      .map(([developer, rows]) => ({ developer, rows, totals: sumGroup(rows) }));
+    return developerGroups(filtered);
   }, [filtered, groupByDeveloper]);
 
   return (
@@ -112,26 +81,7 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           placeholder="Search by project name or address..."
           className="input sm:w-72"
         />
-        <div className="inline-flex rounded-lg border border-border text-sm overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setStatusFilter("active")}
-            className={`px-3 py-1.5 ${
-              statusFilter === "active" ? "bg-primary text-background" : "text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            Active
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter("all")}
-            className={`px-3 py-1.5 border-l border-border ${
-              statusFilter === "all" ? "bg-primary text-background" : "text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            All
-          </button>
-        </div>
+        <ScopeToggle value={statusFilter} onChange={onStatusFilterChange} />
         <label className="inline-flex items-center gap-1.5 text-sm text-muted-foreground ml-auto">
           <input
             type="checkbox"
@@ -142,6 +92,18 @@ export default function DashboardTable({ rollups }: { rollups: ProjectRollup[] }
           Group by developer
         </label>
       </div>
+
+      <p className="text-xs text-muted-foreground mb-3" aria-live="polite">
+        {searchActive
+          ? `Search results: ${filtered.length} ${filtered.length === 1 ? "project" : "projects"} in the ${
+              statusFilter === "active" ? "Active" : "All"
+            } view. The portfolio summary above still covers the whole ${
+              statusFilter === "active" ? "Active" : "All"
+            } view, not just these results.`
+          : statusFilter === "active"
+            ? `Showing active projects only. Closed projects are under All; their unpaid balances still count in Outstanding across all projects.`
+            : `Showing all projects, including closed.`}
+      </p>
 
       {/* Mobile: one card per project — avoids horizontal scrolling through 6 columns */}
       <div className="sm:hidden space-y-4">
@@ -427,7 +389,7 @@ function MobileProjectCard({ r, showStatus }: { r: ProjectRollup; showStatus: bo
         </Link>
         {showStatus && (
           <div className="shrink-0">
-            <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
+            <ProjectStatusSelect projectId={r.project.id} projectName={r.project.name} status={r.project.status} />
           </div>
         )}
       </div>
@@ -493,7 +455,7 @@ function DesktopProjectRow({ r, showStatus }: { r: ProjectRollup; showStatus: bo
       </td>
       {showStatus && (
         <td className="px-4 py-2">
-          <ProjectStatusSelect projectId={r.project.id} status={r.project.status} />
+          <ProjectStatusSelect projectId={r.project.id} projectName={r.project.name} status={r.project.status} />
         </td>
       )}
     </tr>

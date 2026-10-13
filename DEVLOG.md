@@ -12,7 +12,14 @@ a commit-by-commit transcript.
 
 ---
 
-## 2026-10-07 (uncommitted; Mark Paid on already-paid draws)
+## 2026-10-13 (uncommitted; Active vs. All reporting, Add Draw search)
+
+- Dashboard now separates two kinds of numbers: "Outstanding across all projects" (includes closed projects, ignores the Active/All switch and table search, retainage tracked separately with a breakdown that lists closed projects holding retainage and small balances of $1,000 or less) and a portfolio summary that follows one shared Active/All switch together with the table rows and developer subtotals. Search only narrows rows and says so.
+- Closing a project (quick status control or Edit Project) now shows the exact collectible balance and held retainage with no alert threshold before confirming, and never marks anything paid, releases retainage or writes off a balance. Closed projects keep unpaid draws in Open Draws and aging (tagged Closed); reminders stop and resume on reopen; billing history is unchanged.
+- AI assistant: new getOutstandingSummary tool, and scope metadata on project, open-draw, aging and billing tools so closed-project debt is never missed. Help and Workflow explain the distinction; 366 tests cover scope, search/grouping, residuals, reopen and "closing changes no financial record".
+- Add Draw project picker is type-to-search (committed earlier today).
+
+## 2026-10-07 (10:56 AM, 1 commit; Mark Paid on already-paid draws)
 
 - Found 3751 Delmas Draw 4 approved but fully received (Sep 25 payment on file, pre-dating the receipts work); Mark Paid would have asked for a date and then rejected the save.
 - Mark Paid now skips the payment form when money is already fully recorded and only moves the status, keeping the recorded date. Covered by tests; Workflow page updated.

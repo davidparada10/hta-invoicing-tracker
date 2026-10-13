@@ -5,6 +5,7 @@ import { Project, ProjectStatus } from "@/lib/types";
 import Modal from "@/components/Modal";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { updateProject } from "@/app/projects/actions";
+import { confirmCloseProject } from "@/components/confirmClose";
 
 const STATUSES: ProjectStatus[] = ["active", "closed"];
 const WEEKDAYS = [
@@ -25,6 +26,9 @@ export default function EditProjectModal({ project }: { project: Project }) {
   async function handleSubmit(formData: FormData) {
     setError(null);
     try {
+      const closing = formData.get("status") === "closed" && project.status !== "closed";
+      const name = String(formData.get("name") ?? project.name);
+      if (closing && !(await confirmCloseProject(project.id, name))) return;
       await updateProject(formData);
       setOpen(false);
     } catch (err) {
