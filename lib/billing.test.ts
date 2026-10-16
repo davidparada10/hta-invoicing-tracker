@@ -185,6 +185,74 @@ describe("buildShortPaymentSummary", () => {
     const d = draw({ status: "submitted", amount_approved: 100000, amount_paid: 0, date_paid: null });
     expect(buildShortPaymentSummary([d], 2026).count).toBe(0);
   });
+
+  // DEVLOG 2026-10-13: Short-paid was comparing raw amount_approved against
+  // cash received, with no regard for retention held, owner-paid scope, or
+  // overpayments canceling out other draws' real shortfalls.
+
+  it("doesn't flag retention held as a shortfall — that money is deliberately held back, not missing", () => {
+    const d = draw({
+      status: "paid",
+      amount_approved: 100000,
+      retainage_held: 10000,
+      amount_paid: 90000, // exactly approved less retention — fully settled
+      date_paid: "2026-06-10",
+    });
+    const summary = buildShortPaymentSummary([d], 2026);
+    expect(summary.count).toBe(0);
+    expect(summary.totalGap).toBe(0);
+  });
+
+  it("doesn't flag owner-paid (excluded_allocated) scope as a shortfall", () => {
+    const d = draw({
+      status: "paid",
+      amount_requested: 100000,
+      amount_approved: 100000,
+      excluded_allocated: 20000, // owner-paid scope, paid directly by the owner, never HTA's cash
+      amount_paid: 80000, // the actual HTA-collectible portion, paid in full
+      date_paid: "2026-06-10",
+    });
+    const summary = buildShortPaymentSummary([d], 2026);
+    expect(summary.count).toBe(0);
+    expect(summary.totalGap).toBe(0);
+  });
+
+  it("prorates owner-paid scope to the approved amount when approved < requested", () => {
+    // Requested $100,000 with $20,000 (20%) owner-paid scope, but the lender
+    // only approved $50,000 — scaling owner-paid scope with it puts $10,000
+    // (20% of $50,000) as owner-paid, leaving $40,000 actually collectible.
+    const d = draw({
+      status: "paid",
+      amount_requested: 100000,
+      amount_approved: 50000,
+      excluded_allocated: 20000,
+      amount_paid: 40000, // the correctly-prorated collectible amount, paid in full
+      date_paid: "2026-06-10",
+    });
+    const summary = buildShortPaymentSummary([d], 2026);
+    expect(summary.count).toBe(0);
+    expect(summary.totalGap).toBe(0);
+  });
+
+  it("a cross-project overpayment doesn't cancel out a different draw's real shortfall", () => {
+    const short = draw({ id: "short", project_id: "p1", status: "paid", amount_approved: 100000, amount_paid: 90000, date_paid: "2026-06-10" });
+    const over = draw({ id: "over", project_id: "p2", status: "paid", amount_approved: 50000, amount_paid: 60000, date_paid: "2026-06-12" });
+    const summary = buildShortPaymentSummary([short, over], 2026);
+    // Old behavior netted these to count: 2, totalGap: 0 — hiding the real
+    // $10,000 shortfall and miscounting an overpayment as "short-paid."
+    expect(summary.count).toBe(1);
+    expect(summary.totalGap).toBe(10000);
+    expect(summary.overpaidCount).toBe(1);
+    expect(summary.overpaidTotal).toBe(10000);
+  });
+
+  it("doesn't count a sub-dollar gap as short-paid (rounding noise, not a real misapplied payment)", () => {
+    const d = draw({ status: "paid", amount_approved: 100000, amount_paid: 99999.5, date_paid: "2026-06-10" });
+    const summary = buildShortPaymentSummary([d], 2026);
+    expect(summary.count).toBe(0);
+    expect(summary.totalGap).toBe(0);
+    expect(summary.overpaidCount).toBe(0);
+  });
 });
 
 // ---- Per-receipt reporting (payment history) ----------------------------------
@@ -257,7 +325,12 @@ describe("receipts: $30,000 in September + $20,000 in October on one draw", () =
 
   it("short-pay summary compares approved against the receipts' total, in the year of the last receipt", () => {
     const short = draw({ ...split, amount_approved: 52000 });
-    expect(buildShortPaymentSummary([short], 2026, receipts)).toEqual({ count: 1, totalGap: 2000 });
+    expect(buildShortPaymentSummary([short], 2026, receipts)).toEqual({
+      count: 1,
+      totalGap: 2000,
+      overpaidCount: 0,
+      overpaidTotal: 0,
+    });
   });
 });
 

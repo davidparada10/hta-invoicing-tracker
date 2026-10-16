@@ -92,6 +92,11 @@ export default async function BillingPage(
                   rows: [[shortPayments.count, shortPayments.totalGap]],
                 },
                 {
+                  title: `Overpaid draws (${year})`,
+                  headers: ["Draws paid more than approved", "Total overpaid"],
+                  rows: [[shortPayments.overpaidCount, shortPayments.overpaidTotal]],
+                },
+                {
                   title: `By Quarter (${year})`,
                   headers: [
                     "Quarter",
@@ -222,7 +227,7 @@ export default async function BillingPage(
             <div className="py-3 lg:pl-4 lg:border-l border-border">
               <p
                 className="text-xs mb-1"
-                title="A 'paid' draw whose amount_paid doesn't match what was approved — permanent, not a normal pending balance, so easy to miss once the status reads paid."
+                title="A 'paid' draw that collected less than it was really owed, net of retention held and owner-paid scope — permanent, not a normal pending balance, so easy to miss once the status reads paid. An overpayment on a different draw never offsets this total."
               >
                 <span className={shortPayments.count > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground"}>
                   Short-paid {isCurrentYear ? "YTD" : year}
@@ -237,6 +242,14 @@ export default async function BillingPage(
                   ? "None"
                   : `${formatCurrency(Math.abs(shortPayments.totalGap))} (${shortPayments.count})`}
               </p>
+              {shortPayments.overpaidCount > 0 && (
+                <p
+                  className="text-xs text-muted-foreground mt-1"
+                  title="Draws that collected more than approved — kept separate so a misapplied payment doesn't hide in, or get canceled out by, the short-paid total above."
+                >
+                  {formatCurrency(shortPayments.overpaidTotal)} overpaid ({shortPayments.overpaidCount})
+                </p>
+              )}
             </div>
           </div>
         </div>

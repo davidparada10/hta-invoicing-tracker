@@ -19,9 +19,10 @@ import {
   isDrawOverdue,
   isDrawUrgent,
 } from "@/lib/drawSchedule";
-import { MIN_MEANINGFUL_OPEN_BALANCE } from "@/lib/aging";
+import { MIN_MEANINGFUL_OPEN_BALANCE, daysOpen } from "@/lib/aging";
 import { ClosingSummary, ResidualBalance, closingSummary, residualBalances } from "@/lib/portfolio";
 import { businessToday } from "@/lib/format";
+import { billedDate } from "@/lib/billingDates";
 
 export { MIN_MEANINGFUL_OPEN_BALANCE };
 
@@ -283,8 +284,12 @@ export async function getLenderBillingBreakdown(year: number): Promise<GroupedBi
 }
 
 export async function getShortPaymentSummary(year: number): Promise<ShortPaymentSummary> {
-  const [draws, payments] = await Promise.all([getAllDraws(), getLivePayments()]);
-  return buildShortPaymentSummary(draws, year, payments);
+  const [draws, excludedMap, payments] = await Promise.all([
+    getAllDraws(),
+    getPortfolioExcludedMap(),
+    getLivePayments(),
+  ]);
+  return buildShortPaymentSummary(withExcludedAllocated(draws, excludedMap), year, payments);
 }
 
 // A draw's outstanding balance: what's been billed but not yet actually
@@ -304,6 +309,21 @@ export function openBalance(d: OwnerDraw): number {
 // "one real balance" and only alarm-color the latter.
 export function hasMeaningfulOpenBalance(draws: OwnerDraw[]): boolean {
   return draws.some((d) => openBalance(d) > MIN_MEANINGFUL_OPEN_BALANCE);
+}
+
+// DEVLOG 2026-10-13: the dashboard's average age was pulling in drafts
+// (nothing's actually been billed yet) and draws with no real open balance
+// left — neither describes money actually owed, so neither belongs in an
+// average meant to answer "how old is what we're waiting on." Age itself is
+// measured from billedDate() (date_submitted, falling back to created_at
+// only when a draw has no real submission date), the same basis
+// lib/billing.ts and lib/monthlyBilling.ts already use for "when did this
+// get billed."
+export function averageDaysOutstanding(draws: OwnerDraw[], now: Date = businessToday()): number | null {
+  const outstanding = draws.filter((d) => d.status !== "draft" && openBalance(d) > 0);
+  if (outstanding.length === 0) return null;
+  const total = outstanding.reduce((acc, d) => acc + daysOpen(billedDate(d), now), 0);
+  return Math.round(total / outstanding.length);
 }
 
 // Sums each draw's allocations against excluded_from_contract budget

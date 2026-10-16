@@ -36,6 +36,10 @@ export interface DrawForBilling {
   // it's netted out of "requested" here too, the same way it's netted out
   // of "outstanding" everywhere else.
   excluded_allocated?: number;
+  // Only buildShortPaymentSummary needs it: retention is deliberately held
+  // back (not missing money), so it's netted out of "approved" the same way
+  // excluded_allocated is, before judging a draw short-paid.
+  retainage_held?: number | null;
 }
 
 // A project as far as breakdown grouping cares: its cadence (to judge
@@ -354,14 +358,24 @@ export function buildLabelBillingBreakdown(
 }
 
 export interface ShortPaymentSummary {
-  // Draws actually paid for something other than what was approved —
-  // short by even a cent counts, since any gap on a "paid" draw is
-  // permanent (unlike a normal pending balance) and easy to miss once the
-  // status reads "paid." Positive gap = net underpaid; negative = net
-  // overpaid.
+  // Draws genuinely paid for less than they're really owed, net of
+  // retention held and owner-paid scope — permanent, not a normal pending
+  // balance, so easy to miss once the status reads "paid." Overpayments are
+  // never netted in here (see overpaidCount/overpaidTotal below); a gap of
+  // $1 or less is treated as rounding noise, not a real misapplied payment.
   count: number;
   totalGap: number;
+  // Draws paid for genuinely more than they're owed. Tracked separately so
+  // one project's overpayment can never silently cancel out a different
+  // project's real shortfall in totalGap — surfaced on its own so a
+  // misapplied payment is still visible somewhere.
+  overpaidCount: number;
+  overpaidTotal: number;
 }
+
+// A gap this small is rounding/processing noise, not a real misapplied
+// payment worth surfacing as short- or over-paid.
+const SHORT_PAY_THRESHOLD = 1;
 
 // Scoped by when each draw was actually paid landing in `year`, same as
 // "received" elsewhere on the billing page — a shortfall only becomes real
@@ -374,16 +388,37 @@ export function buildShortPaymentSummary(
   const byDraw = groupReceipts(payments);
   let count = 0;
   let totalGap = 0;
+  let overpaidCount = 0;
+  let overpaidTotal = 0;
   for (const d of draws) {
     const last = lastReceiptDate(d, byDraw);
     if (d.status !== "paid" || !last) continue;
     const paid = yearAndQuarterOf(last);
     if (paid.year !== year) continue;
-    const gap = (d.amount_approved ?? d.amount_requested ?? 0) - receivedTotal(d, byDraw);
-    if (Math.abs(gap) > 0.01) {
+
+    const approved = d.amount_approved ?? d.amount_requested ?? 0;
+    const requested = d.amount_requested ?? 0;
+    // excluded_allocated is computed against amount_requested (see
+    // excludedAllocationByDraw); when the owner/lender approved less than
+    // requested, scale owner-paid scope down with it rather than netting
+    // the full requested-basis figure out of a smaller approved baseline,
+    // which would overstate the shortfall. Owner-paid scope is paid by the
+    // owner directly, never through HTA's own collections, so it's only
+    // ever netted out of the approved side, never out of what's received.
+    const ownerPaidShare = requested > 0 ? Math.min(approved / requested, 1) : 1;
+    const ownerPaid = (d.excluded_allocated ?? 0) * ownerPaidShare;
+    // Retention is deliberately held back, not missing money — net it out
+    // too so an open retainage balance alone doesn't read as short-paid.
+    const netApproved = approved - ownerPaid - (d.retainage_held ?? 0);
+    const gap = netApproved - receivedTotal(d, byDraw);
+
+    if (gap > SHORT_PAY_THRESHOLD) {
       count += 1;
       totalGap += gap;
+    } else if (gap < -SHORT_PAY_THRESHOLD) {
+      overpaidCount += 1;
+      overpaidTotal += -gap;
     }
   }
-  return { count, totalGap };
+  return { count, totalGap, overpaidCount, overpaidTotal };
 }

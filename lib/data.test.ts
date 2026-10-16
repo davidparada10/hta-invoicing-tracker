@@ -8,6 +8,7 @@ import {
   getPaymentsForDraw,
   remainingBalanceForDraw,
   getExcludedAllocatedForDraw,
+  averageDaysOutstanding,
   MIN_MEANINGFUL_OPEN_BALANCE,
 } from "@/lib/data";
 import { createFakeSupabase } from "@/lib/testUtils/fakeSupabase";
@@ -280,5 +281,62 @@ describe("getPaymentsForDraw — before the payments table exists", () => {
     });
     const [p] = await getPaymentsForDraw(supabase, "d1");
     expect(p.amount).toBe(30000);
+  });
+});
+
+// DEVLOG 2026-10-13: dashboard's average age was pulling in drafts (nothing's
+// actually been billed yet) and draws with no real open balance, dragging the
+// portfolio figure up with ages that don't describe money actually owed.
+describe("averageDaysOutstanding", () => {
+  const now = new Date(2026, 9, 1); // Oct 1, 2026, local midnight
+
+  it("excludes drafts from the average", () => {
+    const draws = [
+      draw({ status: "draft", date_submitted: null, created_at: "2026-01-01T00:00:00Z", amount_requested: 50000, amount_paid: 0 }),
+      draw({ status: "submitted", date_submitted: "2026-09-21", amount_requested: 50000, amount_paid: 0 }), // 10 days
+    ];
+    // Without the fix, the draft's age (from Jan 1 — ~9 months) gets averaged
+    // in and drags the result far above the one real open draw's 10 days.
+    expect(averageDaysOutstanding(draws, now)).toBe(10);
+  });
+
+  it("excludes a draw with no real open balance (fully owner-paid scope)", () => {
+    const draws = [
+      draw({
+        status: "submitted",
+        date_submitted: "2026-01-01", // ~9 months old — would badly skew the average if counted
+        amount_requested: 20000,
+        excluded_allocated: 20000, // 100% owner-paid scope — nothing HTA is actually owed
+        amount_paid: 0,
+      }),
+      draw({ status: "submitted", date_submitted: "2026-09-21", amount_requested: 50000, amount_paid: 0 }), // 10 days
+    ];
+    expect(averageDaysOutstanding(draws, now)).toBe(10);
+  });
+
+  it("excludes a draw that's already fully paid (zero open balance)", () => {
+    const draws = [
+      draw({ status: "paid", date_submitted: "2026-01-01", amount_requested: 20000, amount_paid: 20000 }),
+      draw({ status: "submitted", date_submitted: "2026-09-21", amount_requested: 50000, amount_paid: 0 }), // 10 days
+    ];
+    expect(averageDaysOutstanding(draws, now)).toBe(10);
+  });
+
+  it("measures age from date_submitted, not created_at, for a normal open draw", () => {
+    const draws = [
+      draw({
+        status: "submitted",
+        date_submitted: "2026-09-21", // 10 days old
+        created_at: "2026-01-01T00:00:00Z", // ~9 months old — must not be used while date_submitted is set
+        amount_requested: 50000,
+        amount_paid: 0,
+      }),
+    ];
+    expect(averageDaysOutstanding(draws, now)).toBe(10);
+  });
+
+  it("returns null when there are no real open draws", () => {
+    const draws = [draw({ status: "draft", amount_requested: 50000, amount_paid: 0 })];
+    expect(averageDaysOutstanding(draws, now)).toBeNull();
   });
 });

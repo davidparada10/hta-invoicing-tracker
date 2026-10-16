@@ -1,6 +1,5 @@
 import SiteHeader from "@/components/SiteHeader";
-import { getBillingReport, getDashboardData, getOpenDraws } from "@/lib/data";
-import { daysOpen } from "@/lib/aging";
+import { averageDaysOutstanding, getBillingReport, getDashboardData, getOpenDraws } from "@/lib/data";
 import { businessToday } from "@/lib/format";
 import PortfolioDashboard from "@/components/PortfolioDashboard";
 import OpenDrawsSection from "@/components/OpenDrawsSection";
@@ -24,13 +23,7 @@ export default async function DashboardPage(
     getBillingReport(currentYear),
   ]);
 
-  const avgDaysOutstanding =
-    openDraws.length > 0
-      ? Math.round(
-          openDraws.reduce((acc, d) => acc + daysOpen(d.date_submitted ?? d.created_at), 0) /
-            openDraws.length
-        )
-      : null;
+  const avgDaysOutstanding = averageDaysOutstanding(openDraws);
 
   return (
     <div className="min-h-screen">

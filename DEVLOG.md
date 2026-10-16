@@ -1,5 +1,11 @@
 # Dev Log
 
+## 2026-10-16 — Fix dashboard average age and Short-paid reporting bugs, 2:17–2:36 PM PDT
+
+- Dashboard's "Avg. days outstanding" no longer counts drafts or draws with zero real open balance (fully owner-paid scope, or already fully paid) — new `averageDaysOutstanding()` in `lib/data.ts`, same filtering rule `openBalance()` already uses elsewhere, called from `app/page.tsx` in place of the old inline calc.
+- Short-paid now nets retention held and owner-paid scope (prorated to the approved amount when approved < requested) out of the approved baseline before comparing to cash received, raised the noise floor to $1, and stopped letting one draw's overpayment cancel out a different draw's real shortfall — overpayments are tallied separately (`overpaidCount`/`overpaidTotal`) and surfaced on the Billing Summary page and CSV export instead. Also fixed `getShortPaymentSummary()`, which was never decorating draws with `excluded_allocated` at all, so owner-paid netting had zero effect in production regardless of the math fix.
+- Six new regression tests (draft exclusion, zero-balance exclusion, retention netting, owner-paid proration, cross-project overpay not canceling a shortfall, sub-dollar rounding) plus 4 more for the submitted-date/null-open-draws edges; 376 tests, typecheck, and build all pass. Lint unchanged (4 pre-existing warnings, 0 errors).
+
 ## 2026-10-13 — Review, 2:24–2:35 PM PDT (HEAD ed591c9; no new commits)
 
 - Verified the deployed dashboard and Billing Summary; refreshed dashboard shows the new Active/All scope and the small-balance reconciliation. No financial records changed.
