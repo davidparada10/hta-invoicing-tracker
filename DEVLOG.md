@@ -1,5 +1,11 @@
 # Dev Log
 
+## 2026-10-13 — Review, 2:24–2:35 PM PDT (HEAD ed591c9; no new commits)
+
+- Verified the deployed dashboard and Billing Summary; refreshed dashboard shows the new Active/All scope and the small-balance reconciliation. No financial records changed.
+- Found two remaining reporting issues: dashboard average age includes drafts, and Short-paid still compares approved amounts against cash without removing owner-paid scope (and nets overpayments into the same figure).
+- All 366 tests and typecheck passed; lint has four warnings and no errors. Production build could not finish because Turbopack port binding was denied, including the elevated retry. Ran time-log; its commit-derived range does not measure this uncommitted review. No implementation shipped.
+
 A running record of work sessions on this app. Time is a floor, not exact —
 see [`npm run time-log`](scripts/time-log.mjs) for the authoritative,
 git-derived numbers behind these entries (commit-gap clustering, +15min
