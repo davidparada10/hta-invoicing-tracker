@@ -22,6 +22,7 @@ import {
 import { MIN_MEANINGFUL_OPEN_BALANCE, daysOpen } from "@/lib/aging";
 import { buildMonthlyBillingBuckets, type MonthBucket } from "@/lib/monthlyBilling";
 import { ClosingSummary, ResidualBalance, closingSummary, residualBalances } from "@/lib/portfolio";
+import { dataReviewItems, type ReviewItem } from "@/lib/dataReview";
 import { businessToday } from "@/lib/format";
 import { billedDate } from "@/lib/billingDates";
 
@@ -523,6 +524,7 @@ export async function getDashboardData(): Promise<{
   // Draw balances at or under the alert threshold: counted in the totals but
   // not listed in Open Draws / aging, so the dashboard lists them separately.
   residuals: ResidualBalance[];
+  reviewItems: ReviewItem[];
 }> {
   const [projects, draws, budgetLines, allocationRows] = await Promise.all([
     getProjects(),
@@ -626,6 +628,7 @@ export async function getDashboardData(): Promise<{
     rollups,
     totals: { totalPaidToOwner, totalOpenToOwner, totalBudget, totalRetainage, totalDraft },
     residuals,
+    reviewItems: dataReviewItems({ projects, draws, budgetLines, allocations: allocationRows }),
   };
 }
 

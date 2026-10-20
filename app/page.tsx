@@ -5,6 +5,7 @@ import PortfolioDashboard from "@/components/PortfolioDashboard";
 import OpenDrawsSection from "@/components/OpenDrawsSection";
 import AddProjectModal from "@/components/AddProjectModal";
 import AddDrawModal from "@/components/AddDrawModal";
+import DataReviewSection from "@/components/DataReviewSection";
 import AgingAlertBanner from "@/components/AgingAlertBanner";
 import DrawsDueAlertBanner from "@/components/DrawsDueAlertBanner";
 
@@ -17,7 +18,7 @@ export default async function DashboardPage(
 ) {
   const searchParams = await props.searchParams;
   const currentYear = businessToday().getFullYear();
-  const [{ rollups, residuals }, openDraws, billingYtd] = await Promise.all([
+  const [{ rollups, residuals, reviewItems }, openDraws, billingYtd] = await Promise.all([
     getDashboardData(),
     getOpenDraws(),
     getBillingReport(currentYear),
@@ -51,6 +52,8 @@ export default async function DashboardPage(
           avgDaysOutstanding={avgDaysOutstanding}
           openDrawsSlot={<OpenDrawsSection draws={openDraws} initialAging={searchParams.aging} />}
         />
+
+        <DataReviewSection items={reviewItems} />
       </main>
     </div>
   );

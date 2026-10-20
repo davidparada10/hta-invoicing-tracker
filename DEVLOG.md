@@ -1,5 +1,9 @@
 # Dev Log
 
+## 2026-10-19 (uncommitted; Data to review)
+
+- Added a collapsed "Data to review" list at the bottom of the dashboard, fed by read-only checks in `lib/dataReview.ts`: no lender, active project with no draw schedule, budget lines billed past scheduled value, and draw date oddities (no submitted date, paid before submitted, submitted >14 days before period end, paid >120 days after submitting). Found by auditing production data, where every project lacked a lender. Nothing is edited automatically; help and workflow pages describe it, 4 new tests.
+
 ## 2026-10-19 (uncommitted; assistant developer, lender, monthly and period questions)
 
 - Found that asking the assistant "what have we invoiced for HVN" returned every project's open draws: no tool knew about developers. Added getDeveloperSummary and getLenderSummary (invoiced to date, paid, outstanding, retainage, closed projects included), and a developer / lender filter on the open-draw, aging, outstanding and recent-payments tools. A name is matched against every project, so a developer or lender with nothing owed answers "nothing" rather than "not found"; unknown names list the real ones.
