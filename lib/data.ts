@@ -20,6 +20,7 @@ import {
   isDrawUrgent,
 } from "@/lib/drawSchedule";
 import { MIN_MEANINGFUL_OPEN_BALANCE, daysOpen } from "@/lib/aging";
+import { buildMonthlyBillingBuckets, type MonthBucket } from "@/lib/monthlyBilling";
 import { ClosingSummary, ResidualBalance, closingSummary, residualBalances } from "@/lib/portfolio";
 import { businessToday } from "@/lib/format";
 import { billedDate } from "@/lib/billingDates";
@@ -283,6 +284,19 @@ export async function getLenderBillingBreakdown(year: number): Promise<GroupedBi
   return buildLabelBillingBreakdown(withExcludedAllocated(draws, excludedMap), withLabel, year, "Unassigned", payments);
 }
 
+// Invoiced and received by month (the dashboard chart's numbers), for every
+// project or just the given ones. Same bucketing rules as the chart: invoiced
+// by submitted date (drafts excluded), received by each receipt's own date.
+export async function getMonthlyBilling(projectIds?: Set<string>): Promise<MonthBucket[]> {
+  const [draws, excludedMap, payments] = await Promise.all([
+    getAllDraws(),
+    getPortfolioExcludedMap(),
+    getLivePayments(),
+  ]);
+  const scoped = projectIds ? draws.filter((d) => projectIds.has(d.project_id)) : draws;
+  return buildMonthlyBillingBuckets(withExcludedAllocated(scoped, excludedMap), payments);
+}
+
 export async function getShortPaymentSummary(year: number): Promise<ShortPaymentSummary> {
   const [draws, excludedMap, payments] = await Promise.all([
     getAllDraws(),
@@ -483,6 +497,7 @@ export async function getOpenDraws(): Promise<OpenDraw[]> {
           name: project?.name ?? "Unknown project",
           status: project?.status ?? "active",
           developer: project?.developer ?? null,
+          lender: project?.lender ?? null,
         },
       };
     });

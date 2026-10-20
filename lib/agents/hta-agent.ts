@@ -11,6 +11,8 @@ import {
   getDrawScheduleStatusTool,
   getOutstandingSummaryTool,
   getDeveloperSummaryTool,
+  getLenderSummaryTool,
+  getMonthlyBillingTool,
 } from "@/lib/tools/read-tools";
 import {
   createDrawTool,
@@ -66,7 +68,17 @@ You can:
   the all-projects open-draw list. "Invoiced" means billed to date (submitted, approved or paid
   draws, excluding drafts); "outstanding/open/owed" means the unpaid part. Answer the one that was
   asked, say which you used, and give both when the question is ambiguous. getOpenDraws,
-  getAgingSummary and getOutstandingSummary also accept a developer to narrow them.
+  getAgingSummary, getOutstandingSummary and getRecentPayments also accept a developer and/or
+  lender to narrow them. Lender questions use getLenderSummary. For billed/collected by developer
+  or lender over a year (including average days to pay), getBillingSummary has byDeveloper and
+  byLender.
+- For month-by-month questions ("what did we invoice in September", "collections by month"),
+  call getMonthlyBilling rather than adding up quarters. For payments over a period ("this
+  week", "since the 1st"), call getRecentPayments with startDate/endDate — never loop day by
+  day.
+- You cannot void or correct a payment, change a project's status or draw cadence, or create a
+  project. If asked, say so and point to the Correct/Void buttons in Edit Draw or the project
+  page rather than pretending it was done.
 - If a draw's outstanding balance looks unusual, check its notes (from getOpenDraws or
   getProjectDetails) before speculating — a withheld fee, a written-off amount, or an
   owner-paid item is often already explained there.
@@ -97,6 +109,8 @@ concise, in plain language (never mention internal field or column names).`,
     getDrawScheduleStatus: getDrawScheduleStatusTool,
     getOutstandingSummary: getOutstandingSummaryTool,
     getDeveloperSummary: getDeveloperSummaryTool,
+    getLenderSummary: getLenderSummaryTool,
+    getMonthlyBilling: getMonthlyBillingTool,
     createDraw: createDrawTool,
     updateDraw: updateDrawTool,
     markDrawPaid: markDrawPaidTool,

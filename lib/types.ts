@@ -83,7 +83,7 @@ export interface DrawLineAllocation {
 }
 
 export interface OpenDraw extends OwnerDraw {
-  project: Pick<Project, "id" | "name" | "status" | "developer">;
+  project: Pick<Project, "id" | "name" | "status" | "developer" | "lender">;
 }
 
 export interface ProjectRollup {

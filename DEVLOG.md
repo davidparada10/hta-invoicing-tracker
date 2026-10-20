@@ -1,5 +1,11 @@
 # Dev Log
 
+## 2026-10-19 (uncommitted; assistant developer, lender, monthly and period questions)
+
+- Found that asking the assistant "what have we invoiced for HVN" returned every project's open draws: no tool knew about developers. Added getDeveloperSummary and getLenderSummary (invoiced to date, paid, outstanding, retainage, closed projects included), and a developer / lender filter on the open-draw, aging, outstanding and recent-payments tools. A name is matched against every project, so a developer or lender with nothing owed answers "nothing" rather than "not found"; unknown names list the real ones.
+- Billing summary now includes byDeveloper and byLender (billed, collected, average days to pay and approve); new getMonthlyBilling gives the Monthly Billing chart's numbers by month for a year (optionally per project, developer or lender); recent payments accepts a start and end date, with a total and per-project split. Lender now appears in project and open-draw output.
+- The assistant is told it cannot void or correct a payment or change a project's status or cadence, and should point to the Edit Draw / project controls instead of pretending. Help and Workflow describe what it can answer; 398 tests cover the new scoping, monthly, period and lender paths with synthetic data (no paid AI calls).
+
 ## 2026-10-16 — Fix dashboard average age and Short-paid reporting bugs, 2:17–2:36 PM PDT
 
 - Dashboard's "Avg. days outstanding" no longer counts drafts or draws with zero real open balance (fully owner-paid scope, or already fully paid) — new `averageDaysOutstanding()` in `lib/data.ts`, same filtering rule `openBalance()` already uses elsewhere, called from `app/page.tsx` in place of the old inline calc.
@@ -24,7 +30,7 @@ a commit-by-commit transcript.
 
 ---
 
-## 2026-10-13 (uncommitted; Active vs. All reporting, Add Draw search)
+## 2026-10-13 (12:16–1:44 PM, 2 commits; Active vs. All reporting, Add Draw search)
 
 - Dashboard now separates two kinds of numbers: "Outstanding across all projects" (includes closed projects, ignores the Active/All switch and table search, retainage tracked separately with a breakdown that lists closed projects holding retainage and small balances of $1,000 or less) and a portfolio summary that follows one shared Active/All switch together with the table rows and developer subtotals. Search only narrows rows and says so.
 - Closing a project (quick status control or Edit Project) now shows the exact collectible balance and held retainage with no alert threshold before confirming, and never marks anything paid, releases retainage or writes off a balance. Closed projects keep unpaid draws in Open Draws and aging (tagged Closed); reminders stop and resume on reopen; billing history is unchanged.

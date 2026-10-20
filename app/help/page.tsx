@@ -242,6 +242,21 @@ export default function HelpPage() {
           paid-before draw whose payment date was only estimated is left out rather than shown as 0 days.
         </p>
 
+        <h2 className="text-sm font-semibold text-foreground mb-1">Asking the AI assistant</h2>
+        <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
+          The assistant reads the same numbers as the dashboard, and closed projects are always
+          included. You can ask about one developer or lender (&ldquo;what have we invoiced for
+          HVN&rdquo;, &ldquo;what does HVN still owe us&rdquo;): <em>invoiced</em> means billed to date
+          (submitted, approved or paid draws; drafts aren&rsquo;t invoiced yet) and <em>outstanding</em>{" "}
+          means the unpaid part, and it should say which it used. It can also answer month by month
+          (&ldquo;what did we invoice in September&rdquo;), billed and collected by developer or lender
+          for a year including average days to pay, payments received over a period (&ldquo;this
+          week&rdquo;, &ldquo;since the 1st&rdquo;), aging, and retainage. It can record a payment or
+          add a draw when you ask, after you approve it, but it can&rsquo;t void or correct a payment
+          or change a project&rsquo;s status. Use Correct / Void in Edit Draw, or the project&rsquo;s
+          status control, for those.
+        </p>
+
         <h2 className="text-sm font-semibold text-foreground mb-1">Active, All and closed projects</h2>
         <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
           The dashboard has two kinds of numbers. <strong className="text-foreground">Outstanding across
