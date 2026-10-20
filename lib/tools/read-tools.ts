@@ -20,7 +20,7 @@ import { AGING_BUCKETS, agingBucket, daysOpen } from "@/lib/aging";
 import { businessToday, businessTodayISO, parseLocalDate } from "@/lib/format";
 import { paymentsForDraws } from "@/lib/paymentHistory";
 import { outstandingAcrossAll, scopeTotals } from "@/lib/portfolio";
-import { resolveProject } from "./shared";
+import { matchDeveloper, resolveProject } from "./shared";
 import { OwnerDraw } from "@/lib/types";
 
 // Time from submitted to approved — a fixed fact once approved, a live
@@ -34,6 +34,23 @@ function daysToApprove(draw: OwnerDraw): number | null {
     return daysOpen(draw.date_submitted, parseLocalDate(draw.date_approved));
   }
   return draw.status === "submitted" ? daysOpen(draw.date_submitted) : null;
+}
+
+// Optional developer filter shared by the read tools. `include` says whether a
+// project's developer is in scope; `label` states the scope in the result.
+function developerScope(
+  developer: string | undefined,
+  projects: { developer: string | null }[]
+): { include: (d: string | null) => boolean; label: string } | { error: string } {
+  if (!developer || !developer.trim()) {
+    return { include: () => true, label: "All projects, active and closed" };
+  }
+  const match = matchDeveloper(developer, projects);
+  if ("error" in match) return { error: match.error };
+  return {
+    include: (d) => d === match.developer,
+    label: `Developer ${match.developer}: its projects only, active and closed`,
+  };
 }
 
 export const listProjectsTool = tool({
@@ -58,6 +75,7 @@ export const listProjectsTool = tool({
       closedProjectCount: rollups.length - active.projectCount,
       projects: rollups.map((r) => ({
         name: r.project.name,
+        developer: r.project.developer,
         address: r.project.address,
         status: r.project.status,
         totalPaidToOwner: r.totalPaidToOwner,
@@ -72,12 +90,21 @@ export const listProjectsTool = tool({
 
 export const getOpenDrawsTool = tool({
   description:
-    "List owner draws across every project — active AND closed — that still have a balance owed (amount requested minus amount actually paid), oldest first — including a draw marked 'paid' for less than it requested. Each draw says whether its project is closed (a closed project can still be owed money). Balances of $1,000 or less are not listed here; getOutstandingSummary lists them. This is the 'what's currently invoiced/outstanding' view.",
-  inputSchema: z.object({}),
-  execute: async () => {
-    const draws = await getOpenDraws();
+    "List owner draws across every project — active AND closed — that still have a balance owed (amount requested minus amount actually paid), oldest first — including a draw marked 'paid' for less than it requested. Each draw says whether its project is closed (a closed project can still be owed money). Balances of $1,000 or less are not listed here; getOutstandingSummary lists them. This is the 'what's still unpaid' view; it is NOT total invoiced to date (use getDeveloperSummary for what a developer has invoiced). Pass `developer` to limit to one developer's projects.",
+  inputSchema: z.object({
+    developer: z
+      .string()
+      .optional()
+      .describe("Limit to one developer's projects (e.g. 'HVN'). Omit for every developer."),
+  }),
+  execute: async ({ developer }) => {
+    const all = await getOpenDraws();
+    const scoped = developerScope(developer, all.map((d) => d.project));
+    if ("error" in scoped) return { error: scoped.error };
+    const draws = all.filter((d) => scoped.include(d.project.developer));
     return draws.map((d) => ({
       project: d.project.name,
+      developer: d.project.developer,
       projectStatus: d.project.status,
       drawNumber: d.draw_number,
       status: d.status,
@@ -131,16 +158,24 @@ export const getRecentPaymentsTool = tool({
 export const getAgingSummaryTool = tool({
   description:
     "Get the same 0-30/31-60/61-90/90+ day aging buckets shown on the dashboard's Open Draws section — count and outstanding amount per bucket, across all projects including closed ones (each draw says whether its project is closed), using the server's actual current date. Use this instead of computing 'days outstanding' yourself from getOpenDraws, since you don't have a live clock.",
-  inputSchema: z.object({}),
-  execute: async () => {
-    const draws = await getOpenDraws();
+  inputSchema: z.object({
+    developer: z
+      .string()
+      .optional()
+      .describe("Limit to one developer's projects (e.g. 'HVN'). Omit for every developer."),
+  }),
+  execute: async ({ developer }) => {
+    const all = await getOpenDraws();
+    const scoped = developerScope(developer, all.map((d) => d.project));
+    if ("error" in scoped) return { error: scoped.error };
+    const draws = all.filter((d) => scoped.include(d.project.developer));
     const withAge = draws.map((d) => ({
       draw: d,
       age: daysOpen(d.date_submitted ?? d.created_at),
     }));
 
     return {
-      scope: "All projects, active and closed",
+      scope: scoped.label,
       buckets: AGING_BUCKETS.map((bucket) => {
         const inBucket = withAge.filter((x) => agingBucket(x.age) === bucket);
         return {
@@ -316,13 +351,23 @@ export const getProjectDetailsTool = tool({
 
 export const getOutstandingSummaryTool = tool({
   description:
-    "Answer 'what is still owed?' across the whole portfolio. Returns the collectible outstanding balance for ALL projects, split into active and closed projects (closed projects can still be owed money — Closed does not mean fully paid), the retainage held across all projects (tracked separately, NOT included in outstanding) with the closed projects that still hold retainage, and small residual balances of $1,000 or less that are counted in the total but not listed by getOpenDraws. Independent of the dashboard's Active/All view. Use getOpenDraws for the per-draw list and getAgingSummary for age.",
-  inputSchema: z.object({}),
-  execute: async () => {
-    const { rollups, residuals } = await getDashboardData();
+    "Answer 'what is still owed?' across the whole portfolio. Returns the collectible outstanding balance for ALL projects, split into active and closed projects (closed projects can still be owed money — Closed does not mean fully paid), the retainage held across all projects (tracked separately, NOT included in outstanding) with the closed projects that still hold retainage, and small residual balances of $1,000 or less that are counted in the total but not listed by getOpenDraws. Independent of the dashboard's Active/All view. Pass `developer` to limit to one developer's projects. Use getOpenDraws for the per-draw list and getAgingSummary for age.",
+  inputSchema: z.object({
+    developer: z
+      .string()
+      .optional()
+      .describe("Limit to one developer's projects (e.g. 'HVN'). Omit for every developer."),
+  }),
+  execute: async ({ developer }) => {
+    const dash = await getDashboardData();
+    const scoped = developerScope(developer, dash.rollups.map((r) => r.project));
+    if ("error" in scoped) return { error: scoped.error };
+    const rollups = dash.rollups.filter((r) => scoped.include(r.project.developer));
+    const inScopeProjects = new Set(rollups.map((r) => r.project.id));
+    const residuals = dash.residuals.filter((r) => inScopeProjects.has(r.projectId));
     const o = outstandingAcrossAll(rollups);
     return {
-      scope: "All projects, active and closed",
+      scope: scoped.label,
       outstanding: { total: o.total, activeProjects: o.active, closedProjects: o.closed },
       retainageHeld: {
         note: "Tracked separately; not part of the outstanding figure.",
@@ -346,6 +391,62 @@ export const getOutstandingSummaryTool = tool({
       closedProjectsWithOutstanding: rollups
         .filter((r) => r.project.status === "closed" && r.totalOpenToOwner > 0.005)
         .map((r) => ({ project: r.project.name, outstanding: r.totalOpenToOwner })),
+    };
+  },
+});
+
+export const getDeveloperSummaryTool = tool({
+  description:
+    "Answer questions about ONE developer's projects, e.g. 'what have we invoiced for HVN', 'what does HVN owe us', 'how much has HVN paid'. Covers all of that developer's projects, active and closed. Returns per project and in total: invoicedToDate (the amount requested on every submitted, approved or paid draw — net of retainage, as on the G702's current payment due; drafts are NOT invoiced yet and are reported separately), paidToDate, outstanding (still collectible), retainageHeld (separate from outstanding), and draftsNotYetSubmitted. Also lists the developer's unpaid draws. 'Invoiced' means billed to date, which is different from 'open/outstanding' (the unpaid part) — answer the one that was asked and say which you used.",
+  inputSchema: z.object({
+    developer: z.string().describe("The developer name, or a close match (e.g. 'HVN')"),
+  }),
+  execute: async ({ developer }) => {
+    const [dash, openDraws] = await Promise.all([getDashboardData(), getOpenDraws()]);
+    const match = matchDeveloper(developer, dash.rollups.map((r) => r.project));
+    if ("error" in match) return { error: match.error };
+
+    const rows = dash.rollups.filter((r) => r.project.developer === match.developer);
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const sumOf = (f: (r: (typeof rows)[number]) => number) => round2(rows.reduce((a, r) => a + f(r), 0));
+    // totalRequested includes drafts; a draft isn't invoiced until submitted.
+    const invoiced = (r: (typeof rows)[number]) => r.totalRequested - r.totalDraft;
+    const ids = new Set(rows.map((r) => r.project.id));
+
+    return {
+      scope: `Developer ${match.developer}: its projects only, active and closed`,
+      developer: match.developer,
+      totals: {
+        invoicedToDate: sumOf(invoiced),
+        paidToDate: sumOf((r) => r.totalPaidToOwner),
+        outstanding: sumOf((r) => r.totalOpenToOwner),
+        retainageHeld: sumOf((r) => r.totalDrawRetainage),
+        draftsNotYetSubmitted: sumOf((r) => r.totalDraft),
+      },
+      projects: rows.map((r) => ({
+        project: r.project.name,
+        status: r.project.status,
+        invoicedToDate: round2(invoiced(r)),
+        paidToDate: round2(r.totalPaidToOwner),
+        outstanding: round2(r.totalOpenToOwner),
+        retainageHeld: round2(r.totalDrawRetainage),
+        draftsNotYetSubmitted: round2(r.totalDraft),
+      })),
+      unpaidDraws: openDraws
+        .filter((d) => d.status !== "draft" && ids.has(d.project.id))
+        .map((d) => ({
+          project: d.project.name,
+          projectStatus: d.project.status,
+          drawNumber: d.draw_number,
+          status: d.status,
+          amountRequested: d.amount_requested,
+          amountPaid: d.amount_paid,
+          outstandingBalance: openBalance(d),
+          dateSubmitted: d.date_submitted,
+        })),
+      smallBalancesNotListed: dash.residuals
+        .filter((r) => ids.has(r.projectId))
+        .map((r) => ({ project: r.projectName, drawNumber: r.drawNumber, balance: r.balance })),
     };
   },
 });

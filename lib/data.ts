@@ -482,6 +482,7 @@ export async function getOpenDraws(): Promise<OpenDraw[]> {
           id: project?.id ?? d.project_id,
           name: project?.name ?? "Unknown project",
           status: project?.status ?? "active",
+          developer: project?.developer ?? null,
         },
       };
     });

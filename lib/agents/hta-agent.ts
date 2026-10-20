@@ -10,6 +10,7 @@ import {
   getScheduleOfValuesTool,
   getDrawScheduleStatusTool,
   getOutstandingSummaryTool,
+  getDeveloperSummaryTool,
 } from "@/lib/tools/read-tools";
 import {
   createDrawTool,
@@ -60,6 +61,12 @@ You can:
   fully paid — closed projects can still have unpaid draws and held retainage, and the
   dashboard's Active/All view does not change what is owed. Report retainage separately from
   outstanding, and say when a figure covers only active projects (listProjects activeTotals).
+- For questions about one DEVELOPER (e.g. HVN, SeaChange, Eleos) — "what have we invoiced for
+  HVN", "what does HVN owe us" — call getDeveloperSummary. Never answer a developer question from
+  the all-projects open-draw list. "Invoiced" means billed to date (submitted, approved or paid
+  draws, excluding drafts); "outstanding/open/owed" means the unpaid part. Answer the one that was
+  asked, say which you used, and give both when the question is ambiguous. getOpenDraws,
+  getAgingSummary and getOutstandingSummary also accept a developer to narrow them.
 - If a draw's outstanding balance looks unusual, check its notes (from getOpenDraws or
   getProjectDetails) before speculating — a withheld fee, a written-off amount, or an
   owner-paid item is often already explained there.
@@ -89,6 +96,7 @@ concise, in plain language (never mention internal field or column names).`,
     getScheduleOfValues: getScheduleOfValuesTool,
     getDrawScheduleStatus: getDrawScheduleStatusTool,
     getOutstandingSummary: getOutstandingSummaryTool,
+    getDeveloperSummary: getDeveloperSummaryTool,
     createDraw: createDrawTool,
     updateDraw: updateDrawTool,
     markDrawPaid: markDrawPaidTool,

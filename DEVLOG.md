@@ -30,6 +30,7 @@ a commit-by-commit transcript.
 - Closing a project (quick status control or Edit Project) now shows the exact collectible balance and held retainage with no alert threshold before confirming, and never marks anything paid, releases retainage or writes off a balance. Closed projects keep unpaid draws in Open Draws and aging (tagged Closed); reminders stop and resume on reopen; billing history is unchanged.
 - AI assistant: new getOutstandingSummary tool, and scope metadata on project, open-draw, aging and billing tools so closed-project debt is never missed. Help and Workflow explain the distinction; 366 tests cover scope, search/grouping, residuals, reopen and "closing changes no financial record".
 - Add Draw project picker is type-to-search (committed earlier today).
+- AI assistant: asking "what have we invoiced for HVN" returned every project's open draws because no tool knew about developers. Added getDeveloperSummary (invoiced / paid / outstanding / retainage per developer, closed projects included) and an optional developer filter on the open-draw, aging and outstanding tools; unknown developer names return an error listing the real ones.
 
 ## 2026-10-07 (10:56 AM, 1 commit; Mark Paid on already-paid draws)
 

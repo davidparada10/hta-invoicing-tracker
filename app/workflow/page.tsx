@@ -324,7 +324,7 @@ export default function WorkflowPage() {
             <Detail term="lib/retentionRelease.ts">Retention helpers — release, rate inference, and convertCumulativeRetention (a cumulative G702 total minus only the draws BEFORE the one being edited, by draw number)</Detail>
             <Detail term="lib/drawAllocations.ts">Pure diffing logic for saving a draw&rsquo;s schedule-of-values allocations (upsert vs. delete) — split out of app/draws/actions.ts so it&rsquo;s unit-tested</Detail>
             <Detail term="*.test.ts, vitest.config.mts">Unit tests (Vitest) for the pure logic modules — run via `npm run test`, gated in .husky/pre-push alongside lint and build</Detail>
-            <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools</Detail>
+            <Detail term="lib/agents/, lib/tools/">The AI assistant — agent definition and its tools. Questions about one developer (e.g. &ldquo;what have we invoiced for HVN&rdquo;) go to getDeveloperSummary, which reports invoiced to date (submitted, approved and paid draws; drafts excluded), paid, outstanding and retainage for only that developer&rsquo;s projects, active and closed; the open-draw, aging and outstanding tools also accept a developer, and an unknown developer name is an error that lists the real ones</Detail>
             <Detail term="lib/auth/session.ts">Passcode session signing/verification</Detail>
             <Detail term="lib/auth/rateLimit.ts">Per-IP login throttling against inv_login_attempts</Detail>
             <Detail term="lib/auth/chatRateLimit.ts">Per-IP request throttling on /api/chat against inv_chat_rate_limit</Detail>
