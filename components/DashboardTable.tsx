@@ -5,9 +5,11 @@ import Link from "next/link";
 import { ProjectRollup } from "@/lib/types";
 import { formatCurrency, formatCurrencyRounded } from "@/lib/format";
 import { dashboardAddressLine } from "@/lib/address";
+import { groupSlug } from "@/lib/groupSlug";
 import ProjectStatusSelect from "@/components/ProjectStatusSelect";
 import ScopeToggle from "@/components/ScopeToggle";
 import {
+  UNASSIGNED_GROUP,
   developerGroupSizes,
   developerGroups,
   visibleProjects,
@@ -112,16 +114,19 @@ export default function DashboardTable({
           return (
           <div key={group.developer ?? "all"} className={i > 0 ? "pt-6 mt-2 border-t-2 border-divider-strong" : undefined}>
             {group.developer && (
+              <div className="flex items-center justify-between gap-3 mb-1">
               <button
                 type="button"
                 onClick={() => toggleExpanded(group.developer!)}
-                className="flex w-full items-center gap-1.5 text-sm font-semibold text-foreground py-1.5 mb-1 rounded-md active:bg-muted"
+                className="flex flex-1 items-center gap-1.5 text-sm font-semibold text-foreground py-1.5 rounded-md active:bg-muted"
                 aria-expanded={isExpanded}
               >
                 <ChevronIcon expanded={isExpanded} />
                 {group.developer}
                 <span className="text-muted-foreground font-normal"> · {developerLabel(group.developer, group.rows.length)}</span>
               </button>
+              <DeveloperLink developer={group.developer} />
+              </div>
             )}
             {isExpanded && (
               <div className="space-y-3">
@@ -205,6 +210,7 @@ export default function DashboardTable({
                   // group, a bare label row with every column blank).
                   <tr className={`bg-card font-semibold ${i > 0 ? "border-t-2 border-divider-strong" : ""}`}>
                     <td className="px-4 py-2 sticky left-0 z-10 bg-card whitespace-nowrap">
+                      <div className="flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => toggleExpanded(group.developer!)}
@@ -218,6 +224,8 @@ export default function DashboardTable({
                           · {developerLabel(group.developer, group.rows.length)}
                         </span>
                       </button>
+                      <DeveloperLink developer={group.developer} />
+                      </div>
                     </td>
                     <td
                       className={`px-4 py-2 text-right tabular-nums ${
@@ -247,10 +255,11 @@ export default function DashboardTable({
                       colSpan={columnCount}
                       className={`bg-card ${i > 0 ? "pt-6 border-t-2 border-divider-strong" : "pt-4"}`}
                     >
+                      <div className="flex items-center gap-3 px-4 pb-1.5">
                       <button
                         type="button"
                         onClick={() => toggleExpanded(group.developer!)}
-                        className="flex w-full items-center gap-1.5 px-4 pb-1.5 text-sm font-semibold text-foreground hover:bg-muted rounded-sm"
+                        className="flex items-center gap-1.5 text-sm font-semibold text-foreground hover:bg-muted rounded-sm"
                         aria-expanded={isExpanded}
                       >
                         <ChevronIcon expanded={isExpanded} />
@@ -260,6 +269,8 @@ export default function DashboardTable({
                           · {developerLabel(group.developer, group.rows.length)}
                         </span>
                       </button>
+                      <DeveloperLink developer={group.developer} />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -309,6 +320,18 @@ export default function DashboardTable({
         </table>
       </div>
     </div>
+  );
+}
+
+function DeveloperLink({ developer }: { developer: string }) {
+  if (developer === UNASSIGNED_GROUP) return null;
+  return (
+    <Link
+      href={`/developers/${groupSlug(developer)}`}
+      className="text-xs font-normal text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap"
+    >
+      Developer page
+    </Link>
   );
 }
 

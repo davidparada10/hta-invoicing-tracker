@@ -1,5 +1,10 @@
 # Dev Log
 
+## 2026-10-22 — Developer pages
+
+- New `/developers/<name>` page per developer (linked from each developer group on the dashboard): invoiced, paid, outstanding and retainage held, a per-project table with closed projects tagged, unpaid draws, and this year's billed / received / average days to pay. Read-only, no new data.
+- The per-developer totals now live in one shared function (`lib/groupSummary.ts`) used by both the page and the assistant's developer/lender tools, so they can't drift. The address is a slug of the typed developer name, with tests for the slug and the totals (drafts excluded from invoiced, active and closed both counted).
+
 ## 2026-10-22 — Draws table no longer clips its action column
 
 - On the project's Owner Draws table the Mark Paid / Edit / Delete buttons sat side by side and pushed the table wider than its box, so the scroll container clipped the right edge and Delete was hidden. The actions are now stacked in one narrow column and cell padding is tighter, so every column fits at the normal page width.

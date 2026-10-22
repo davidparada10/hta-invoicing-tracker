@@ -263,6 +263,16 @@ export default function HelpPage() {
           its place in this browser.
         </p>
 
+        <h2 className="text-sm font-semibold text-foreground mb-1">Developer pages</h2>
+        <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
+          Each developer group on the dashboard has a &ldquo;Developer page&rdquo; link. It shows that
+          developer&rsquo;s invoiced to date, paid, outstanding and retainage held (retainage is separate), a table
+          of their projects (closed ones tagged), their unpaid draws, and this year&rsquo;s billed, received and average
+          days to pay. Active and closed projects are both included, and the figures are the same ones the
+          dashboard and the assistant use. A developer is matched by the name typed on the project, so a
+          misspelled name would appear as a separate developer.
+        </p>
+
         <h2 className="text-sm font-semibold text-foreground mb-1">Change orders in an uploaded draw</h2>
         <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
           When you upload a G702/G703 spreadsheet for a draw, the schedule of values in it is compared with

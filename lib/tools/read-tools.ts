@@ -24,6 +24,7 @@ import { businessToday, businessTodayISO, parseLocalDate } from "@/lib/format";
 import { paymentsForDraws } from "@/lib/paymentHistory";
 import { outstandingAcrossAll, scopeTotals } from "@/lib/portfolio";
 import { matchGroup, resolveProject, type GroupField } from "./shared";
+import { buildGroupSummary } from "@/lib/groupSummary";
 import { OwnerDraw } from "@/lib/types";
 
 // Time from submitted to approved — a fixed fact once approved, a live
@@ -464,49 +465,7 @@ async function summarizeGroup(field: GroupField, name: string) {
   const [dash, openDraws] = await Promise.all([getDashboardData(), getOpenDraws()]);
   const match = matchGroup(field, name, dash.rollups.map((r) => r.project));
   if ("error" in match) return { error: match.error };
-
-  const rows = dash.rollups.filter((r) => r.project[field] === match.name);
-  const round2 = (n: number) => Math.round(n * 100) / 100;
-  const sumOf = (f: (r: (typeof rows)[number]) => number) => round2(rows.reduce((a, r) => a + f(r), 0));
-  // totalRequested includes drafts; a draft isn't invoiced until submitted.
-  const invoiced = (r: (typeof rows)[number]) => r.totalRequested - r.totalDraft;
-  const ids = new Set(rows.map((r) => r.project.id));
-
-  return {
-    scope: `${field === "developer" ? "Developer" : "Lender"} ${match.name}: its projects only, active and closed`,
-    [field]: match.name,
-    totals: {
-      invoicedToDate: sumOf(invoiced),
-      paidToDate: sumOf((r) => r.totalPaidToOwner),
-      outstanding: sumOf((r) => r.totalOpenToOwner),
-      retainageHeld: sumOf((r) => r.totalDrawRetainage),
-      draftsNotYetSubmitted: sumOf((r) => r.totalDraft),
-    },
-    projects: rows.map((r) => ({
-      project: r.project.name,
-      status: r.project.status,
-      invoicedToDate: round2(invoiced(r)),
-      paidToDate: round2(r.totalPaidToOwner),
-      outstanding: round2(r.totalOpenToOwner),
-      retainageHeld: round2(r.totalDrawRetainage),
-      draftsNotYetSubmitted: round2(r.totalDraft),
-    })),
-    unpaidDraws: openDraws
-      .filter((d) => d.status !== "draft" && ids.has(d.project.id))
-      .map((d) => ({
-        project: d.project.name,
-        projectStatus: d.project.status,
-        drawNumber: d.draw_number,
-        status: d.status,
-        amountRequested: d.amount_requested,
-        amountPaid: d.amount_paid,
-        outstandingBalance: openBalance(d),
-        dateSubmitted: d.date_submitted,
-      })),
-    smallBalancesNotListed: dash.residuals
-      .filter((r) => ids.has(r.projectId))
-      .map((r) => ({ project: r.projectName, drawNumber: r.drawNumber, balance: r.balance })),
-  };
+  return buildGroupSummary(field, match.name, dash.rollups, openDraws, dash.residuals);
 }
 
 const GROUP_DESCRIPTION = (who: string, example: string) =>
