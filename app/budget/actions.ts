@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { parseBudgetFromXlsx } from "@/lib/g702-parser";
+import { parseBudgetFromXlsx, scanG703Rows } from "@/lib/g702-parser";
+import { diffBudgetFromG703 } from "@/lib/budgetChanges";
 
 function toNumber(value: FormDataEntryValue | null): number {
   const n = Number(value);
@@ -236,4 +237,75 @@ export async function importBudgetFromXlsx(
     inserted: toInsert.length,
     total: resultingTotal,
   };
+}
+
+// Applies the budget changes a draw upload offered (change orders): raised
+// scheduled values and new lines. The file is re-read and re-compared here
+// rather than trusting amounts sent back from the browser, and only the
+// changes whose keys the user ticked are written. Existing lines keep their
+// ids and sort order, so draw allocations are untouched.
+export async function applyBudgetChangesFromDrawFile(
+  formData: FormData
+): Promise<{ updated: number; inserted: number }> {
+  const file = formData.get("g702_file");
+  const projectId = formData.get("project_id");
+  const keysRaw = formData.get("keys");
+  if (!(file instanceof File) || typeof projectId !== "string" || !projectId) {
+    throw new Error("Missing file or project.");
+  }
+  if (file.size > MAX_BUDGET_UPLOAD_BYTES) throw new Error("File is too large. Max is 20MB.");
+  let keys: Set<string>;
+  try {
+    const parsedKeys = JSON.parse(typeof keysRaw === "string" ? keysRaw : "[]");
+    if (!Array.isArray(parsedKeys) || !parsedKeys.every((k) => typeof k === "string")) throw new Error();
+    keys = new Set<string>(parsedKeys);
+  } catch {
+    throw new Error("Could not read the selected changes.");
+  }
+  if (keys.size === 0) return { updated: 0, inserted: 0 };
+
+  const supabase = createServerSupabaseClient();
+  const { data: existing, error } = await supabase
+    .from("inv_project_budget_lines")
+    .select("id, item_number, description, scheduled_value, sort_order")
+    .eq("project_id", projectId)
+    .is("deleted_at", null);
+  if (error) throw error;
+  const lines = (existing ?? []).map((l) => ({ ...l, scheduled_value: Number(l.scheduled_value) || 0 }));
+
+  const changes = diffBudgetFromG703(scanG703Rows(Buffer.from(await file.arrayBuffer())), lines);
+  if (changes.warning) throw new Error(changes.warning);
+
+  const toUpdate = changes.changed.filter((c) => keys.has(c.key));
+  const toInsert = changes.added.filter((a) => keys.has(a.key));
+  if (toUpdate.length + toInsert.length !== keys.size) {
+    throw new Error("The budget has changed since this file was read. Upload the file again to review.");
+  }
+
+  for (const c of toUpdate) {
+    const { error: upErr } = await supabase
+      .from("inv_project_budget_lines")
+      .update({ scheduled_value: c.proposed })
+      .eq("id", c.budget_line_id)
+      .eq("project_id", projectId)
+      .is("deleted_at", null);
+    if (upErr) throw upErr;
+  }
+  if (toInsert.length > 0) {
+    const maxSort = lines.reduce((acc, l) => Math.max(acc, l.sort_order ?? 0), 0);
+    const { error: insErr } = await supabase.from("inv_project_budget_lines").insert(
+      toInsert.map((a, i) => ({
+        project_id: projectId,
+        item_number: a.item_number,
+        category: a.category,
+        description: a.description,
+        scheduled_value: a.scheduled_value,
+        sort_order: maxSort + i + 1,
+      }))
+    );
+    if (insErr) throw insErr;
+  }
+
+  revalidatePath(`/projects/${projectId}`);
+  return { updated: toUpdate.length, inserted: toInsert.length };
 }

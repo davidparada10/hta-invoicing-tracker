@@ -16,9 +16,17 @@ import {
   parseDrawAllocationsFromXlsx,
   parseG702FromPdf,
   parseG702FromXlsx,
+  scanG703Rows,
   ParsedG702Draw,
 } from "@/lib/g702-parser";
 import { isLenderPortalPdfText, parseLenderDrawFromPdf } from "@/lib/lender-portal-parser";
+import {
+  BudgetChanges,
+  buildUniqueMatchMap,
+  diffBudgetFromG703,
+  NO_BUDGET_CHANGES,
+  normalizeMatchKey,
+} from "@/lib/budgetChanges";
 import { diffAllocations } from "@/lib/drawAllocations";
 import { businessTodayISO } from "@/lib/format";
 import {
@@ -27,28 +35,6 @@ import {
   ownerPaidFromAmounts,
 } from "@/lib/paymentDefaults";
 import { checkPriorPayment, correctDrawPayment, recordDrawPayment, voidDrawPayment } from "@/lib/paymentsRepo";
-
-function normalizeMatchKey(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-// Maps a key to a budget line id only when the key is unique across all
-// lines — an ambiguous key (e.g. duplicate item numbers on unrelated line
-// items) is left out entirely rather than guessing and misfiling an amount.
-function buildUniqueMatchMap(pairs: [string, string][]): Map<string, string> {
-  const counts = new Map<string, number>();
-  for (const [key] of pairs) counts.set(key, (counts.get(key) ?? 0) + 1);
-  const map = new Map<string, string>();
-  for (const [key, id] of pairs) {
-    if (key && counts.get(key) === 1) map.set(key, id);
-  }
-  return map;
-}
 
 export interface UnmatchedAllocationLine {
   item_number: string;
@@ -65,6 +51,9 @@ export interface ParsedG702Upload extends ParsedG702Draw {
   // show exactly what got dropped instead of a bare count, per the
   // "surface unmatched lines before replacing anything" requirement.
   unmatchedLines: UnmatchedAllocationLine[];
+  // Scheduled-value differences between the file and the project's budget
+  // (change orders): offered for review, never applied by the parse itself.
+  budgetChanges: BudgetChanges;
 }
 
 async function matchAllocationsToBudgetLines(
@@ -80,7 +69,8 @@ async function matchAllocationsToBudgetLines(
   const { data: budgetLines, error } = await supabase
     .from("inv_project_budget_lines")
     .select("id, item_number, description")
-    .eq("project_id", projectId);
+    .eq("project_id", projectId)
+    .is("deleted_at", null);
   if (error) throw error;
 
   // Item numbers can collide across unrelated line items within the same
@@ -106,6 +96,20 @@ async function matchAllocationsToBudgetLines(
     else unmatched.push(a);
   }
   return { matched, unmatched };
+}
+
+async function budgetChangesFor(projectId: string, buffer: Buffer): Promise<BudgetChanges> {
+  const supabase = createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("inv_project_budget_lines")
+    .select("id, item_number, description, scheduled_value")
+    .eq("project_id", projectId)
+    .is("deleted_at", null);
+  if (error) throw error;
+  return diffBudgetFromG703(
+    scanG703Rows(buffer),
+    (data ?? []).map((l) => ({ ...l, scheduled_value: Number(l.scheduled_value) || 0 }))
+  );
 }
 
 const MAX_G702_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB — real G702/G703 files are a few MB at most
@@ -160,11 +164,12 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
         allocationsMatched: matched.length,
         allocationsFound: allocationLines.length,
         unmatchedLines: unmatched,
+        budgetChanges: NO_BUDGET_CHANGES,
       };
     }
 
     const parsed = await parseG702FromPdf(buffer);
-    return { ...parsed, allocations: [], allocationsMatched: 0, allocationsFound: 0, unmatchedLines: [] };
+    return { ...parsed, allocations: [], allocationsMatched: 0, allocationsFound: 0, unmatchedLines: [], budgetChanges: NO_BUDGET_CHANGES };
   }
 
   if (
@@ -189,6 +194,7 @@ export async function parseG702Upload(formData: FormData): Promise<ParsedG702Upl
       allocationsMatched: matched.length,
       allocationsFound: allocationLines.length,
       unmatchedLines: unmatched,
+      budgetChanges: projectId ? await budgetChangesFor(projectId, buffer) : NO_BUDGET_CHANGES,
     };
   }
 

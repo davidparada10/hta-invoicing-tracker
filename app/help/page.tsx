@@ -257,6 +257,18 @@ export default function HelpPage() {
           status control, for those.
         </p>
 
+        <h2 className="text-sm font-semibold text-foreground mb-1">Change orders in an uploaded draw</h2>
+        <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
+          When you upload a G702/G703 spreadsheet for a draw, the schedule of values in it is compared with
+          the project&rsquo;s budget. If a line&rsquo;s scheduled value went up (a change order), or the file has a
+          line the budget doesn&rsquo;t, a &ldquo;Budget changes&rdquo; box lists each one with a checkbox. Press{" "}
+          <strong className="text-foreground">Update budget</strong> to apply the ticked ones; nothing changes
+          until you do, and the draw&rsquo;s allocations are kept. The file is then read again so new lines pick
+          up their amounts. A file that differs from the budget by too much to be a change order is not offered
+          at all; use the Budget tab&rsquo;s import for that. It only applies to spreadsheets, and only to a project
+          that already has a budget.
+        </p>
+
         <h2 className="text-sm font-semibold text-foreground mb-1">Data to review</h2>
         <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
           At the bottom of the dashboard, a collapsed &ldquo;Data to review&rdquo; list points out records

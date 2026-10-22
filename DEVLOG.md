@@ -1,5 +1,10 @@
 # Dev Log
 
+## 2026-10-22 (uncommitted; change orders from a draw upload)
+
+- Uploading a G702/G703 spreadsheet now compares its scheduled values with the project's budget and offers change orders for review: raised scheduled values and lines the budget doesn't have, each with a checkbox. Update budget applies only the ticked ones, then re-reads the file so new lines get their allocations. Previously those lines were just listed as unmatched and the budget silently fell behind (the over-budget lines flagged under Data to review).
+- Safety: the parse writes nothing; the server re-reads the file and recomputes the diff instead of trusting browser amounts; a blank scheduled cell never zeroes a line; a sweeping difference (likely a misread column or a different sheet) is refused with a pointer to the Budget import. Allocation matching also now ignores trashed budget lines. 9 new tests.
+
 ## 2026-10-19 (uncommitted; Data to review)
 
 - Added a collapsed "Data to review" list at the bottom of the dashboard, fed by read-only checks in `lib/dataReview.ts`: no lender, active project with no draw schedule, budget lines billed past scheduled value, and draw date oddities (no submitted date, paid before submitted, submitted >14 days before period end, paid >120 days after submitting). Found by auditing production data, where every project lacked a lender. Nothing is edited automatically; help and workflow pages describe it, 4 new tests.

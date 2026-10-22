@@ -195,7 +195,7 @@ export interface ParsedDrawAllocationLine {
   amount_this_period: number;
 }
 
-interface ScannedG703Row {
+export interface ScannedG703Row {
   item_number: string;
   category: string | null;
   description: string;
@@ -205,7 +205,7 @@ interface ScannedG703Row {
 
 const STOP_LABEL = /^SUBTOTAL|^TOTAL\b|^CO\s*RECAP|^CO#\d/i;
 
-function scanG703Rows(buffer: Buffer): ScannedG703Row[] {
+export function scanG703Rows(buffer: Buffer): ScannedG703Row[] {
   const wb = XLSX.read(buffer, { type: "buffer", cellDates: true });
   const sheetName =
     wb.SheetNames.find((n) => /g703/i.test(n)) ??

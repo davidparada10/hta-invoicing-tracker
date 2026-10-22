@@ -8,6 +8,8 @@ import DrawPaymentsPanel from "@/components/DrawPaymentsPanel";
 import { formPaymentIntent, ownerPaidFromAmounts, paidTransition } from "@/lib/paymentDefaults";
 import { groupLiveReceipts, type DrawPayment } from "@/lib/paymentHistory";
 import { ParsedG702Upload, parseG702Upload, upsertDraw } from "@/app/draws/actions";
+import { applyBudgetChangesFromDrawFile } from "@/app/budget/actions";
+import type { BudgetChanges } from "@/lib/budgetChanges";
 import { allocationExceedsTolerance, applyParsedAllocations, LineAmounts } from "@/lib/drawAllocations";
 import {
   canAutoApplyInferredRate,
@@ -123,6 +125,17 @@ export default function DrawFormModal({
   const [parsedRetainageFromDocument, setParsedRetainageFromDocument] = useState<number | null>(null);
   const [suggestedRetentionRate, setSuggestedRetentionRate] = useState<"0" | "5" | "10" | null>(null);
   const [unmatchedLineCount, setUnmatchedLineCount] = useState(0);
+  // Change orders found in the uploaded file's schedule of values: shown for
+  // review and only written to the budget when the user applies them. The
+  // file is kept so the server can re-read it, and the upload is re-parsed
+  // afterwards so new lines pick up their amounts.
+  const [budgetReview, setBudgetReview] = useState<{
+    file: File;
+    changes: BudgetChanges;
+    selected: Set<string>;
+    applying: boolean;
+    error: string | null;
+  } | null>(null);
   // Recording a payment is a separate, additive action from editing the draw's
   // fields: "recording" turns the row on, "paymentOverride" is the amount the
   // user typed (null = still the live default), and one key per open of the
@@ -390,6 +403,7 @@ export default function DrawFormModal({
     setParsedRetainageFromDocument(null);
     setSuggestedRetentionRate(null);
     setUnmatchedLineCount(0);
+    setBudgetReview(null);
 
     if (file.size > MAX_G702_UPLOAD_BYTES) {
       setParseError(
@@ -425,6 +439,19 @@ export default function DrawFormModal({
         // minus held to date", or release) rather than a guess.
         status: v.status === "draft" ? "submitted" : v.status,
       }));
+
+      if (parsed.budgetChanges.changed.length > 0 || parsed.budgetChanges.added.length > 0 || parsed.budgetChanges.warning) {
+        setBudgetReview({
+          file,
+          changes: parsed.budgetChanges,
+          selected: new Set([
+            ...parsed.budgetChanges.changed.map((c) => c.key),
+            ...parsed.budgetChanges.added.map((a) => a.key),
+          ]),
+          applying: false,
+          error: null,
+        });
+      }
 
       if (parsed.retainage_held !== undefined) {
         setParsedRetainageFromDocument(parsed.retainage_held);
@@ -476,6 +503,37 @@ export default function DrawFormModal({
     setLineAmounts((prev) => applyParsedAllocations(prev, pendingParse.parsed.allocations, pendingParse.mode));
     setUnmatchedLineCount(pendingParse.parsed.unmatchedLines.length);
     setPendingParse(null);
+  }
+
+  function toggleBudgetChange(key: string) {
+    setBudgetReview((r) => {
+      if (!r) return r;
+      const selected = new Set(r.selected);
+      if (selected.has(key)) selected.delete(key);
+      else selected.add(key);
+      return { ...r, selected };
+    });
+  }
+
+  async function applyBudgetReview() {
+    if (!budgetReview || budgetReview.selected.size === 0) return;
+    const { file, selected } = budgetReview;
+    setBudgetReview((r) => (r ? { ...r, applying: true, error: null } : r));
+    try {
+      const fd = new FormData();
+      fd.set("g702_file", file);
+      fd.set("project_id", projectId);
+      fd.set("keys", JSON.stringify([...selected]));
+      await applyBudgetChangesFromDrawFile(fd);
+    } catch (err) {
+      setBudgetReview((r) =>
+        r ? { ...r, applying: false, error: err instanceof Error ? err.message : "Could not update the budget." } : r
+      );
+      return;
+    }
+    // Read the file again against the updated budget: new lines now match, so
+    // their amounts come in as allocations and the unmatched list shrinks.
+    await processFile(file);
   }
 
   function undoAppliedParse() {
@@ -600,6 +658,82 @@ export default function DrawFormModal({
               Undo
             </button>
           </p>
+        )}
+
+        {budgetReview && (
+          <div className="rounded-lg border border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/40 p-3 text-xs space-y-2">
+            <p className="font-medium text-violet-900 dark:text-violet-100">
+              Budget changes in {parsedFileName ?? "this file"} (change orders)
+            </p>
+            {budgetReview.changes.warning ? (
+              <p className="text-amber-700 dark:text-amber-400">{budgetReview.changes.warning}</p>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  Ticked changes update this project&rsquo;s budget when you press Update budget. Nothing changes
+                  until then, and existing draw allocations are kept.
+                </p>
+                <ul className="space-y-1">
+                  {budgetReview.changes.changed.map((c) => (
+                    <li key={c.key}>
+                      <label className="flex items-start gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={budgetReview.selected.has(c.key)}
+                          onChange={() => toggleBudgetChange(c.key)}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          {c.item_number ? `${c.item_number} — ` : ""}
+                          {c.description}: {formatCurrency(c.current)} &rarr; {formatCurrency(c.proposed)}{" "}
+                          <span className="text-muted-foreground">
+                            ({c.proposed >= c.current ? "+" : "-"}
+                            {formatCurrency(Math.abs(c.proposed - c.current))})
+                          </span>
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                  {budgetReview.changes.added.map((a) => (
+                    <li key={a.key}>
+                      <label className="flex items-start gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={budgetReview.selected.has(a.key)}
+                          onChange={() => toggleBudgetChange(a.key)}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          New line: {a.item_number ? `${a.item_number} — ` : ""}
+                          {a.description} at {formatCurrency(a.scheduled_value)}
+                        </span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {budgetReview.error && <p className="text-red-700 dark:text-red-400">{budgetReview.error}</p>}
+            <div className="flex gap-2 pt-1">
+              {!budgetReview.changes.warning && (
+                <button
+                  type="button"
+                  onClick={applyBudgetReview}
+                  disabled={budgetReview.applying || budgetReview.selected.size === 0}
+                  className="rounded bg-primary text-background px-2 py-1 font-medium disabled:opacity-50"
+                >
+                  {budgetReview.applying ? "Updating…" : "Update budget"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setBudgetReview(null)}
+                className="rounded border border-border px-2 py-1"
+              >
+                {budgetReview.changes.warning ? "Dismiss" : "Skip"}
+              </button>
+            </div>
+          </div>
         )}
 
         {pendingParse && (
