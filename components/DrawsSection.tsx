@@ -222,23 +222,23 @@ export default function DrawsSection({
         <table className="min-w-full text-sm">
           <thead className="bg-muted text-muted-foreground text-xs uppercase tracking-wide">
             <tr>
-              <th className="text-left px-4 py-2 sticky left-0 z-10 bg-muted">Draw #</th>
-              <th className="text-left px-4 py-2">Period</th>
-              <th className="text-right px-4 py-2">Requested</th>
-              <th className="text-right px-4 py-2">Approved</th>
-              <th className="text-right px-4 py-2">Paid</th>
-              <th className="text-right px-4 py-2">Retainage</th>
-              <th className="text-left px-4 py-2">Date Submitted</th>
-              <th className="text-left px-4 py-2">Date Approved</th>
-              <th className="text-left px-4 py-2">Date Paid</th>
-              <th className="text-left px-4 py-2">Status</th>
-              <th className="px-4 py-2"></th>
+              <th className="text-left px-3 py-2 sticky left-0 z-10 bg-muted">Draw #</th>
+              <th className="text-left px-3 py-2">Period</th>
+              <th className="text-right px-3 py-2">Requested</th>
+              <th className="text-right px-3 py-2">Approved</th>
+              <th className="text-right px-3 py-2">Paid</th>
+              <th className="text-right px-3 py-2">Retainage</th>
+              <th className="text-left px-3 py-2">Date Submitted</th>
+              <th className="text-left px-3 py-2">Date Approved</th>
+              <th className="text-left px-3 py-2">Date Paid</th>
+              <th className="text-left px-3 py-2">Status</th>
+              <th className="px-3 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filtered.map((d) => (
               <tr key={d.id} className="group hover:bg-muted">
-                <td className="px-4 py-2 sticky left-0 z-10 bg-card group-hover:bg-muted">
+                <td className="px-3 py-2 sticky left-0 z-10 bg-card group-hover:bg-muted">
                   <button
                     type="button"
                     onClick={() => openEdit(d)}
@@ -248,13 +248,13 @@ export default function DrawsSection({
                     {d.draw_number}
                   </button>
                 </td>
-                <td className="px-4 py-2 text-muted-foreground">
+                <td className="px-3 py-2 text-muted-foreground">
                   {formatDate(d.period_start)} – {formatDate(d.period_end)}
                 </td>
-                <td className="px-4 py-2 text-right">{formatCurrency(d.amount_requested)}</td>
-                <td className="px-4 py-2 text-right">{formatCurrency(d.amount_approved)}</td>
+                <td className="px-3 py-2 text-right">{formatCurrency(d.amount_requested)}</td>
+                <td className="px-3 py-2 text-right">{formatCurrency(d.amount_approved)}</td>
                 <td
-                  className={`px-4 py-2 text-right ${shortPaymentGap(d) !== null ? "text-invoiced font-medium" : ""}`}
+                  className={`px-3 py-2 text-right ${shortPaymentGap(d) !== null ? "text-invoiced font-medium" : ""}`}
                   title={
                     shortPaymentGap(d) !== null
                       ? `Paid ${formatCurrency(Math.abs(shortPaymentGap(d)!))} ${
@@ -265,14 +265,15 @@ export default function DrawsSection({
                 >
                   {formatCurrency(d.amount_paid)}
                 </td>
-                <td className="px-4 py-2 text-right">{formatCurrency(d.retainage_held)}</td>
-                <td className="px-4 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
-                <td className="px-4 py-2 text-muted-foreground">{approvalLabel(d)}</td>
-                <td className="px-4 py-2 text-muted-foreground">{paidLabel(d)}</td>
-                <td className="px-4 py-2">
+                <td className="px-3 py-2 text-right">{formatCurrency(d.retainage_held)}</td>
+                <td className="px-3 py-2 text-muted-foreground">{formatDate(d.date_submitted)}</td>
+                <td className="px-3 py-2 text-muted-foreground">{approvalLabel(d)}</td>
+                <td className="px-3 py-2 text-muted-foreground">{paidLabel(d)}</td>
+                <td className="px-3 py-2">
                   <DrawStatusSelect drawId={d.id} projectId={projectId} status={d.status} />
                 </td>
-                <td className="px-4 py-2 text-right whitespace-nowrap">
+                <td className="px-3 py-2 text-right whitespace-nowrap">
+                  <div className="flex flex-col items-end gap-1">
                   {(d.status === "submitted" || d.status === "approved") && (
                     <MarkPaidButton
                       drawId={d.id}
@@ -281,12 +282,12 @@ export default function DrawsSection({
                       amountRequested={d.amount_requested}
                       amountPaid={d.amount_paid}
                       excludedAllocated={d.excluded_allocated}
-                      className="text-paid hover:opacity-70 text-xs font-medium mr-3 disabled:opacity-50"
+                      className="text-paid hover:opacity-70 text-xs font-medium disabled:opacity-50"
                     />
                   )}
                   <button
                     onClick={() => openEdit(d)}
-                    className="text-muted-foreground hover:text-foreground text-xs font-medium mr-3"
+                    className="text-muted-foreground hover:text-foreground text-xs font-medium"
                   >
                     Edit
                   </button>
@@ -297,12 +298,13 @@ export default function DrawsSection({
                   >
                     Delete
                   </button>
+                  </div>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground">
                   No draws found.
                 </td>
               </tr>

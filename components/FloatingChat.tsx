@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import {
@@ -12,6 +12,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { HtaAgentUIMessage } from "@/lib/agents/hta-agent";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { clampBox, largeBox, parseStoredBox, type ChatBox } from "@/lib/chatLayout";
 import {
   GROUP_SUMMARY_TOOLS,
   describeGroupSummary,
@@ -20,6 +21,8 @@ import {
   type UnsupportedView,
 } from "@/lib/chatResults";
 
+const BOX_KEY = "hta-chat-box";
+
 const WRITE_TOOLS = new Set(["createDraw", "updateDraw", "markDrawPaid", "createBudgetLine"]);
 
 export default function FloatingChat() {
@@ -27,6 +30,87 @@ export default function FloatingChat() {
   const [input, setInput] = useState("");
   const router = useRouter();
   const refreshedIds = useRef(new Set<string>());
+  // null = the default bottom-right placement; set once the user moves or
+  // resizes the window (kept in this browser, and always clamped on screen).
+  // Read once on the client; the panel is not rendered until opened, so this
+  // cannot change the server-rendered markup.
+  const [box, setBox] = useState<ChatBox | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const saved = parseStoredBox(window.localStorage.getItem(BOX_KEY));
+      return saved ? clampBox(saved, window.innerWidth, window.innerHeight) : null;
+    } catch {
+      return null;
+    }
+  });
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<
+    { mode: "move" | "resize"; startX: number; startY: number; origin: ChatBox } | null
+  >(null);
+
+  useEffect(() => {
+    function onResize() {
+      setBox((b) => (b ? clampBox(b, window.innerWidth, window.innerHeight) : b));
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const saveBox = useCallback((b: ChatBox | null) => {
+    try {
+      if (b) window.localStorage.setItem(BOX_KEY, JSON.stringify(b));
+      else window.localStorage.removeItem(BOX_KEY);
+    } catch {
+      /* not persisted: still works for this visit */
+    }
+  }, []);
+
+  function currentBox(): ChatBox {
+    const r = panelRef.current?.getBoundingClientRect();
+    return r
+      ? { x: r.left, y: r.top, w: r.width, h: r.height }
+      : { x: 0, y: 0, w: 384, h: 512 };
+  }
+
+  function startDrag(mode: "move" | "resize", e: React.PointerEvent) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { mode, startX: e.clientX, startY: e.clientY, origin: currentBox() };
+    setBox(dragRef.current.origin);
+  }
+
+  function onDragMove(e: React.PointerEvent) {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    const next =
+      d.mode === "move"
+        ? { ...d.origin, x: d.origin.x + dx, y: d.origin.y + dy }
+        : { ...d.origin, w: d.origin.w + dx, h: d.origin.h + dy };
+    setBox(clampBox(next, window.innerWidth, window.innerHeight));
+  }
+
+  function endDrag() {
+    if (!dragRef.current) return;
+    dragRef.current = null;
+    setBox((b) => {
+      saveBox(b);
+      return b;
+    });
+  }
+
+  function resetBox() {
+    setBox(null);
+    saveBox(null);
+  }
+
+  function toggleLarge() {
+    const next = box && box.w >= 800 ? null : largeBox(window.innerWidth, window.innerHeight);
+    setBox(next);
+    saveBox(next);
+  }
   const { messages, sendMessage, addToolApprovalResponse, status } = useChat<HtaAgentUIMessage>({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
@@ -73,16 +157,45 @@ export default function FloatingChat() {
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
       {open && (
-        <div className="mb-3 w-[22rem] sm:w-96 h-[32rem] max-h-[75vh] rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-primary text-background">
+        <div
+          ref={panelRef}
+          className={`rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden ${
+            box ? "fixed" : "relative mb-3 w-[22rem] sm:w-96 h-[32rem] max-h-[75vh]"
+          }`}
+          style={box ? { left: box.x, top: box.y, width: box.w, height: box.h } : undefined}
+        >
+          <div
+            className="flex items-center justify-between px-4 py-3 border-b border-border bg-primary text-background cursor-move select-none touch-none"
+            onPointerDown={(e) => {
+              if ((e.target as HTMLElement).closest("button")) return;
+              startDrag("move", e);
+            }}
+            onPointerMove={onDragMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onDoubleClick={(e) => {
+              if (!(e.target as HTMLElement).closest("button")) resetBox();
+            }}
+            title="Drag to move. Double-click to reset."
+          >
             <span className="text-sm font-semibold">Assistant</span>
-            <button
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-              className="text-background/70 hover:text-background text-lg leading-none"
-            >
-              ×
-            </button>
+            <span className="flex items-center gap-3">
+              <button
+                onClick={toggleLarge}
+                aria-label={box && box.w >= 800 ? "Make smaller" : "Make larger"}
+                title={box && box.w >= 800 ? "Back to normal size" : "Larger"}
+                className="text-background/70 hover:text-background text-sm leading-none"
+              >
+                {box && box.w >= 800 ? "⤡" : "⤢"}
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="text-background/70 hover:text-background text-lg leading-none"
+              >
+                ×
+              </button>
+            </span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -141,6 +254,20 @@ export default function FloatingChat() {
               Send
             </button>
           </form>
+          <div
+            role="separator"
+            aria-label="Resize assistant"
+            title="Drag to resize"
+            onPointerDown={(e) => startDrag("resize", e)}
+            onPointerMove={onDragMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize touch-none text-muted-foreground"
+          >
+            <svg viewBox="0 0 20 20" className="w-5 h-5" aria-hidden="true">
+              <path d="M18 8 8 18M18 13 13 18" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            </svg>
+          </div>
         </div>
       )}
 

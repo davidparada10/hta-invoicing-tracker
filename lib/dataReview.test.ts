@@ -40,6 +40,7 @@ describe("dataReviewItems", () => {
         draw({ id: "a", draw_number: 1, date_submitted: null }),
         draw({ id: "b", draw_number: 2, date_submitted: "2026-06-10", date_paid: "2026-06-01", period_end: "2026-06-10" }),
         draw({ id: "c", draw_number: 3, date_submitted: "2026-01-01", date_paid: "2026-09-01", period_end: "2026-01-01" }),
+        // Submitted well before its period ends is normal and not flagged.
         draw({ id: "d", draw_number: 4, date_submitted: "2026-03-31", period_end: "2026-05-15", date_paid: "2026-05-22" }),
         draw({ id: "e", draw_number: 5, status: "draft", date_submitted: null }),
         draw({ id: "f", draw_number: 6, date_submitted: null, deleted_at: "2026-01-01" }),
@@ -48,7 +49,6 @@ describe("dataReviewItems", () => {
     expect(items.map((i) => [i.kind, i.subject])).toEqual([
       ["missing_submitted", "Draw #1"],
       ["paid_before_submitted", "Draw #2"],
-      ["submitted_before_period", "Draw #4"],
       ["slow_payment", "Draw #3"],
     ]);
   });

@@ -1,5 +1,17 @@
 # Dev Log
 
+## 2026-10-22 — Draws table no longer clips its action column
+
+- On the project's Owner Draws table the Mark Paid / Edit / Delete buttons sat side by side and pushed the table wider than its box, so the scroll container clipped the right edge and Delete was hidden. The actions are now stacked in one narrow column and cell padding is tighter, so every column fits at the normal page width.
+
+## 2026-10-22 — Movable, resizable assistant window
+
+- The chat window can now be dragged by its title bar, resized from the bottom-right corner, expanded to a large reading size (wide result tables were being clipped in the small box), and reset by double-clicking the title bar. Position and size are remembered in this browser only and always clamped so the window stays on screen; touch works too. Clamping rules live in `lib/chatLayout.ts` with 6 tests.
+
+## 2026-10-22 — Data to review: stop flagging early submissions
+
+- Removed the "submitted well before its period ended" check: submitting ahead of the period end is normal for these draws, so it only listed correct dates (Valley and Broadway Draw 2, after their dates were confirmed). The other date checks (missing submitted date, paid before submitted, paid >120 days after submitting) are unchanged.
+
 ## 2026-10-22 — "No regular schedule" for projects
 
 - Data to review listed four active projects with no draw schedule that may simply not bill on a cycle. Draw cadence in Add/Edit Project now has "No regular schedule" (and "Not set yet" for the old blank), which stores the new `draw_schedule_waived` flag and keeps the cadence empty, so reminders behave exactly as before and the project stops being listed.
@@ -17,7 +29,7 @@
 
 ## 2026-10-19 (uncommitted; Data to review)
 
-- Added a collapsed "Data to review" list at the bottom of the dashboard, fed by read-only checks in `lib/dataReview.ts`: active project with no draw schedule, budget lines billed past scheduled value, and draw date oddities (no submitted date, paid before submitted, submitted >14 days before period end, paid >120 days after submitting). Nothing is edited automatically; help and workflow pages describe it, 4 new tests.
+- Added a collapsed "Data to review" list at the bottom of the dashboard, fed by read-only checks in `lib/dataReview.ts`: active project with no draw schedule, budget lines billed past scheduled value, and draw date oddities (no submitted date, paid before submitted, paid >120 days after submitting). Nothing is edited automatically; help and workflow pages describe it, 4 new tests.
 
 ## 2026-10-19 (uncommitted; assistant developer, lender, monthly and period questions)
 

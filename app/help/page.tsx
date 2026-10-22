@@ -257,7 +257,10 @@ export default function HelpPage() {
           status control, for those. A developer or lender answer shows a card with Invoiced, Paid,
           Outstanding and Retainage held (retainage is separate), a per-project table that tags closed
           projects, and the written answer above it. If the assistant ever finishes without writing an
-          answer, the chat states the result in a sentence instead of leaving it blank.
+          answer, the chat states the result in a sentence instead of leaving it blank. Drag the
+          assistant&rsquo;s title bar to move the window, drag its bottom-right corner to resize it, use the
+          &#10530; button for a large reading size, and double-click the title bar to put it back. It remembers
+          its place in this browser.
         </p>
 
         <h2 className="text-sm font-semibold text-foreground mb-1">Change orders in an uploaded draw</h2>
@@ -277,7 +280,7 @@ export default function HelpPage() {
           At the bottom of the dashboard, a collapsed &ldquo;Data to review&rdquo; list points out records
           that look incomplete or mistyped: active projects with no draw
           schedule, budget lines billed past their scheduled value, draws with no submitted date, paid
-          before submitted, submitted more than 14 days before the period ended, or paid more than 120
+          before submitted, or paid more than 120
           days after submitting. A project that deliberately has no regular draw schedule can be set to
           &ldquo;No regular schedule&rdquo; under Draw cadence in Edit Project; it then stops being listed (no
           draw-due reminders were shown for it either way). It is only a list; nothing changes until you fix the record yourself,

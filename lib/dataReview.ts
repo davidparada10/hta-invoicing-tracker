@@ -9,7 +9,6 @@ export type ReviewKind =
   | "over_budget_line"
   | "missing_submitted"
   | "paid_before_submitted"
-  | "submitted_before_period"
   | "slow_payment";
 
 export interface ReviewItem {
@@ -38,10 +37,6 @@ export const REVIEW_LABELS: Record<ReviewKind, { title: string; hint: string }> 
     title: "Paid before submitted",
     hint: "One of the two dates is probably a typo.",
   },
-  submitted_before_period: {
-    title: "Submitted well before its period ended",
-    hint: "The submitted date may be wrong (more than 14 days before period end).",
-  },
   slow_payment: {
     title: "Paid more than 120 days after submitting",
     hint: "Real, or a wrong date. Skews average days to pay.",
@@ -52,7 +47,6 @@ export const REVIEW_ORDER = Object.keys(REVIEW_LABELS) as ReviewKind[];
 
 const CENT = 0.005;
 const SLOW_PAYMENT_DAYS = 120;
-const EARLY_SUBMIT_DAYS = 14;
 
 const day = (iso: string) => Date.parse(`${iso.slice(0, 10)}T00:00:00Z`);
 const daysBetween = (from: string, to: string) => Math.round((day(to) - day(from)) / 86_400_000);
@@ -100,11 +94,6 @@ export function dataReviewItems(input: {
           item("slow_payment", p, label, `${wait} days from ${d.date_submitted} to ${d.date_paid}`)
         );
       }
-    }
-    if (d.period_end && daysBetween(d.date_submitted, d.period_end) > EARLY_SUBMIT_DAYS) {
-      items.push(
-        item("submitted_before_period", p, label, `Submitted ${d.date_submitted}, period ends ${d.period_end}`)
-      );
     }
   }
 
