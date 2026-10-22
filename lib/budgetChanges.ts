@@ -36,6 +36,30 @@ export interface ExistingBudgetLine {
   scheduled_value: number;
 }
 
+// Why a line's scheduled value differs, from the template's change-order
+// columns: money added to the contract, a deduct, or a contingency transfer
+// (moving budget between lines). "unknown" when the file has no such columns.
+export type ChangeSource = "added" | "deduct" | "contingency" | "mixed" | "unknown";
+
+export const CHANGE_SOURCE_LABEL: Record<ChangeSource, string> = {
+  added: "Change order (added money)",
+  deduct: "Deduct change order",
+  contingency: "Contingency transfer",
+  mixed: "Several change-order columns",
+  unknown: "Scheduled value differs",
+};
+
+export function changeSource(r: Partial<Pick<ScannedG703Row, "co_add" | "co_deduct" | "co_contingency">>): ChangeSource {
+  if (r.co_add === undefined && r.co_deduct === undefined && r.co_contingency === undefined) return "unknown";
+  const used = [
+    Math.abs(r.co_add ?? 0) > CENT ? "added" : null,
+    Math.abs(r.co_deduct ?? 0) > CENT ? "deduct" : null,
+    Math.abs(r.co_contingency ?? 0) > CENT ? "contingency" : null,
+  ].filter((x): x is "added" | "deduct" | "contingency" => x !== null);
+  if (used.length === 0) return "unknown";
+  return used.length === 1 ? used[0] : "mixed";
+}
+
 export interface BudgetLineChange {
   /** Stable key the review UI and the apply step use to refer to this change. */
   key: string;
@@ -44,6 +68,7 @@ export interface BudgetLineChange {
   description: string;
   current: number;
   proposed: number;
+  source: ChangeSource;
 }
 
 export interface BudgetLineAddition {
@@ -52,6 +77,7 @@ export interface BudgetLineAddition {
   category: string | null;
   description: string;
   scheduled_value: number;
+  source: ChangeSource;
 }
 
 export interface BudgetChanges {
@@ -108,6 +134,7 @@ export function diffBudgetFromG703(rows: ScannedG703Row[], lines: ExistingBudget
           description: line.description,
           current: line.scheduled_value,
           proposed: r.scheduled_value,
+          source: changeSource(r),
         });
       }
     } else if (r.scheduled_value > CENT) {
@@ -117,6 +144,7 @@ export function diffBudgetFromG703(rows: ScannedG703Row[], lines: ExistingBudget
         category: r.category,
         description: r.description,
         scheduled_value: r.scheduled_value,
+        source: changeSource(r),
       });
     }
   });

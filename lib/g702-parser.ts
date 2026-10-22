@@ -201,6 +201,12 @@ export interface ScannedG703Row {
   description: string;
   scheduled_value: number;
   amount_this_period: number | undefined;
+  // The template's change-order columns, when it has them: money added by a
+  // change order, a deduct, and a contingency transfer. They sum into the
+  // revised contract amount, so a difference there can be explained.
+  co_add: number | undefined;
+  co_deduct: number | undefined;
+  co_contingency: number | undefined;
 }
 
 const STOP_LABEL = /^SUBTOTAL|^TOTAL\b|^CO\s*RECAP|^CO#\d/i;
@@ -251,6 +257,16 @@ export function scanG703Rows(buffer: Buffer): ScannedG703Row[] {
     thisPeriodCol = headerCells.findIndex(isExactThisPeriod);
   }
 
+  const norm = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "");
+  const coCol = (re: RegExp) => headerCells.findIndex((v) => re.test(norm(v)));
+  const coAddCol = coCol(/^change order$/i);
+  const coDeductCol = coCol(/^deduct change order$/i);
+  const coContingencyCol = coCol(/^contingency change order$/i);
+  const coValue = (row: unknown[], col: number) => {
+    const n = col === -1 ? undefined : toNumber(row[col]);
+    return n !== undefined ? round2(n) : undefined;
+  };
+
   const rows: ScannedG703Row[] = [];
   let category: string | null = null;
 
@@ -278,6 +294,9 @@ export function scanG703Rows(buffer: Buffer): ScannedG703Row[] {
       description: descVal.trim(),
       scheduled_value: scheduled !== undefined ? round2(scheduled) : 0,
       amount_this_period: thisPeriod !== undefined ? round2(thisPeriod) : undefined,
+      co_add: coValue(row, coAddCol),
+      co_deduct: coValue(row, coDeductCol),
+      co_contingency: coValue(row, coContingencyCol),
     });
   }
 

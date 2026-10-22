@@ -9,7 +9,7 @@ import { formPaymentIntent, ownerPaidFromAmounts, paidTransition } from "@/lib/p
 import { groupLiveReceipts, type DrawPayment } from "@/lib/paymentHistory";
 import { ParsedG702Upload, parseG702Upload, upsertDraw } from "@/app/draws/actions";
 import { applyBudgetChangesFromDrawFile } from "@/app/budget/actions";
-import type { BudgetChanges } from "@/lib/budgetChanges";
+import { CHANGE_SOURCE_LABEL, type BudgetChanges } from "@/lib/budgetChanges";
 import { allocationExceedsTolerance, applyParsedAllocations, LineAmounts } from "@/lib/drawAllocations";
 import {
   canAutoApplyInferredRate,
@@ -688,7 +688,7 @@ export default function DrawFormModal({
                           {c.description}: {formatCurrency(c.current)} &rarr; {formatCurrency(c.proposed)}{" "}
                           <span className="text-muted-foreground">
                             ({c.proposed >= c.current ? "+" : "-"}
-                            {formatCurrency(Math.abs(c.proposed - c.current))})
+                            {formatCurrency(Math.abs(c.proposed - c.current))}, {CHANGE_SOURCE_LABEL[c.source].toLowerCase()})
                           </span>
                         </span>
                       </label>
@@ -705,12 +705,29 @@ export default function DrawFormModal({
                         />
                         <span>
                           New line: {a.item_number ? `${a.item_number} — ` : ""}
-                          {a.description} at {formatCurrency(a.scheduled_value)}
+                          {a.description} at {formatCurrency(a.scheduled_value)}{" "}
+                          <span className="text-muted-foreground">({CHANGE_SOURCE_LABEL[a.source].toLowerCase()})</span>
                         </span>
                       </label>
                     </li>
                   ))}
                 </ul>
+                <p className="text-muted-foreground">
+                  Net effect on contract value of the ticked changes:{" "}
+                  <span className="font-medium text-foreground">
+                    {(() => {
+                      const net =
+                        budgetReview.changes.changed
+                          .filter((c) => budgetReview.selected.has(c.key))
+                          .reduce((a, c) => a + c.proposed - c.current, 0) +
+                        budgetReview.changes.added
+                          .filter((l) => budgetReview.selected.has(l.key))
+                          .reduce((a, l) => a + l.scheduled_value, 0);
+                      if (Math.abs(net) < 0.005) return "none (only moves money between lines)";
+                      return `${net > 0 ? "+" : "-"}${formatCurrency(Math.abs(net))}`;
+                    })()}
+                  </span>
+                </p>
               </>
             )}
             {budgetReview.error && <p className="text-red-700 dark:text-red-400">{budgetReview.error}</p>}
