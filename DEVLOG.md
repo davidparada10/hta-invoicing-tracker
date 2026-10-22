@@ -1,5 +1,10 @@
 # Dev Log
 
+## 2026-10-22 — Chat shows developer and lender answers as a readable card
+
+- Asking "total paid by HVN" showed raw JSON: FloatingChat's ToolResult had no branch for getDeveloperSummary / getLenderSummary, so they hit the JSON.stringify fallback. They now render a card (Invoiced, Paid, Outstanding, Retainage held, drafts note, per-project table with closed projects tagged) built in `lib/chatResults.ts` from the tool's own figures; no calculation changed.
+- The JSON fallback is replaced for every unsupported result by a short notice with the raw data collapsed under Details, and a finished turn with no written text now states the result in a sentence (or says plainly that no answer came back). Prompt now tells the assistant to open with the exact figure asked for. Write-action approvals untouched. 7 new tests for developer, lender, single-project and unsupported shapes.
+
 ## 2026-10-22 (uncommitted; change orders from a draw upload)
 
 - Uploading a G702/G703 spreadsheet now compares its scheduled values with the project's budget and offers change orders for review: raised scheduled values and lines the budget doesn't have, each with a checkbox. Update budget applies only the ticked ones, then re-reads the file so new lines get their allocations. Previously those lines were just listed as unmatched and the budget silently fell behind (the over-budget lines flagged under Data to review).

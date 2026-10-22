@@ -254,7 +254,10 @@ export default function HelpPage() {
           week&rdquo;, &ldquo;since the 1st&rdquo;), aging, and retainage. It can record a payment or
           add a draw when you ask, after you approve it, but it can&rsquo;t void or correct a payment
           or change a project&rsquo;s status. Use Correct / Void in Edit Draw, or the project&rsquo;s
-          status control, for those.
+          status control, for those. A developer or lender answer shows a card with Invoiced, Paid,
+          Outstanding and Retainage held (retainage is separate), a per-project table that tags closed
+          projects, and the written answer above it. If the assistant ever finishes without writing an
+          answer, the chat states the result in a sentence instead of leaving it blank.
         </p>
 
         <h2 className="text-sm font-semibold text-foreground mb-1">Change orders in an uploaded draw</h2>

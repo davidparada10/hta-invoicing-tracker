@@ -12,6 +12,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { HtaAgentUIMessage } from "@/lib/agents/hta-agent";
 import { formatCurrency, formatDate } from "@/lib/format";
+import {
+  GROUP_SUMMARY_TOOLS,
+  describeGroupSummary,
+  fallbackAnswer,
+  type GroupSummaryView,
+  type UnsupportedView,
+} from "@/lib/chatResults";
 
 const WRITE_TOOLS = new Set(["createDraw", "updateDraw", "markDrawPaid", "createBudgetLine"]);
 
@@ -100,6 +107,10 @@ export default function FloatingChat() {
                   {message.parts.map((part, i) => (
                     <ChatPart key={i} part={part} addToolApprovalResponse={addToolApprovalResponse} />
                   ))}
+                  {message.role === "assistant" &&
+                    (message !== lastMessage || status === "ready" || status === "error") && (
+                      <MissingAnswer message={message} />
+                    )}
                 </div>
               </div>
             ))}
@@ -251,6 +262,42 @@ function ChatPart({
   return null;
 }
 
+// A finished assistant turn that ran lookups but wrote no text would otherwise
+// show only a table (or nothing). State the result in a sentence instead, and
+// say so plainly when there is nothing to state. Turns still waiting on an
+// approval or a lookup, and write actions (which show their own "Done"), are left alone.
+function MissingAnswer({ message }: { message: HtaAgentUIMessage }) {
+  const hasText = message.parts.some((p) => p.type === "text" && p.text.trim().length > 0);
+  if (hasText) return null;
+  const toolParts = message.parts.filter(isToolUIPart);
+  const waiting = toolParts.some(
+    (p) =>
+      p.state === "input-streaming" ||
+      p.state === "input-available" ||
+      p.state === "approval-requested" ||
+      p.state === "approval-responded"
+  );
+  if (waiting) return null;
+  const readParts = toolParts.filter((p) => !WRITE_TOOLS.has(p.type.slice(5)));
+  if (toolParts.length > 0 && readParts.length === 0) return null; // write actions report themselves
+  const results = readParts.flatMap((p) =>
+    p.state === "output-available" ? [{ toolName: p.type.slice(5), output: p.output }] : []
+  );
+  const hadError = readParts.some(
+    (p) =>
+      p.state === "output-error" ||
+      (p.state === "output-available" &&
+        typeof p.output === "object" &&
+        p.output !== null &&
+        "error" in (p.output as object))
+  );
+  return (
+    <p className="text-sm text-foreground mt-2" data-testid="missing-answer">
+      {fallbackAnswer(results, hadError)}
+    </p>
+  );
+}
+
 function describeProposal(toolName: string, input: unknown): string {
   const i = (input ?? {}) as Record<string, unknown>;
   switch (toolName) {
@@ -278,7 +325,96 @@ function describeProposal(toolName: string, input: unknown): string {
   }
 }
 
+function GroupSummaryCard({ view }: { view: GroupSummaryView }) {
+  const stats = view.stats;
+  return (
+    <div className="mt-1 space-y-2">
+      <p className="text-xs font-medium">
+        {view.groupType} {view.name}
+      </p>
+      <p className="text-[11px] text-muted-foreground">{view.scope}</p>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        {stats.map((s) => (
+          <div key={s.label} className="flex justify-between gap-2">
+            <dt className="text-muted-foreground">{s.label}</dt>
+            <dd
+              className={`tabular-nums font-medium ${
+                s.label === "Paid" ? "text-paid" : s.label === "Outstanding" ? "text-invoiced" : ""
+              }`}
+            >
+              {formatCurrency(s.value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <p className="text-[11px] text-muted-foreground">
+        Retainage is held separately and is not part of Outstanding.
+        {view.drafts > 0 ? ` Drafts not yet submitted: ${formatCurrency(view.drafts)} (not counted as invoiced).` : ""}
+      </p>
+      {view.projects.length > 0 && (
+        <div className="overflow-x-auto -mx-1">
+          <table className="text-xs w-full">
+            <thead className="text-muted-foreground">
+              <tr>
+                <th className="text-left px-1 py-1">Project</th>
+                <th className="text-right px-1 py-1">Invoiced</th>
+                <th className="text-right px-1 py-1">Paid</th>
+                <th className="text-right px-1 py-1">Outstanding</th>
+                <th className="text-right px-1 py-1">Retainage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.projects.map((p, i) => (
+                <tr key={i} className="border-t border-border">
+                  <td className="px-1 py-1">
+                    {p.project}
+                    {p.closed && <span className="text-muted-foreground"> (closed)</span>}
+                  </td>
+                  <td className="px-1 py-1 text-right tabular-nums">{formatCurrency(p.invoiced)}</td>
+                  <td className="px-1 py-1 text-right tabular-nums text-paid">{formatCurrency(p.paid)}</td>
+                  <td className="px-1 py-1 text-right tabular-nums text-invoiced">{formatCurrency(p.outstanding)}</td>
+                  <td className="px-1 py-1 text-right tabular-nums">{formatCurrency(p.retainage)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {(view.unpaidDrawCount > 0 || view.smallBalanceCount > 0) && (
+        <p className="text-[11px] text-muted-foreground">
+          {view.unpaidDrawCount} unpaid draw{view.unpaidDrawCount === 1 ? "" : "s"}
+          {view.smallBalanceCount > 0
+            ? `, plus ${view.smallBalanceCount} small balance${view.smallBalanceCount === 1 ? "" : "s"} under $1,000 not listed as open draws`
+            : ""}
+          .
+        </p>
+      )}
+    </div>
+  );
+}
+
+function UnsupportedResult({ view, output }: { view: UnsupportedView; output: unknown }) {
+  return (
+    <div className="mt-1 text-xs text-muted-foreground">
+      <p>{view.message}</p>
+      <details className="mt-1">
+        <summary className="cursor-pointer">Details</summary>
+        <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(output, null, 2)}</pre>
+      </details>
+    </div>
+  );
+}
+
 function ToolResult({ toolName, output }: { toolName: string; output: Record<string, unknown> }) {
+  if (GROUP_SUMMARY_TOOLS.has(toolName)) {
+    const view = describeGroupSummary(toolName, output);
+    return view.kind === "group" ? (
+      <GroupSummaryCard view={view} />
+    ) : (
+      <UnsupportedResult view={view} output={output} />
+    );
+  }
+
   if (toolName === "listProjects" && Array.isArray(output.projects)) {
     const projects = output.projects as Array<Record<string, unknown>>;
     return (
@@ -487,5 +623,14 @@ function ToolResult({ toolName, output }: { toolName: string; output: Record<str
     );
   }
 
-  return <pre className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">{JSON.stringify(output, null, 2)}</pre>;
+  return (
+    <UnsupportedResult
+      view={{
+        kind: "unsupported",
+        toolName,
+        message: "I looked this up. The result isn't shown as a table here, so rely on the written answer.",
+      }}
+      output={output}
+    />
+  );
 }

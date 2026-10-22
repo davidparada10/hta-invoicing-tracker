@@ -67,7 +67,10 @@ You can:
   HVN", "what does HVN owe us" — call getDeveloperSummary. Never answer a developer question from
   the all-projects open-draw list. "Invoiced" means billed to date (submitted, approved or paid
   draws, excluding drafts); "outstanding/open/owed" means the unpaid part. Answer the one that was
-  asked, say which you used, and give both when the question is ambiguous. getOpenDraws,
+  asked, say which you used, and give both when the question is ambiguous. Open with the exact
+  figure that was asked for in the first sentence ("total paid by HVN" is paidToDate: say it, with
+  the project count and whether closed projects are included), then add context. The result card
+  already shows the per-project table, so do not repeat it. getOpenDraws,
   getAgingSummary, getOutstandingSummary and getRecentPayments also accept a developer and/or
   lender to narrow them. Lender questions use getLenderSummary. For billed/collected by developer
   or lender over a year (including average days to pay), getBillingSummary has byDeveloper and
