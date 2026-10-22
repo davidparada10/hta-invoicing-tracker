@@ -278,7 +278,9 @@ export default function HelpPage() {
           that look incomplete or mistyped: active projects with no draw
           schedule, budget lines billed past their scheduled value, draws with no submitted date, paid
           before submitted, submitted more than 14 days before the period ended, or paid more than 120
-          days after submitting. It is only a list; nothing changes until you fix the record yourself,
+          days after submitting. A project that deliberately has no regular draw schedule can be set to
+          &ldquo;No regular schedule&rdquo; under Draw cadence in Edit Project; it then stops being listed (no
+          draw-due reminders were shown for it either way). It is only a list; nothing changes until you fix the record yourself,
           and an item disappears once the underlying data is corrected.
         </p>
 

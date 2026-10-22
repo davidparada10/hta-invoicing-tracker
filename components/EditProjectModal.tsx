@@ -20,7 +20,7 @@ const WEEKDAYS = [
 
 export default function EditProjectModal({ project }: { project: Project }) {
   const [open, setOpen] = useState(false);
-  const [dueType, setDueType] = useState(project.draw_due_type ?? "");
+  const [dueType, setDueType] = useState(project.draw_schedule_waived ? "none" : project.draw_due_type ?? "");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(formData: FormData) {
@@ -84,7 +84,8 @@ export default function EditProjectModal({ project }: { project: Project }) {
                 onChange={(e) => setDueType(e.target.value)}
                 className="input"
               >
-                <option value="">No fixed cadence</option>
+                <option value="">Not set yet</option>
+                <option value="none">No regular schedule</option>
                 <option value="day_of_month">Day of month</option>
                 <option value="last_weekday">Last weekday of month</option>
               </select>

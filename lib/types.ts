@@ -21,6 +21,11 @@ export interface Project {
   // JS Date.getDay() convention: 0=Sunday..6=Saturday (e.g. 4=Thursday).
   draw_due_type: DrawDueType | null;
   draw_due_day: number | null;
+  // True when the project deliberately has no regular draw schedule (so the
+  // dashboard's Data to review doesn't flag it). Optional: the column comes
+  // from supabase/migrations/20261022100000_add_draw_schedule_waived.sql and is
+  // absent until that is applied.
+  draw_schedule_waived?: boolean;
   // One-off: silences the overdue/urgent reminder for just this single
   // calendar month (stored as that month's first day, e.g. "2026-10-01"),
   // not a recurring pause — see lib/drawSchedule.ts's isSkippedCycle.

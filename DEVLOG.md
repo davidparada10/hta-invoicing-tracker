@@ -1,5 +1,10 @@
 # Dev Log
 
+## 2026-10-22 — "No regular schedule" for projects
+
+- Data to review listed four active projects with no draw schedule that may simply not bill on a cycle. Draw cadence in Add/Edit Project now has "No regular schedule" (and "Not set yet" for the old blank), which stores the new `draw_schedule_waived` flag and keeps the cadence empty, so reminders behave exactly as before and the project stops being listed.
+- The flag needs a one-line migration (`20261022100000_add_draw_schedule_waived.sql`), written but **not applied**. The column is only written when the choice is made or cleared, so every other project save works without it; picking "No regular schedule" before it exists shows a clear message instead of failing silently. 6 new tests.
+
 ## 2026-10-22 — Chat shows developer and lender answers as a readable card
 
 - Asking "total paid by HVN" showed raw JSON: FloatingChat's ToolResult had no branch for getDeveloperSummary / getLenderSummary, so they hit the JSON.stringify fallback. They now render a card (Invoiced, Paid, Outstanding, Retainage held, drafts note, per-project table with closed projects tagged) built in `lib/chatResults.ts` from the tool's own figures; no calculation changed.

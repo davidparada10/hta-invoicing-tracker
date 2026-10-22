@@ -113,7 +113,8 @@ export default function AddProjectModal() {
                 onChange={(e) => setDueType(e.target.value)}
                 className="input"
               >
-                <option value="">No fixed cadence</option>
+                <option value="">Not set yet</option>
+                <option value="none">No regular schedule</option>
                 <option value="day_of_month">Day of month</option>
                 <option value="last_weekday">Last weekday of month</option>
               </select>

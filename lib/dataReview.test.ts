@@ -30,6 +30,10 @@ describe("dataReviewItems", () => {
     }).map((i) => i.kind);
     expect(kinds).toEqual(["missing_cadence"]);
   });
+  it("does not flag a project deliberately set to no regular schedule", () => {
+    expect(run({ projects: [project({ draw_due_type: null, draw_schedule_waived: true })] })).toEqual([]);
+    expect(run({ projects: [project({ draw_due_type: null, draw_schedule_waived: false })] })).toHaveLength(1);
+  });
   it("flags date problems on non-draft live draws only", () => {
     const items = run({
       draws: [

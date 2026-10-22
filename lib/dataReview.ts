@@ -24,7 +24,7 @@ export interface ReviewItem {
 export const REVIEW_LABELS: Record<ReviewKind, { title: string; hint: string }> = {
   missing_cadence: {
     title: "Active projects with no draw schedule",
-    hint: "No draw-due reminders are shown for these.",
+    hint: "No draw-due reminders are shown for these. Set a cadence, or choose \"No regular schedule\" in Edit Project if that is intentional.",
   },
   over_budget_line: {
     title: "Budget lines billed past their scheduled value",
@@ -75,7 +75,7 @@ export function dataReviewItems(input: {
   ): ReviewItem => ({ kind, projectId: project.id, projectName: project.name, subject, detail });
 
   for (const p of projects) {
-    if (p.status === "active" && !p.draw_due_type) {
+    if (p.status === "active" && !p.draw_due_type && !p.draw_schedule_waived) {
       items.push(item("missing_cadence", p, "Draw schedule", "Not set"));
     }
   }

@@ -49,12 +49,20 @@ function requireName(value: FormDataEntryValue | null): string {
 // constrain draw_due_day via <select>/min/max, but that's client-side only —
 // validate again here rather than trusting it, since a bad value doesn't
 // error downstream, it silently resolves to a nonsense due date.
+// "none" is the form's "No regular schedule" choice: no cadence is tracked (the
+// same stored null as before) and the project is marked as deliberately
+// unscheduled, which only the Data to review list reads.
+export const NO_SCHEDULE_CHOICE = "none";
+
 function resolveDrawDueFields(formData: FormData): {
   draw_due_type: DrawDueType | null;
   draw_due_day: number | null;
+  waived: boolean;
 } {
-  const drawDueType = toNullableString(formData.get("draw_due_type")) as DrawDueType | null;
-  if (!drawDueType) return { draw_due_type: null, draw_due_day: null };
+  const choice = toNullableString(formData.get("draw_due_type"));
+  if (!choice) return { draw_due_type: null, draw_due_day: null, waived: false };
+  if (choice === NO_SCHEDULE_CHOICE) return { draw_due_type: null, draw_due_day: null, waived: true };
+  const drawDueType = choice as DrawDueType;
 
   const day = toNullableInt(formData.get("draw_due_day"));
   if (day === null || !isValidDrawDueDay(drawDueType, day)) {
@@ -64,12 +72,25 @@ function resolveDrawDueFields(formData: FormData): {
         : "Weekday must be a valid day (Sunday-Saturday)."
     );
   }
-  return { draw_due_type: drawDueType, draw_due_day: day };
+  return { draw_due_type: drawDueType, draw_due_day: day, waived: false };
+}
+
+// Postgres reports a column that doesn't exist yet in these terms. Saving any
+// other choice never touches that column, so only picking "No regular
+// schedule" can hit it before the migration is applied.
+function waivedColumnError(error: { message?: string } | null): Error | null {
+  if (!error) return null;
+  return /draw_schedule_waived/.test(error.message ?? "")
+    ? new Error(
+        "\"No regular schedule\" needs a one-time database update that hasn't been applied yet. Ask for it to be applied, or pick another cadence."
+      )
+    : (error as unknown as Error);
 }
 
 export async function createProject(formData: FormData): Promise<{ id: string }> {
   const supabase = createServerSupabaseClient();
 
+  const { waived, ...drawDue } = resolveDrawDueFields(formData);
   const payload = {
     name: requireName(formData.get("name")),
     // No longer collected in the UI — the column is still unique/required
@@ -79,7 +100,9 @@ export async function createProject(formData: FormData): Promise<{ id: string }>
     lender: toNullableString(formData.get("lender")),
     developer: toNullableString(formData.get("developer")),
     status: resolveStatus((formData.get("status") as string) || "active"),
-    ...resolveDrawDueFields(formData),
+    ...drawDue,
+    // Written only when true, so every other save works before the migration.
+    ...(waived ? { draw_schedule_waived: true } : {}),
   };
 
   const { data, error } = await supabase
@@ -87,7 +110,7 @@ export async function createProject(formData: FormData): Promise<{ id: string }>
     .insert(payload)
     .select("id")
     .single();
-  if (error) throw error;
+  if (error) throw waivedColumnError(error);
 
   revalidatePath("/");
   return { id: data.id as string };
@@ -97,6 +120,15 @@ export async function updateProject(formData: FormData) {
   const supabase = createServerSupabaseClient();
   const id = formData.get("id") as string;
 
+  const { waived, ...drawDue } = resolveDrawDueFields(formData);
+  // Clearing the flag is written only when it is currently set, so saving an
+  // ordinary project never touches a column that may not exist yet.
+  const { data: current } = await supabase
+    .from("inv_projects")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  const clearWaived = !waived && current?.draw_schedule_waived === true;
   const payload = {
     name: requireName(formData.get("name")),
     address: toNullableString(formData.get("address")),
@@ -104,11 +136,12 @@ export async function updateProject(formData: FormData) {
     developer: toNullableString(formData.get("developer")),
     draw_skip_month: toNullableMonth(formData.get("draw_skip_month")),
     status: resolveStatus(formData.get("status") as string | null),
-    ...resolveDrawDueFields(formData),
+    ...drawDue,
+    ...(waived ? { draw_schedule_waived: true } : clearWaived ? { draw_schedule_waived: false } : {}),
   };
 
   const { error } = await supabase.from("inv_projects").update(payload).eq("id", id);
-  if (error) throw error;
+  if (error) throw waivedColumnError(error);
 
   revalidatePath(`/projects/${id}`);
   revalidatePath("/");
