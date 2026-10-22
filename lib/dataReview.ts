@@ -5,7 +5,6 @@
 import type { BudgetLine, DrawLineAllocation, OwnerDraw, Project } from "@/lib/types";
 
 export type ReviewKind =
-  | "missing_lender"
   | "missing_cadence"
   | "over_budget_line"
   | "missing_submitted"
@@ -23,10 +22,6 @@ export interface ReviewItem {
 }
 
 export const REVIEW_LABELS: Record<ReviewKind, { title: string; hint: string }> = {
-  missing_lender: {
-    title: "Projects with no lender",
-    hint: "Lender totals and the assistant's lender questions skip these.",
-  },
   missing_cadence: {
     title: "Active projects with no draw schedule",
     hint: "No draw-due reminders are shown for these.",
@@ -80,7 +75,6 @@ export function dataReviewItems(input: {
   ): ReviewItem => ({ kind, projectId: project.id, projectName: project.name, subject, detail });
 
   for (const p of projects) {
-    if (!p.lender?.trim()) items.push(item("missing_lender", p, "Lender", "Not filled in"));
     if (p.status === "active" && !p.draw_due_type) {
       items.push(item("missing_cadence", p, "Draw schedule", "Not set"));
     }

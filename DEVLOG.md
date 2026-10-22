@@ -7,7 +7,7 @@
 
 ## 2026-10-19 (uncommitted; Data to review)
 
-- Added a collapsed "Data to review" list at the bottom of the dashboard, fed by read-only checks in `lib/dataReview.ts`: no lender, active project with no draw schedule, budget lines billed past scheduled value, and draw date oddities (no submitted date, paid before submitted, submitted >14 days before period end, paid >120 days after submitting). Found by auditing production data, where every project lacked a lender. Nothing is edited automatically; help and workflow pages describe it, 4 new tests.
+- Added a collapsed "Data to review" list at the bottom of the dashboard, fed by read-only checks in `lib/dataReview.ts`: active project with no draw schedule, budget lines billed past scheduled value, and draw date oddities (no submitted date, paid before submitted, submitted >14 days before period end, paid >120 days after submitting). Nothing is edited automatically; help and workflow pages describe it, 4 new tests.
 
 ## 2026-10-19 (uncommitted; assistant developer, lender, monthly and period questions)
 

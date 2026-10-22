@@ -123,6 +123,16 @@ export function parseG702FromXlsx(buffer: Buffer): ParsedG702Draw {
     if (n !== undefined) result.amount_requested = round2(n);
   }
 
+  // A final application releases retainage: "Current payment due" is only the
+  // net of this period's work, and the real amount the owner owes is the
+  // "Total current amount due" below the release line. Use it when present.
+  const totalDueCell = findLabelCell(grid, /TOTAL\s+CURRENT\s+AMOUNT\s+DUE/i);
+  if (totalDueCell) {
+    const v = findValueNear(grid, totalDueCell, (x) => typeof x === "number");
+    const n = toNumber(v);
+    if (n !== undefined && n > (result.amount_requested ?? 0)) result.amount_requested = round2(n);
+  }
+
   const retainageCell = findLabelCell(grid, /Total Retainage/i);
   if (retainageCell) {
     const v = findValueNear(grid, retainageCell, (x) => typeof x === "number", 2);

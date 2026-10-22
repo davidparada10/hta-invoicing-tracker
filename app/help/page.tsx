@@ -272,7 +272,7 @@ export default function HelpPage() {
         <h2 className="text-sm font-semibold text-foreground mb-1">Data to review</h2>
         <p className="text-xs text-muted-foreground mb-8 max-w-2xl">
           At the bottom of the dashboard, a collapsed &ldquo;Data to review&rdquo; list points out records
-          that look incomplete or mistyped: projects with no lender, active projects with no draw
+          that look incomplete or mistyped: active projects with no draw
           schedule, budget lines billed past their scheduled value, draws with no submitted date, paid
           before submitted, submitted more than 14 days before the period ended, or paid more than 120
           days after submitting. It is only a list; nothing changes until you fix the record yourself,

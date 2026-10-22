@@ -24,11 +24,11 @@ describe("dataReviewItems", () => {
   it("is empty for clean data", () => {
     expect(run({ draws: [draw()] })).toEqual([]);
   });
-  it("flags missing lender and (active only) missing cadence", () => {
+  it("flags a missing draw schedule on active projects only (a blank lender is not flagged)", () => {
     const kinds = run({
-      projects: [project({ lender: " ", draw_due_type: null }), project({ id: "p2", status: "closed", lender: "x", draw_due_type: null })],
+      projects: [project({ lender: null, draw_due_type: null }), project({ id: "p2", status: "closed", draw_due_type: null })],
     }).map((i) => i.kind);
-    expect(kinds).toEqual(["missing_lender", "missing_cadence"]);
+    expect(kinds).toEqual(["missing_cadence"]);
   });
   it("flags date problems on non-draft live draws only", () => {
     const items = run({
