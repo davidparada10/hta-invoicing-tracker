@@ -52,7 +52,7 @@ function requireName(value: FormDataEntryValue | null): string {
 // "none" is the form's "No regular schedule" choice: no cadence is tracked (the
 // same stored null as before) and the project is marked as deliberately
 // unscheduled, which only the Data to review list reads.
-export const NO_SCHEDULE_CHOICE = "none";
+const NO_SCHEDULE_CHOICE = "none";
 
 function resolveDrawDueFields(formData: FormData): {
   draw_due_type: DrawDueType | null;
