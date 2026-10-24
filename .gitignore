@@ -37,3 +37,6 @@ next-env.d.ts
 
 # serena (local MCP tooling state)
 .serena
+
+# Local Codex tool config
+.codex/
